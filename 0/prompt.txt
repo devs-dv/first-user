@@ -1,0 +1,17 @@
+My NEATLOGS_API_KEY is already in worker/.env. Do not print it or ask me to paste it. The only service that calls a model is worker/.
+
+
+
+<pasted_content id="c7d7">
+Set up this project for neatHack.
+
+1. Fetch https://neatlogs.com/hackathon/skill and save it as a project-local skill at .claude/skills/neathack/SKILL.md.
+
+2. Create hackathon.md at the repo root with these sections: Project, Team, Stack, Build log, Demo, Known limitations and next steps, Submission. Mark unknown facts as pending. Project name: First User. Purpose: an AI agent that uses a founder's web app like a first-time customer and reports where it got stuck. Team: test (Divyanshu Verma, solo).
+
+3. Add neatlogs tracing to worker/ only, following https://docs.neatlogs.com/sdk/python exactly: install the SDK, call neatlogs.init() once with workflow_name "first-visit-test" reading NEATLOGS_API_KEY from the environment, wrap the Anthropic client with neatlogs.wrap(), and call neatlogs.flush() and neatlogs.shutdown() at the end of hello.py. Add only tracing.
+
+4. My NEATLOGS_API_KEY is already in worker/.env. Do not print, ask for, or commit any key. Do not use the neatlogs wizard. Do not deploy or submit anything.
+
+5. Append a dated entry with the setup result to the Build log section of hackathon.md.
+</pasted_content id="c7d7">
