@@ -15,7 +15,7 @@
 
 - `worker/` — Python 3.11 worker; the only service that calls a model.
   - Anthropic Python SDK (`anthropic` 1.13.0). Brain model: `claude-sonnet-5-5` by default, `claude-haiku-5-5` with `BRAIN_MODEL=haiku`. `hello.py` uses `claude-opus-5-5`.
-  - Stagehand Python SDK (`stagehand` 4.2.0) driving a local Chrome window, with `anthropic/claude-haiku-4-5` as its lookup model. That is the newest Haiku Stagehand 4.2.0 accepts.
+  - Stagehand Python SDK (`stagehand` 4.2.0) driving a local Chrome window. Its lookups go through our callback (`lookup_model.py`) to `claude-haiku-5-5` on the neatlogs-wrapped client. `LOOKUP_VIA=model_name` switches back to `anthropic/claude-haiku-4-5` called by Stagehand itself; that is the newest Haiku Stagehand 4.2.0 accepts by name.
   - neatlogs Python SDK (`neatlogs[anthropic]` 1.4.26), workflow `first-visit-test`
   - `pydantic` 2.14.0 for Stagehand extract schemas; `python-dotenv` for loading `worker/.env`
   - `supabase` 2.32.0 (Python) for the job queue: `main.py` claims queued runs, `enqueue.py` adds one from the command line.
@@ -187,6 +187,50 @@ Failure found and fixed during the session:
 Not yet verified:
 - Whether the `egress_check` and `devtools_check` spans nest under the run in the neatlogs dashboard. The guard copies the run's context when it starts so they should.
 
+### 2026-10-10 — Stagehand lookups traced through our own client
+
+Completed:
+- `worker/lookup_model.py`: a bring-your-own-LLM `generate` callback, written to the contract in the Stagehand docs ([Custom models](https://docs.stagehand.dev/v4/configuration/models.md), Python tab). Stagehand calls it for every act, observe and extract inference. It calls `claude-haiku-5-5` through a `neatlogs.wrap(AsyncAnthropic())` client, so every lookup is now a real neatlogs LLM span with tokens and prompt.
+  - Text and image content blocks are mapped to Anthropic blocks.
+  - The answer is reliable JSON: the requested schema becomes the input schema of one tool, and `tool_choice` forces that tool. A schema whose root is not an object is wrapped and unwrapped.
+  - Stagehand's system prompt is cached (`cache_control`). Stagehand's temperature is dropped, because Claude Haiku 5.5 rejects non-default sampling parameters.
+  - Token usage goes back to Stagehand in the result's `usage` field. Cached tokens are counted inside input tokens, as Stagehand expects.
+- `LOOKUP_VIA` in `config.py` picks the path: `callback` (default) or `model_name`, the old path where Stagehand calls `anthropic/claude-haiku-4-5` itself.
+- Nesting: Stagehand runs the callback in a task started by its RPC reader, so it does not inherit the calling tool's context. `look` and do rungs (a) and (b) are marked `@lookups_nest_here`; the callback runs in a copy of the calling function's context, so each LLM span sits under the tool span that caused it.
+- `costs.py`: each model call is now counted once. Lookup cost comes from our own callback responses; Stagehand's `metrics()` is kept only to cross-check it. On the old path, cost comes from `metrics()` as before. The `stagehand.*` token and cost attributes on tool spans are gone, because the LLM spans now carry those numbers.
+- `worker/check_costs.py`: runs one visit and compares three sources: our accounting, Stagehand's `metrics()`, and the LLM spans, collected locally from the same tracer provider that exports to neatlogs (passed to `neatlogs.init(tracer_provider=...)`).
+
+Tests that ran:
+- `measure_clicks.py --mode ladder --attempts 5`: 5/5 end-to-end, 20/20 steps changed the page, 0 reported success with no change. That is the same rung pattern as before: "Add to cart" worked on rung (c) every time. 72,335 lookup tokens for $0.0063, compared with 53,139 tokens on Haiku 4.5. Claude Haiku 5.5 counts the same text as about 30% more tokens, but costs a tenth as much per token. Our token count equals Stagehand's `metrics()` exactly.
+- `check_costs.py` on saucedemo (Haiku brain, run `check-20261010-220653`): `achieved` in 9 steps, $0.00468 in total (brain $0.0014, lookups $0.00328). The earlier Haiku-brain run on the old path cost $0.0292. All 8 checks passed:
+  - lookup calls (11) and tokens are equal in our accounting and in the spans;
+  - our lookup input, output and cache reads equal Stagehand's prompt, completion and cached tokens;
+  - brain tokens are equal in our accounting and in the spans;
+  - the cost computed from the spans equals the run total;
+  - every lookup span's parent is a tool span: 6 under `look`, 4 under `do.rung_a_act` and 1 under `do.rung_b_observe_act`.
+- `LOOKUP_VIA=model_name`, 1 attempt: 4/4 steps changed the page, $0.0115. The old path still works.
+- `python -m unittest test_egress`: 6 tests pass.
+
+Evidence: `evidence/2026-10-10-traced-lookups/` holds the measurement and the cost check JSON.
+
+Not yet verified:
+- How the nested lookup spans look in the neatlogs dashboard.
+
+### 2026-10-10 — Egress guard shuts down cleanly
+
+Completed:
+- `EgressGuard` now keeps track of each open connection's task. `close()` stops accepting connections, cancels the open ones and waits for them to finish. Before this, a run could end with "Task was destroyed but it is pending!" for `EgressGuard._handle`.
+
+Tests that ran:
+- The new test `test_close_cancels_open_connections` checks that closing the guard with an idle connection open finishes within 2 seconds and leaves no handler task running.
+- `python -m unittest test_egress`: 7 tests (the 6 earlier ones plus the new one), run 4 times, with no pending-task warnings.
+  - Runs 2–4: all tests passed.
+  - Run 1: the real-browser redirect test errored with a Windows `PermissionError`. Chrome's temporary profile folder could not be deleted inside `browser.close()`, which runs before the guard closes. That test passed on its own right after, and in runs 2–4.
+- `measure_clicks.py --mode ladder --attempts 5`: 5/5 end-to-end, 20/20 steps changed the page, no pending-task warnings.
+
+Not yet fixed:
+- The occasional `PermissionError` when Stagehand deletes Chrome's temporary profile on Windows.
+
 ## Demo
 
 - URL: pending
@@ -195,7 +239,7 @@ Not yet verified:
 ## Known limitations and next steps
 
 - The agent has been tested on one demo site (saucedemo) with one easy goal. Both brains found no friction there, so the friction report is untested on a site that has real problems.
-- Stagehand lookups are about 94% of a Haiku-brain run's cost: Stagehand 4.2.0 does not accept Claude Haiku 5.5, so lookups run on Haiku 4.5.
+- Stagehand lookups are still about 70% of a Haiku-brain run's cost ($0.0033 of $0.0047), down from about 94% on Haiku 4.5.
 - With Sonnet at low effort, the `thought` field is often a fragment ("Open the cart.") rather than the first-person sentence the prompt asks for. Haiku followed the instruction.
 - Nothing has run against a real Supabase project yet, including the schema and the web-to-worker flow.
 - The rate limit trusts `X-Forwarded-For`. That is only safe behind a proxy that sets it, such as Vercel.
@@ -205,9 +249,8 @@ Not yet verified:
 - Next steps (planned, not started):
   1. Confirm the `first-visit-test` traces and span attributes in the neatlogs dashboard, and run `doctor --probe`.
   2. Run the agent on a site with real friction to test the friction report and the agent-issue path.
-  3. Try routing Stagehand's lookups through a cheaper model (Stagehand accepts an LLM callback in place of a model name).
-  4. Sign up at cfo.ai/neathacks and draft the business plan (pricing, costs, revenue, runway). Per-run cost numbers are now available from the result JSON.
-  5. Share progress publicly with #neatHack and keep the links here.
+  3. Sign up at cfo.ai/neathacks and draft the business plan (pricing, costs, revenue, runway). Per-run cost numbers are now available from the result JSON.
+  4. Share progress publicly with #neatHack and keep the links here.
 
 ## Submission
 
@@ -220,10 +263,10 @@ Confirmed from https://neatlogs.com/hackathon (read 2026-10-10):
 - **Evidence judges expect:** a before-and-after pair of traces with the compared numbers, neatlogs trace links or screenshots, Entire checkpoints or entire-graph output, a cfo.ai business plan, a run showing recovery from a failed action, #neatHack public posts, and a public repo with commits dated during the hackathon.
 
 Status of each item:
-- neatlogs: every agent run is traced (`WORKFLOW` → `AGENT` → LLM, TOOL and `GUARDRAIL` spans). Dashboard not yet confirmed. Before-and-after numbers for the click fix are in the build log; matching trace links are pending.
-- Entire: checkpoints on `ab7458b`, `ac3b598`, `51e480b` and `6a08b29`. The web app and egress guard are uncommitted.
+- neatlogs: every agent run is traced (`WORKFLOW` → `AGENT` → LLM, TOOL and `GUARDRAIL` spans), and Stagehand's lookups are LLM spans under the tool that caused them. Dashboard not yet confirmed. Before-and-after numbers for the click fix are in the build log; matching trace links are pending.
+- Entire: checkpoints on `ab7458b`, `ac3b598`, `51e480b`, `6a08b29` and `29543ae` (web app, egress guard and report fixes). The traced-lookup change is uncommitted.
 - cfo.ai: pending (not signed up).
-- Business plan: pending. Measured cost per saucedemo run is about $0.017–0.029 (Haiku brain) and $0.034 (Sonnet brain).
+- Business plan: pending. Measured cost per saucedemo run is $0.0047 with the Haiku brain and traced Haiku 5.5 lookups; it was $0.017–0.029 with Haiku 4.5 lookups. The Sonnet brain ($0.034 on the old path) has not been re-measured.
 - Failure-recovery run: the recovery ladder recovered "Add to cart" in 5 of 5 measurement attempts. A full agent run that shows recovery is still pending.
 - Building in public: pending (no posts recorded).
 - Public repo: `origin` exists; visibility unconfirmed.

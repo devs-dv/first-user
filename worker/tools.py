@@ -13,7 +13,8 @@ from opentelemetry import trace as otel_trace
 from pydantic import BaseModel, Field
 
 from config import ACT_TIMEOUT_MS
-from costs import RunUsage, stagehand_cost
+from costs import RunUsage
+from lookup_model import lookups_nest_here
 
 RUNS_DIR = Path(__file__).parent / "runs"
 MAX_INTERACTIVE = 15
@@ -102,25 +103,19 @@ async def _changed_since(before: str) -> bool:
 
 
 def metered(function):
-    """Record the Stagehand tokens a tool used as attributes on its (enclosing) neatlogs span."""
+    """Refresh the run's snapshot of Stagehand's metrics() after a tool runs.
+
+    Lookup calls are traced as LLM spans by lookup_model.py, so token counts are not
+    copied onto tool spans as custom attributes.
+    """
 
     @functools.wraps(function)
     async def wrapper(*args, **kwargs):
         ctx = current_run.get()
-        before = await ctx.stagehand.metrics()
         try:
             return await function(*args, **kwargs)
         finally:
-            after = await ctx.stagehand.metrics()
-            ctx.usage.set_stagehand(after)
-            prompt = int(after.total_prompt_tokens - before.total_prompt_tokens)
-            completion = int(after.total_completion_tokens - before.total_completion_tokens)
-            cached = int(after.total_cached_input_tokens - before.total_cached_input_tokens)
-            span = otel_trace.get_current_span()
-            span.set_attribute("stagehand.prompt_tokens", prompt)
-            span.set_attribute("stagehand.completion_tokens", completion)
-            span.set_attribute("stagehand.cached_input_tokens", cached)
-            span.set_attribute("stagehand.cost_usd", round(stagehand_cost(prompt, completion, cached), 6))
+            ctx.usage.set_stagehand(await ctx.stagehand.metrics())
 
     return wrapper
 
@@ -141,6 +136,7 @@ class LookContent(BaseModel):
 
 
 @neatlogs.span(kind="TOOL", tool_name="look")
+@lookups_nest_here
 @metered
 async def look() -> dict:
     ctx = current_run.get()
@@ -169,6 +165,7 @@ async def look() -> dict:
 
 
 @neatlogs.span(kind="TOOL", name="do.rung_a_act")
+@lookups_nest_here
 async def _rung_act_instruction(instruction: str) -> dict:
     ctx = current_run.get()
     result = await ctx.stagehand.act(instruction, page=await _active_page(), timeout=ACT_TIMEOUT_MS)
@@ -176,6 +173,7 @@ async def _rung_act_instruction(instruction: str) -> dict:
 
 
 @neatlogs.span(kind="TOOL", name="do.rung_b_observe_act")
+@lookups_nest_here
 async def _rung_observe_then_act(instruction: str) -> dict:
     ctx = current_run.get()
     page = await _active_page()

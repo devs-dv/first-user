@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from browser import close_browser, open_browser  # noqa: E402
-from config import ACT_TIMEOUT_MS  # noqa: E402
+from config import ACT_TIMEOUT_MS, LOOKUP_VIA  # noqa: E402
 from tools import RUNS_DIR, RunContext, current_run, do, page_fingerprint  # noqa: E402
 
 URL = "https://www.saucedemo.com"
@@ -68,13 +68,17 @@ async def attempt(mode: str, run_id: str, number: int) -> dict:
             current_run.reset(token)
         logged_in = "inventory" in await page.url()
         badge = await page.evaluate(BADGE_JS) if logged_in else ""
-        metrics = await stagehand.metrics()
+        ctx.usage.set_stagehand(await stagehand.metrics())
+        usage = ctx.usage.summary()
         return {
             "attempt": number,
             "steps": steps,
             "logged_in": logged_in,
             "item_in_cart": badge == "1",
-            "stagehand_tokens": int(metrics.total_prompt_tokens + metrics.total_completion_tokens),
+            "stagehand_tokens": ctx.usage.stagehand_prompt + ctx.usage.stagehand_completion,
+            "lookup_tokens": ctx.usage.lookup_tokens,
+            "lookup_cost_usd": usage["estimated_cost_usd"]["lookup"],
+            "usage": usage,
         }
     finally:
         await close_browser(browser, stagehand, guard)
@@ -93,6 +97,9 @@ async def main(mode: str, attempts: int) -> None:
             s["reported_success"] and not s["changed"] for r in results for s in r["steps"]
         ),
         "stagehand_tokens": sum(r["stagehand_tokens"] for r in results),
+        "lookup_tokens": sum(r["lookup_tokens"] for r in results),
+        "lookup_cost_usd": round(sum(r["lookup_cost_usd"] for r in results), 5),
+        "lookup_via": LOOKUP_VIA,
         "results": results,
     }
     RUNS_DIR.mkdir(exist_ok=True)

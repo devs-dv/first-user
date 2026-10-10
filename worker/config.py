@@ -12,7 +12,12 @@ BRAIN_MODEL = BRAIN_MODEL_ALIASES.get(
 BRAIN_EFFORT = os.environ.get("BRAIN_EFFORT", "low")
 MAX_TOKENS_PER_TURN = int(os.environ.get("MAX_TOKENS_PER_TURN", "2048"))
 
-# The model Stagehand uses to find elements for act/observe/extract.
+# How Stagehand reaches its lookup model for act/observe/extract:
+#   "callback"   our neatlogs-wrapped Anthropic client (lookup_model.py), so each call is a traced LLM span
+#   "model_name" Stagehand calls LOOKUP_MODEL itself; calls are invisible to neatlogs
+LOOKUP_VIA = os.environ.get("LOOKUP_VIA", "callback")
+LOOKUP_CALLBACK_MODEL = os.environ.get("LOOKUP_CALLBACK_MODEL", "claude-haiku-5-5")
+LOOKUP_MAX_TOKENS = int(os.environ.get("LOOKUP_MAX_TOKENS", "4096"))
 # Stagehand 4.2.0 validates model names against a fixed list; the newest Haiku it accepts is 4.5.
 LOOKUP_MODEL = os.environ.get("LOOKUP_MODEL", "anthropic/claude-haiku-4-5")
 

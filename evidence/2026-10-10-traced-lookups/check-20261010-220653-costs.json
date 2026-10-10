@@ -1,0 +1,71 @@
+{
+  "run_id": "check-20261010-220653",
+  "outcome": "achieved",
+  "reason": "I logged in as standard_user and added the Sauce Labs Backpack to the cart. The cart badge shows 1 item and the backpack's button now reads Remove.",
+  "steps": 9,
+  "cost_usd": {
+    "brain": 0.0014,
+    "lookup": 0.00328,
+    "total": 0.00468
+  },
+  "lookup": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 11,
+      "input": 17017,
+      "cache_write": 1256,
+      "cache_read": 6829,
+      "output": 2712
+    },
+    "spans": {
+      "calls": 11,
+      "input": 17017,
+      "cache_write": 1256,
+      "cache_read": 6829,
+      "output": 2712,
+      "cost": 0.00328
+    },
+    "stagehand_metrics": {
+      "prompt": 25102,
+      "completion": 2712,
+      "cached_input": 6829
+    }
+  },
+  "brain": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 9,
+      "input": 20,
+      "cache_write": 5701,
+      "cache_read": 20599,
+      "output": 950
+    },
+    "spans": {
+      "calls": 9,
+      "input": 20,
+      "cache_write": 5701,
+      "cache_read": 20599,
+      "output": 950,
+      "cost": 0.0014
+    }
+  },
+  "lookup_span_parents": {
+    "look": 6,
+    "do.rung_a_act": 4,
+    "do.rung_b_observe_act": 1
+  },
+  "checks": {
+    "lookup calls: ours == spans": true,
+    "lookup tokens: ours == spans": true,
+    "lookup input: ours == stagehand prompt": true,
+    "lookup output: ours == stagehand completion": true,
+    "lookup cache reads: ours == stagehand cached": true,
+    "brain tokens: ours == spans": true,
+    "cost: ours == spans": true,
+    "every lookup span is under look or rung a/b": true
+  }
+}

@@ -1,0 +1,343 @@
+{
+  "mode": "ladder",
+  "attempts": 5,
+  "end_to_end_success": 5,
+  "steps_that_changed_page": "20/20",
+  "steps_reported_success_but_no_change": 0,
+  "stagehand_tokens": 72335,
+  "lookup_tokens": 72335,
+  "lookup_cost_usd": 0.00625,
+  "lookup_via": "callback",
+  "results": [
+    {
+      "attempt": 1,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 14467,
+      "lookup_tokens": 14467,
+      "lookup_cost_usd": 0.00125,
+      "usage": {
+        "brain_tokens": {
+          "models": [],
+          "calls": 0,
+          "input": 0,
+          "cache_write": 0,
+          "cache_read": 0,
+          "output": 0
+        },
+        "lookup_via": "callback",
+        "lookup_tokens": {
+          "models": [
+            "claude-haiku-5-5"
+          ],
+          "calls": 5,
+          "input": 9678,
+          "cache_write": 0,
+          "cache_read": 4317,
+          "output": 472
+        },
+        "stagehand_metrics": {
+          "prompt": 13995,
+          "completion": 472,
+          "cached_input": 4317
+        },
+        "total_tokens": 14467,
+        "estimated_cost_usd": {
+          "brain": 0.0,
+          "lookup": 0.00125,
+          "total": 0.00125
+        }
+      }
+    },
+    {
+      "attempt": 2,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 14467,
+      "lookup_tokens": 14467,
+      "lookup_cost_usd": 0.00125,
+      "usage": {
+        "brain_tokens": {
+          "models": [],
+          "calls": 0,
+          "input": 0,
+          "cache_write": 0,
+          "cache_read": 0,
+          "output": 0
+        },
+        "lookup_via": "callback",
+        "lookup_tokens": {
+          "models": [
+            "claude-haiku-5-5"
+          ],
+          "calls": 5,
+          "input": 9678,
+          "cache_write": 0,
+          "cache_read": 4317,
+          "output": 472
+        },
+        "stagehand_metrics": {
+          "prompt": 13995,
+          "completion": 472,
+          "cached_input": 4317
+        },
+        "total_tokens": 14467,
+        "estimated_cost_usd": {
+          "brain": 0.0,
+          "lookup": 0.00125,
+          "total": 0.00125
+        }
+      }
+    },
+    {
+      "attempt": 3,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 14467,
+      "lookup_tokens": 14467,
+      "lookup_cost_usd": 0.00125,
+      "usage": {
+        "brain_tokens": {
+          "models": [],
+          "calls": 0,
+          "input": 0,
+          "cache_write": 0,
+          "cache_read": 0,
+          "output": 0
+        },
+        "lookup_via": "callback",
+        "lookup_tokens": {
+          "models": [
+            "claude-haiku-5-5"
+          ],
+          "calls": 5,
+          "input": 9678,
+          "cache_write": 0,
+          "cache_read": 4317,
+          "output": 472
+        },
+        "stagehand_metrics": {
+          "prompt": 13995,
+          "completion": 472,
+          "cached_input": 4317
+        },
+        "total_tokens": 14467,
+        "estimated_cost_usd": {
+          "brain": 0.0,
+          "lookup": 0.00125,
+          "total": 0.00125
+        }
+      }
+    },
+    {
+      "attempt": 4,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 14467,
+      "lookup_tokens": 14467,
+      "lookup_cost_usd": 0.00125,
+      "usage": {
+        "brain_tokens": {
+          "models": [],
+          "calls": 0,
+          "input": 0,
+          "cache_write": 0,
+          "cache_read": 0,
+          "output": 0
+        },
+        "lookup_via": "callback",
+        "lookup_tokens": {
+          "models": [
+            "claude-haiku-5-5"
+          ],
+          "calls": 5,
+          "input": 9678,
+          "cache_write": 0,
+          "cache_read": 4317,
+          "output": 472
+        },
+        "stagehand_metrics": {
+          "prompt": 13995,
+          "completion": 472,
+          "cached_input": 4317
+        },
+        "total_tokens": 14467,
+        "estimated_cost_usd": {
+          "brain": 0.0,
+          "lookup": 0.00125,
+          "total": 0.00125
+        }
+      }
+    },
+    {
+      "attempt": 5,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 14467,
+      "lookup_tokens": 14467,
+      "lookup_cost_usd": 0.00125,
+      "usage": {
+        "brain_tokens": {
+          "models": [],
+          "calls": 0,
+          "input": 0,
+          "cache_write": 0,
+          "cache_read": 0,
+          "output": 0
+        },
+        "lookup_via": "callback",
+        "lookup_tokens": {
+          "models": [
+            "claude-haiku-5-5"
+          ],
+          "calls": 5,
+          "input": 9678,
+          "cache_write": 0,
+          "cache_read": 4317,
+          "output": 472
+        },
+        "stagehand_metrics": {
+          "prompt": 13995,
+          "completion": 472,
+          "cached_input": 4317
+        },
+        "total_tokens": 14467,
+        "estimated_cost_usd": {
+          "brain": 0.0,
+          "lookup": 0.00125,
+          "total": 0.00125
+        }
+      }
+    }
+  ]
+}

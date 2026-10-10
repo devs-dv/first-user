@@ -60,6 +60,8 @@ class EgressGuard:
     _locks: dict[str, asyncio.Lock] = field(default_factory=dict)
     _server: asyncio.AbstractServer | None = None
     _context: contextvars.Context | None = None
+    # One task per open browser connection, so close() can cancel the ones still piping.
+    _connections: set[asyncio.Task] = field(default_factory=set)
     port: int = 0
     # Chrome's own DevTools port. Stagehand's extension, running inside Chrome,
     # connects to it, so that one tunnel is allowed, but only for an extension.
@@ -76,10 +78,16 @@ class EgressGuard:
         self.port = self._server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
-            self._server = None
+        """Stop accepting connections, then cancel and await the ones still open."""
+        if self._server is None:
+            return
+        self._server.close()
+        connections = list(self._connections)
+        for task in connections:
+            task.cancel()
+        await asyncio.gather(*connections, return_exceptions=True)
+        await self._server.wait_closed()
+        self._server = None
 
     def block_reason(self) -> str | None:
         """A visitor-facing reason for the first refused request, or None."""
@@ -114,6 +122,8 @@ class EgressGuard:
         return decision
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        task = asyncio.current_task()
+        self._connections.add(task)
         upstream: asyncio.StreamWriter | None = None
         try:
             try:
@@ -167,6 +177,7 @@ class EgressGuard:
         except (ConnectionError, OSError, ValueError):
             pass
         finally:
+            self._connections.discard(task)
             for stream in (upstream, writer):
                 if stream is not None:
                     stream.close()

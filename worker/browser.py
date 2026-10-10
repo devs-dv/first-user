@@ -3,7 +3,8 @@ import socket
 
 from stagehand import Stagehand, local_browser
 
-from config import DEVICE_SCALE_FACTOR, LOOKUP_MODEL
+import lookup_model
+from config import DEVICE_SCALE_FACTOR, LOOKUP_MODEL, LOOKUP_VIA
 from egress import CHROME_EXTRA_ARGS, CHROME_PROXY_BYPASS, EgressGuard
 
 
@@ -29,11 +30,14 @@ async def open_browser():
         await guard.close()
         raise
     try:
-        stagehand = await Stagehand.create(
-            browser=browser,
-            model=LOOKUP_MODEL,
-            model_api_key=os.environ["ANTHROPIC_API_KEY"],
-        )
+        if LOOKUP_VIA == "callback":
+            stagehand = await Stagehand.create(browser=browser, model=lookup_model.generate)
+        else:
+            stagehand = await Stagehand.create(
+                browser=browser,
+                model=LOOKUP_MODEL,
+                model_api_key=os.environ["ANTHROPIC_API_KEY"],
+            )
     except BaseException:
         try:
             await browser.close()

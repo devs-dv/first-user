@@ -119,6 +119,19 @@ class ProxyRefusals(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(devtools.hits, 1)
         self.assertEqual(len(guard.blocks), 1)
 
+    async def test_close_cancels_open_connections(self):
+        guard = egress.EgressGuard()
+        await guard.start()
+        # A connection that has sent nothing yet keeps its handler waiting for headers.
+        _, writer = await asyncio.open_connection("127.0.0.1", guard.port)
+        await asyncio.sleep(0.1)
+        handlers = list(guard._connections)
+        self.assertEqual(len(handlers), 1)
+        await asyncio.wait_for(guard.close(), 2)
+        writer.close()
+        self.assertTrue(all(task.done() for task in handlers))
+        self.assertEqual(guard._connections, set())
+
     async def test_unresolvable_host_is_not_a_safety_block(self):
         guard = egress.EgressGuard()
         await guard.start()
