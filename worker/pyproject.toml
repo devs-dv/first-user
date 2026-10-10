@@ -6,4 +6,6 @@ dependencies = [
     "neatlogs[anthropic]",
     "anthropic",
     "python-dotenv",
+    "stagehand",
+    "pydantic",
 ]

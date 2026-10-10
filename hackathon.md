@@ -18,7 +18,8 @@
   - neatlogs Python SDK (`neatlogs[anthropic]` 1.4.26), workflow `first-visit-test`
   - `python-dotenv` for loading `worker/.env`
 - `web/` — Next.js 16.4.0 / React 19.3.0 app (scaffold only so far; no model calls).
-- Entire — repo is configured (`.entire/settings.json`); how it supports the agent is pending.
+- Entire — checkpoints are on (`.entire/settings.json`, git-refs storage). Commits carry an `Entire-Checkpoint` trailer.
+- GitHub — `origin` is https://github.com/devs-dv/first-user (visibility not confirmed).
 - cfo.ai — pending (not set up yet).
 
 ## Build log
@@ -39,6 +40,27 @@ Not yet verified:
 - Whether the trace appears in the neatlogs dashboard under `first-visit-test`.
 - `python -m neatlogs doctor --probe --json` (authenticated probe) has not run.
 
+### 2026-10-10 — First commit, Entire checkpoint, published rules checked
+
+Completed:
+- The builder committed and pushed the setup as `ab7458b` ("Add worker with neatlogs tracing, neathack skill and build log") to `origin/main`. The commit is dated 2026-10-10 13:48 IST, inside the hackathon window.
+- `.gitignore` now ignores `*.egg-info/`, so the generated packaging metadata stays out of the repo.
+- Read the published rules at https://neatlogs.com/hackathon and https://luma.com/s5blr882, and recorded the confirmed requirements under Submission below.
+
+Evidence:
+- Entire: commit `ab7458b` carries the trailer `Entire-Checkpoint: 01M4JE8CYXZ6X24DWSCN9SJM0C`. This is the first Entire evidence for the project.
+- Secrets check: `git ls-files` lists no `.env` file. `worker/.env` is ignored by the root `.gitignore`.
+
+Tests that ran:
+- None this session. No code changed after `ab7458b`.
+
+Still open from the previous entry:
+- The neatlogs dashboard trace for `first-visit-test` is not yet confirmed, and `doctor --probe` has not run.
+
+Decisions pending from the builder:
+- The one-sentence problem statement for the Project section.
+- Whether the GitHub repo is public. The rules require a public repository, and visibility could not be checked from this machine because the `gh` CLI is not installed.
+
 ## Demo
 
 - URL: pending
@@ -48,14 +70,30 @@ Not yet verified:
 
 - The worker is still a single hello-world model call. The agent that browses a founder's app and reports where it got stuck has not been built yet.
 - `web/` is an unmodified Next.js scaffold.
-- Next: confirm the trace in the neatlogs dashboard, then build the first-visit agent loop in `worker/`.
+- Next steps (planned, not started):
+  1. Confirm the `first-visit-test` trace in the neatlogs dashboard and run `doctor --probe`.
+  2. Build the first-visit agent loop in `worker/`. It should plan, act in the founder's app, recover from failed actions, and report where it got stuck. Wrap the entry point in a `WORKFLOW` span so each run is one trace.
+  3. Capture a before-and-after pair of neatlogs traces around one agent fix, plus one run where an action failed and the agent recovered.
+  4. Sign up at cfo.ai/neathacks and draft the business plan (pricing, costs, revenue, runway).
+  5. Share progress publicly with #neatHack and keep the links here.
 
 ## Submission
 
-- Rules, deadlines, judging, and the submission link: pending. Check https://neatlogs.com/hackathon and https://luma.com/s5blr882.
-- The neatHack skill says every project must use neatlogs, Entire, and cfo.ai, and that the submission must include a business plan made with cfo.ai. This is not yet confirmed against the published rules.
-  - neatlogs: tracing is wired into `worker/` (see Build log).
-  - Entire: configured in the repo; evidence pending.
-  - cfo.ai: pending.
-  - Business plan: pending.
-- Nothing has been registered, deployed, or submitted.
+Confirmed from https://neatlogs.com/hackathon (read 2026-10-10):
+- **Window:** submissions open Monday, 12 October 2026, 7:00 PM IST and close at 11:55 PM IST. Winners are announced 16 October.
+- **How to submit:** quote the official neatlogs post on X with team, name, project, public repo and demo. That post is not yet published, so the link is pending.
+- **Track:** one track. Build an agent, or a team of agents, that completes a substantial task from start to finish.
+- **Required tools:** neatlogs, Entire and cfo.ai. Use neatlogs and Entire to build and improve the agent, and cfo.ai to plan its business. The business plan must be part of the submission.
+- **Judging weights:** agent 30%, use of neatlogs/Entire/cfo.ai 25%, demo video 20%, building in public 15%, usefulness and originality 10%.
+- **Evidence judges expect:** a before-and-after pair of traces with the compared numbers, neatlogs trace links or screenshots, Entire checkpoints or entire-graph output, a cfo.ai business plan, a run showing recovery from a failed action, #neatHack public posts, and a public repo with commits dated during the hackathon.
+
+Status of each item:
+- neatlogs: tracing is wired into `worker/`. Dashboard trace not yet confirmed. Before-and-after traces pending.
+- Entire: one checkpoint on `ab7458b`. More checkpoints will come as work continues.
+- cfo.ai: pending (not signed up).
+- Business plan: pending.
+- Failure-recovery run: pending (no agent yet).
+- Building in public: pending (no posts recorded).
+- Public repo: `origin` exists; visibility unconfirmed.
+- Demo video: pending.
+- Nothing has been registered, deployed, or submitted by Claude.
