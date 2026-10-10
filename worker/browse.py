@@ -7,7 +7,7 @@ import neatlogs
 from anthropic import AsyncAnthropic
 
 from config import BRAIN_EFFORT, BRAIN_MODEL, MAX_RUN_COST_USD, MAX_RUN_TOKENS, MAX_STEPS, MAX_TOKENS_PER_TURN
-from tools import TOOL_FUNCTIONS, TOOL_SCHEMAS, RunContext, current_run
+from tools import TOOL_FUNCTIONS, TOOL_SCHEMAS, RunContext, current_run, current_url
 
 # Older look results are replaced with stubs, which edits history; drop the affected
 # thinking blocks instead of failing the request.
@@ -155,6 +155,11 @@ async def _run_tool(step: int, tool_use) -> tuple[dict, dict | None]:
     print(f"[step {step}] {thought}", flush=True)
     print(f"[step {step}]   -> {tool_use.name}({shown_args})", flush=True)
 
+    ctx = current_run.get()
+    ctx.tool_calls += 1
+    ctx.last_screenshot = None
+    frictions_before, issues_before = len(ctx.frictions), len(ctx.agent_issues)
+
     function = TOOL_FUNCTIONS.get(tool_use.name)
     try:
         if function is None:
@@ -163,10 +168,38 @@ async def _run_tool(step: int, tool_use) -> tuple[dict, dict | None]:
     except Exception as error:
         message = f"{type(error).__name__}: {error}"[:500]
         print(f"[step {step}]   <- error: {message}", flush=True)
+        await _record(ctx, tool_use.name, thought, args, {"error": message}, frictions_before, issues_before)
         return {"type": "tool_result", "tool_use_id": tool_use.id, "content": message, "is_error": True}, None
 
     print(f"[step {step}]   <- {_brief(tool_use.name, result)}", flush=True)
+    await _record(ctx, tool_use.name, thought, args, result, frictions_before, issues_before)
     return {"type": "tool_result", "tool_use_id": tool_use.id, "content": json.dumps(result)}, result
+
+
+async def _record(ctx: RunContext, tool: str, thought: str, args: dict, result: dict,
+                  frictions_before: int, issues_before: int) -> None:
+    """Send the step and any new frictions to the recorder, if there is one.
+
+    A failed write is logged and skipped so a database hiccup does not end the visit.
+    """
+    if ctx.recorder is None:
+        return
+    idx = ctx.tool_calls
+    try:
+        url = result.get("url") or await current_url()
+        await ctx.recorder.step(idx, tool, thought, args, result, url, ctx.last_screenshot)
+        for friction in ctx.frictions[frictions_before:]:
+            await ctx.recorder.friction(
+                idx, "site", friction["severity"], friction["expected"], friction["happened"]
+            )
+        for issue in ctx.agent_issues[issues_before:]:
+            await ctx.recorder.friction(
+                idx, "agent_issue", None,
+                f"'{issue['instruction']}' changes the page",
+                f"{issue['reason']}: no recovery rung changed the page at {issue['url']}",
+            )
+    except Exception as error:
+        print(f"[step {ctx.tool_calls}]   !! could not record step: {type(error).__name__}: {error}", flush=True)
 
 
 def _brief(name: str, result: dict) -> str:

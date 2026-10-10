@@ -36,6 +36,10 @@ class RunContext:
     usage: RunUsage = field(default_factory=RunUsage)
     last_look: tuple[str, dict] | None = None
     finished: dict | None = None
+    # Optional sink for steps, frictions and screenshots (db.RunRecorder); None for local runs.
+    recorder: Any = None
+    tool_calls: int = 0
+    last_screenshot: Path | None = None
 
     @property
     def run_dir(self) -> Path:
@@ -49,6 +53,10 @@ current_run: ContextVar[RunContext] = ContextVar("current_run")
 async def _active_page():
     ctx = current_run.get()
     return await ctx.stagehand.browser.context.active_page() or ctx.page
+
+
+async def current_url() -> str:
+    return await (await _active_page()).url()
 
 
 # Visible text plus form state, so typing into a field counts as a change.
@@ -222,7 +230,8 @@ async def do(instruction: str) -> dict:
     page = await _active_page()
     ctx.screenshots += 1
     ctx.run_dir.mkdir(parents=True, exist_ok=True)
-    await page.screenshot(path=ctx.run_dir / f"step_{ctx.screenshots}.png")
+    ctx.last_screenshot = ctx.run_dir / f"step_{ctx.screenshots}.png"
+    await page.screenshot(path=ctx.last_screenshot)
     url = await page.url()
     span = otel_trace.get_current_span()
     span.set_attribute("do.rung", worked or "none")

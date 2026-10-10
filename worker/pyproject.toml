@@ -8,4 +8,5 @@ dependencies = [
     "python-dotenv",
     "stagehand",
     "pydantic",
+    "supabase==2.32.0",
 ]
