@@ -1,0 +1,185 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JQVWZEF4R78NT2M170VMW8",
+  "session_id": "225c0e86-6abd-4bc8-88dc-e3a2fc4683a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T11:06:15.2979244Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "supabase/schema.sql",
+    "worker/browse.py",
+    "worker/db.py",
+    "worker/enqueue.py",
+    "worker/main.py",
+    "worker/pyproject.toml",
+    "worker/run_once.py",
+    "worker/tools.py",
+    "worker/visit.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "206e9567e27f",
+  "checkpoint_transcript_start": 779,
+  "transcript_lines_at_start": 779,
+  "compact_transcript_start": 90,
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 44494,
+    "cache_read_tokens": 7081981,
+    "output_tokens": 24797,
+    "api_call_count": 19
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_013kMS35BQ5cDu1tvSGibbrr",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "neathack"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 106,
+        "end": 107,
+        "entry_ids": [
+          "d5d75114-d7c8-4b1e-8a05-2508cf34c1b7"
+        ],
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: neathack",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01V3E2EwWcZ6125BhUUVnk2e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 203,
+        "end": 204,
+        "entry_ids": [
+          "43368411-b9af-456e-977c-eb42c2a57641"
+        ],
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01F3gTXSsUEyTFNu2RWeGAo6",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 783,
+        "end": 784,
+        "entry_ids": [
+          "8235cce7-6252-430b-8c3d-d02f0759eae8"
+        ],
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_019PL2tgUQwAD2VjGnNzKQ6m",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase-postgres-best-practices"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 845,
+        "end": 846,
+        "entry_ids": [
+          "952fbb7c-d6ca-4060-b3d2-feb13d99a799"
+        ],
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase-postgres-best-practices",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T11:06:15.1717953Z",
+    "agent_lines": 468,
+    "agent_removed": 17,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 468,
+    "total_lines_changed": 485,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

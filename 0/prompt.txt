@@ -1,0 +1,17 @@
+<pasted_content id="c7d7">
+Add a job queue so the worker runs jobs from a database. Use Supabase (Postgres and Storage) through the `supabase` Python client, with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from worker/.env. I will add those myself; do not read or print that file.
+
+1. Create supabase/schema.sql for me to run in the Supabase SQL editor:
+   - runs: id uuid primary key, url, goal, status (queued, running, done, failed; default queued), source (default 'live'), agent_version, brain_model, outcome, reason, result jsonb, error, cost_usd, created_at, started_at, finished_at
+   - steps: id, run_id (cascade delete), idx, tool, thought, input jsonb, result jsonb, url, screenshot_path, created_at
+   - frictions: id, run_id, step_idx, kind (site or agent_issue), severity, expected, happened, created_at
+   - enable row level security on all three with no policies, so only the service role can access them
+   - a function claim_run() that atomically takes the oldest queued run using FOR UPDATE SKIP LOCKED, marks it running, and returns it
+   - a public storage bucket named screenshots
+2. worker/db.py: claim_run, add_step, add_friction, finish_run, fail_run, and upload_screenshot returning a public URL.
+3. Make the agent write each step, friction and screenshot as it happens. Keep run_once.py working without a database.
+4. worker/main.py: call neatlogs.init once. Loop: claim a run, execute it under a WORKFLOW span inside neatlogs.identify(session_id=f"run_{id}"), save the result, mark it done or failed. Sleep 2 seconds when idle. Mark runs stuck in running for over 15 minutes as failed. On Ctrl+C, finish the current run, then flush and shut down neatlogs once.
+5. worker/enqueue.py --url --goal, which inserts a queued run so I can test without the web app.
+
+When done, tell me exactly what to paste where.
+</pasted_content id="c7d7">
