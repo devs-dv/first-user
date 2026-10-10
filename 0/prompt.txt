@@ -1,0 +1,16 @@
+<pasted_content id="c7d7">
+Route Stagehand's model calls through our own neatlogs-wrapped Anthropic client, so every page read and click becomes a real LLM span with tokens, cost and prompt.
+
+1. Read https://docs.stagehand.dev/v4/configuration/models.md (the "Custom models" section, Python tab) and follow that callback contract exactly.
+2. Write an async generate callback that calls the wrapped AsyncAnthropic client with the cheapest current Haiku model, maps text and image content blocks, and returns the structured result Stagehand expects for the requested JSON schema. Make the JSON reliable, for example by forcing a tool call whose input schema is the requested schema. Report token usage back to Stagehand in the result.
+3. Pass the callback to Stagehand.create in place of the model name. Keep the old model-name path available behind a config flag.
+4. Make sure these LLM spans nest under the tool span that triggered them (look, and do rungs a and b), so the trace shows why each call happened.
+5. Run the 5-attempt click measurement and one full saucedemo run. Report outcome, steps and cost, and check that the run total from our own accounting matches Stagehand's metrics() and the sum of the LLM spans.
+6. Remove any double counting in costs.py now that these calls are traced.
+
+Update hackathon.md, and add to NEATLOGS_NOTES.md the answer we got from the neatlogs team: route library calls through the wrapped client rather than guessing custom attribute names.
+</pasted_content id="c7d7">
+
+---
+
+When a run ends, worker/egress.py leaves pending EgressGuard._handle tasks, which prints "Task was destroyed but it is pending!" on shutdown. Cancel and await any open connection tasks when the guard stops, so the worker exits without warnings. Re-run the 6 egress tests to confirm they still pass.

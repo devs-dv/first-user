@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4KF1B6NXV81EE6V9TA47AJD",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "NEATLOGS_NOTES.md",
+    "evidence/2026-10-10-traced-lookups/check-20261010-220653-costs.json",
+    "evidence/2026-10-10-traced-lookups/measure-ladder-20261010-220448.json",
+    "hackathon.md",
+    "worker/browser.py",
+    "worker/check_costs.py",
+    "worker/config.py",
+    "worker/costs.py",
+    "worker/egress.py",
+    "worker/lookup_model.py",
+    "worker/measure_clicks.py",
+    "worker/test_egress.py",
+    "worker/tools.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 165041,
+    "cache_read_tokens": 7084459,
+    "output_tokens": 40339,
+    "api_call_count": 50
+  }
+}
