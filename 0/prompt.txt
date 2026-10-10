@@ -1,0 +1,39 @@
+<pasted_content id="c7d7">
+Build the web app in web/ (Next.js App Router, TypeScript, Tailwind). It talks to Supabase only from the server, using SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from web/.env.local. Never expose that key to the browser and never use a NEXT_PUBLIC_ variable for it. Do not read or print the env files.
+
+1. Landing page (/): a one-line promise ("Paste your app's link. A first-time user tries it and tells you where they got stuck."), a URL input, an optional goal input, a required checkbox "This is my app or I have permission to test it", and a submit button. Say plainly under the form: we open the site in a browser and click around like a visitor; we may create a test account; we never enter payment details.
+2. POST /api/runs: validate the URL (http or https only; reject localhost, private IP ranges and unusual ports). If no goal is given, use "Work out what this product does and try its main feature as a first-time visitor." Reject when more than 20 runs are queued, and limit each visitor to 5 runs per hour using a hashed IP stored on the run. Insert a queued run and return its id. Give me any SQL to add to supabase/schema.sql for new columns.
+3. GET /api/runs/[id]: return the run, its steps and its frictions.
+4. Run page (/run/[id]): poll that endpoint every 2 seconds until the run is done or failed. While running, show the status, and each step as it arrives with its thought, action, result and screenshot. When finished, show a report: the outcome and reason, frictions split into "problems with the site" and "our agent's own issues", the step timeline with screenshots, the cost, and a copy-link button. Add one line: "This is a simulated user. Treat findings as leads to check."
+5. Handle the unhappy states clearly: invalid URL, queue full, rate limited, run failed, run not found.
+
+Design: clean and calm, generous spacing, readable type, works well on a phone. No decorative animation.
+
+Tell me how to run it locally and what SQL to run.
+</pasted_content id="c7d7">
+
+---
+
+<task-notification>
+<summary>Background security review found: SSRF (redirect / DNS-rebinding bypass of first-hop validation) in web/lib/target-url.ts</summary>
+</task-notification>
+
+---
+
+Yes. Add per-request blocking in the worker so the browser refuses any request or navigation to private, loopback, link-local or cloud-metadata addresses, including after redirects. Run the check inside a neatlogs GUARDRAIL span and end the run as blocked with a clear reason when it fires. Add a small test that proves a redirect to a private address is refused. Then add this session and the previous one to hackathon.md using the neathack skill.
+
+---
+
+Two small fixes in the web app:
+1. The Next.js dev overlay shows "1 Issue" on the run page (/run/[id]). Find the cause and fix it.
+2. Report wording: when a step needed a retry (rung b or c), say so on that step instead of only "It worked"; and never cut a page summary off mid-word.
+
+---
+
+<task-notification>
+<task-id>b7sua0lom</task-id>
+<tool-use-id>toolu_01AT51wqBaH4ERqwDwiKFQ4R</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b7sua0lom.output</output-file>
+<status>completed</status>
+<summary>Background command "Reproduce dev overlay issue on run page" completed (exit code 0)</summary>
+</task-notification>

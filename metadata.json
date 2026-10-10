@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4K9XZHEY1BHNHYKR9YJGN5M",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/runs/[id]/route.ts",
+    "web/app/api/runs/route.ts",
+    "web/app/globals.css",
+    "web/app/layout.tsx",
+    "web/app/page.tsx",
+    "web/app/run-form.tsx",
+    "web/app/run/[id]/page.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/supabase.ts",
+    "web/lib/target-url.ts",
+    "web/lib/types.ts",
+    "web/lib/visitor.ts",
+    "web/package-lock.json",
+    "web/package.json",
+    "worker/browse.py",
+    "worker/browser.py",
+    "worker/egress.py",
+    "worker/measure_clicks.py",
+    "worker/test_egress.py",
+    "worker/tools.py",
+    "worker/visit.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 186,
+    "cache_creation_tokens": 220731,
+    "cache_read_tokens": 16562240,
+    "output_tokens": 97814,
+    "api_call_count": 93
+  }
+}
