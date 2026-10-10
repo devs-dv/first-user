@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JKVBR6Y56SHAER3B1J3P34",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "evidence/2026-10-10-click-reliability/README.md",
+    "evidence/2026-10-10-click-reliability/measure-ladder-20261010-150149.json",
+    "evidence/2026-10-10-click-reliability/measure-plain-20261010-145414.json",
+    "hackathon.md",
+    "worker/browse.py",
+    "worker/browser.py",
+    "worker/config.py",
+    "worker/costs.py",
+    "worker/measure_clicks.py",
+    "worker/run_once.py",
+    "worker/tools.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 70563,
+    "cache_read_tokens": 10082044,
+    "output_tokens": 47253,
+    "api_call_count": 32
+  }
+}

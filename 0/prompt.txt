@@ -1,0 +1,28 @@
+<pasted_content id="c7d7">
+I have a small API budget, so make the agent cost-efficient before anything else.
+
+Part 1: cost controls
+1. Enable Anthropic prompt caching for the system prompt and tool definitions in the browse loop, and make sure the look-result stubbing does not invalidate the cached prefix.
+2. Cap max_tokens per turn to a small sensible value, and set MAX_STEPS default to 15.
+3. Make look() cheaper: get URL and title from the page API with no model call, use a single Stagehand call for the rest, truncate its output, and reuse the previous look result when the page fingerprint has not changed.
+4. Record Stagehand's own token usage (its metrics() API) on each tool span as attributes, and sum model plus Stagehand tokens and estimated cost into the final result JSON, so neatlogs shows the full cost of a run.
+5. Add a per-run budget guardrail in a neatlogs GUARDRAIL span: stop with outcome gave_up and reason "budget" if a run exceeds a token or cost limit set in config.py.
+6. Make BRAIN_MODEL switchable by environment variable, with a Haiku option for development.
+
+Part 2: fix unreliable clicks
+First measure the baseline with plain Stagehand calls and no brain model: log in to saucedemo and add one item to the cart, 5 times in a row; report how many attempts actually changed the page. Then:
+1. In do(): fingerprint the page before and after (URL plus a hash of visible text). Return `changed`. If act reports success but nothing changed, return success=false with reason "no_effect".
+2. Recovery ladder inside do(), each rung its own span: (a) act(instruction); (b) observe(instruction) then act(action); (c) click that Action's selector through the page locator API. Record which rung worked.
+3. Tell the model plainly when an action had no effect.
+4. If every rung fails, record `agent_issue`, not site friction.
+Repeat the 5-attempt measurement and report before and after.
+
+Part 3: one comparison
+Run the full agent once with the Haiku brain and once with the Sonnet brain on the saucedemo goal. Report outcome, steps, total tokens and estimated cost for each.
+
+Finally, update hackathon.md with this session using the neathack skill. Do not read or print worker/.env.
+</pasted_content id="c7d7">
+
+---
+
+Copy the click-reliability measurement JSON files from worker/runs/ into evidence/2026-10-10-click-reliability/ with a short README.md stating what was measured, the before and after table, and the root cause. Make sure nothing in that folder contains a key.
