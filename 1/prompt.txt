@@ -1,0 +1,1 @@
+Create worker/pyproject.toml for a Python 3.11 project named first-user-worker with dependencies neatlogs[anthropic], anthropic, and python-dotenv. Create worker/hello.py that loads worker/.env with python-dotenv, makes one small Claude call using the anthropic SDK, and prints the reply. Do not add tracing yet. Do not create the .env file.
