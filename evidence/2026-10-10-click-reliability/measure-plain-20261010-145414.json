@@ -1,0 +1,150 @@
+{
+  "mode": "plain",
+  "attempts": 5,
+  "end_to_end_success": 0,
+  "steps_that_changed_page": "15/20",
+  "steps_reported_success_but_no_change": 5,
+  "stagehand_tokens": 40786,
+  "results": [
+    {
+      "attempt": 1,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": false
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": false,
+      "stagehand_tokens": 8154
+    },
+    {
+      "attempt": 2,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": false
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": false,
+      "stagehand_tokens": 8156
+    },
+    {
+      "attempt": 3,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": false
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": false,
+      "stagehand_tokens": 8158
+    },
+    {
+      "attempt": 4,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": false
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": false,
+      "stagehand_tokens": 8160
+    },
+    {
+      "attempt": 5,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": false
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": false,
+      "stagehand_tokens": 8158
+    }
+  ]
+}

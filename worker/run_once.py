@@ -19,6 +19,7 @@ neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-visit
 
 from browse import run_persona  # noqa: E402
 from browser import close_browser, open_browser  # noqa: E402
+from config import BRAIN_EFFORT, BRAIN_MODEL  # noqa: E402
 from tools import RunContext  # noqa: E402
 
 
@@ -40,7 +41,7 @@ def main() -> None:
     args = parser.parse_args()
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    print(f"Run {run_id}: {args.url}", flush=True)
+    print(f"Run {run_id}: {args.url} (brain {BRAIN_MODEL}, effort {BRAIN_EFFORT})", flush=True)
     try:
         result = asyncio.run(first_visit(args.url, args.goal, run_id))
         print(json.dumps({"run_id": run_id, **result}, indent=2))

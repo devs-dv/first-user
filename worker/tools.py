@@ -1,5 +1,7 @@
 """Browser tools the visitor agent can call, plus their Anthropic tool schemas."""
 
+import functools
+import hashlib
 import json
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -7,13 +9,18 @@ from pathlib import Path
 from typing import Any
 
 import neatlogs
+from opentelemetry import trace as otel_trace
 from pydantic import BaseModel, Field
 
 from config import ACT_TIMEOUT_MS
+from costs import RunUsage, stagehand_cost
 
 RUNS_DIR = Path(__file__).parent / "runs"
 MAX_INTERACTIVE = 15
+MAX_SUMMARY_CHARS = 400
+MAX_ITEM_CHARS = 80
 SCROLL_PIXELS = 700
+SETTLE_CHECKS_MS = (400, 400, 800)
 
 
 @dataclass
@@ -25,6 +32,9 @@ class RunContext:
     page: Any
     screenshots: int = 0
     frictions: list[dict] = field(default_factory=list)
+    agent_issues: list[dict] = field(default_factory=list)
+    usage: RunUsage = field(default_factory=RunUsage)
+    last_look: tuple[str, dict] | None = None
     finished: dict | None = None
 
     @property
@@ -41,57 +51,212 @@ async def _active_page():
     return await ctx.stagehand.browser.context.active_page() or ctx.page
 
 
-class VisibleContent(BaseModel):
+# Visible text plus form state, so typing into a field counts as a change.
+_FINGERPRINT_JS = """JSON.stringify([
+  document.body ? document.body.innerText : '',
+  Array.from(document.querySelectorAll('input, textarea, select'))
+    .map(el => (el.type === 'checkbox' || el.type === 'radio') ? String(el.checked) : el.value)
+])"""
+
+
+async def page_fingerprint(page) -> str:
+    """URL plus a hash of visible text and form values; no model call."""
+    url = await page.url()
+    try:
+        state = await page.evaluate(_FINGERPRINT_JS)
+    except Exception:
+        state = ""
+    return f"{url}#{hashlib.sha256(str(state).encode()).hexdigest()[:16]}"
+
+
+async def _changed_since(before: str) -> bool:
+    """Wait briefly for the page to react, then compare fingerprints."""
+    for wait_ms in SETTLE_CHECKS_MS:
+        page = await _active_page()
+        await page.wait_for_timeout(wait_ms)
+        if await page_fingerprint(await _active_page()) != before:
+            return True
+    return False
+
+
+def metered(function):
+    """Record the Stagehand tokens a tool used as attributes on its (enclosing) neatlogs span."""
+
+    @functools.wraps(function)
+    async def wrapper(*args, **kwargs):
+        ctx = current_run.get()
+        before = await ctx.stagehand.metrics()
+        try:
+            return await function(*args, **kwargs)
+        finally:
+            after = await ctx.stagehand.metrics()
+            ctx.usage.set_stagehand(after)
+            prompt = int(after.total_prompt_tokens - before.total_prompt_tokens)
+            completion = int(after.total_completion_tokens - before.total_completion_tokens)
+            cached = int(after.total_cached_input_tokens - before.total_cached_input_tokens)
+            span = otel_trace.get_current_span()
+            span.set_attribute("stagehand.prompt_tokens", prompt)
+            span.set_attribute("stagehand.completion_tokens", completion)
+            span.set_attribute("stagehand.cached_input_tokens", cached)
+            span.set_attribute("stagehand.cost_usd", round(stagehand_cost(prompt, completion, cached), 6))
+
+    return wrapper
+
+
+class LookContent(BaseModel):
     summary: str = Field(
         description=(
             "Two or three sentences describing what a first-time visitor sees on the page: "
             "headings, main content, and any visible instructions, credentials, errors or messages."
         )
     )
+    interactive: list[str] = Field(
+        description=(
+            "Up to 15 short labels for things a visitor could click, type into or select, "
+            "most prominent first, e.g. 'Login button', 'Username field', 'Cart icon (2 items)'."
+        )
+    )
 
 
 @neatlogs.span(kind="TOOL", tool_name="look")
+@metered
 async def look() -> dict:
     ctx = current_run.get()
     page = await _active_page()
-    extracted = await ctx.stagehand.extract(
-        "Describe what a first-time visitor sees on this page.",
-        VisibleContent,
+    fingerprint = await page_fingerprint(page)
+    if ctx.last_look and ctx.last_look[0] == fingerprint:
+        return {
+            "url": await page.url(),
+            "unchanged": True,
+            "note": "The page has not changed since your last look; that result still applies.",
+        }
+
+    content = (await ctx.stagehand.extract(
+        "Describe what a first-time visitor sees on this page and list what they could interact with.",
+        LookContent,
         page=page,
-    )
-    observed = await ctx.stagehand.observe(
-        "find the links, buttons, form fields and menus a visitor could interact with",
-        page=page,
-    )
-    return {
+    )).data
+    result = {
         "url": await page.url(),
         "title": await page.title(),
-        "summary": extracted.data.summary,
-        "interactive": [
-            {"description": action.description, "method": action.method}
-            for action in observed.data[:MAX_INTERACTIVE]
-        ],
+        "summary": content.summary[:MAX_SUMMARY_CHARS],
+        "interactive": [item[:MAX_ITEM_CHARS] for item in content.interactive[:MAX_INTERACTIVE]],
+    }
+    ctx.last_look = (fingerprint, result)
+    return result
+
+
+@neatlogs.span(kind="TOOL", name="do.rung_a_act")
+async def _rung_act_instruction(instruction: str) -> dict:
+    ctx = current_run.get()
+    result = await ctx.stagehand.act(instruction, page=await _active_page(), timeout=ACT_TIMEOUT_MS)
+    return {"reported_success": result.data.success, "message": result.data.message}
+
+
+@neatlogs.span(kind="TOOL", name="do.rung_b_observe_act")
+async def _rung_observe_then_act(instruction: str) -> dict:
+    ctx = current_run.get()
+    page = await _active_page()
+    observed = await ctx.stagehand.observe(instruction, page=page)
+    if not observed.data:
+        return {"reported_success": False, "message": "observe found no matching element", "action": None}
+    action = observed.data[0]
+    result = await ctx.stagehand.act(action, page=page, timeout=ACT_TIMEOUT_MS)
+    return {
+        "reported_success": result.data.success,
+        "message": result.data.message,
+        "action": {"selector": action.selector, "method": action.method, "arguments": action.arguments or []},
     }
 
 
+@neatlogs.span(kind="TOOL", name="do.rung_c_locator")
+async def _rung_locator(action: dict, before: str) -> dict:
+    """Replay the observed element through the page locator API, without coordinates where possible."""
+    locator = (await _active_page()).locator(action["selector"])
+    method, arguments = action["method"], action["arguments"]
+    if method in ("fill", "type") and arguments:
+        await locator.fill(arguments[0])
+        return {"reported_success": True, "via": "locator.fill"}
+    if method == "selectOptionFromDropdown" and arguments:
+        await locator.select_option(arguments[0])
+        return {"reported_success": True, "via": "locator.select_option"}
+    if method == "click":
+        await locator.click()
+        if await _changed_since(before):
+            return {"reported_success": True, "via": "locator.click"}
+        # A DOM click event needs no screen coordinates.
+        await locator.send_click_event()
+        return {"reported_success": True, "via": "locator.send_click_event"}
+    return {"reported_success": False, "via": f"unsupported method {method!r}"}
+
+
 @neatlogs.span(kind="TOOL", tool_name="do")
+@metered
 async def do(instruction: str) -> dict:
     ctx = current_run.get()
-    page = await _active_page()
-    try:
-        result = await ctx.stagehand.act(instruction, page=page, timeout=ACT_TIMEOUT_MS)
-        success, message = result.data.success, result.data.message
-    except Exception as error:
-        success, message = False, f"{type(error).__name__}: {error}"[:500]
+    before = await page_fingerprint(await _active_page())
+    rungs: list[dict] = []
+    worked = None
+    action = None
+
+    for name in ("a", "b", "c"):
+        if name == "c" and action is None:
+            rungs.append({"rung": "c", "skipped": "no observed element to replay"})
+            continue
+        try:
+            if name == "a":
+                outcome = await _rung_act_instruction(instruction)
+            elif name == "b":
+                outcome = await _rung_observe_then_act(instruction)
+                action = outcome.pop("action")
+            else:
+                outcome = await _rung_locator(action, before)
+        except Exception as error:
+            outcome = {"reported_success": False, "error": f"{type(error).__name__}: {error}"[:300]}
+        outcome["changed"] = await _changed_since(before)
+        rungs.append({"rung": name, **outcome})
+        if outcome["changed"]:
+            worked = name
+            break
 
     page = await _active_page()
     ctx.screenshots += 1
     ctx.run_dir.mkdir(parents=True, exist_ok=True)
     await page.screenshot(path=ctx.run_dir / f"step_{ctx.screenshots}.png")
-    return {"success": success, "message": message, "url": await page.url()}
+    url = await page.url()
+    span = otel_trace.get_current_span()
+    span.set_attribute("do.rung", worked or "none")
+    if worked == "c":
+        span.set_attribute("do.via", rungs[-1].get("via") or "")
+
+    if worked:
+        result = {"success": True, "changed": True, "rung": worked, "url": url}
+        if worked == "c":
+            result["via"] = rungs[-1].get("via")
+        if worked != "a":
+            result["note"] = "The first try had no effect; a retry worked."
+        return result
+
+    reported_any = any(r.get("reported_success") for r in rungs)
+    reason = "no_effect" if reported_any else "failed"
+    ctx.agent_issues.append({"instruction": instruction, "reason": reason, "url": url, "rungs": rungs})
+    return {
+        "success": False,
+        "changed": False,
+        "reason": reason,
+        "rung": None,
+        "url": url,
+        "message": (
+            "Your action had NO EFFECT: after three different tries, the URL, visible text and form fields "
+            "are exactly the same as before. The browser tool may have failed to operate that element; "
+            "this was recorded as an agent issue, so do not record it as site friction on its own. "
+            "Try a differently worded instruction or another way to reach your goal."
+        ),
+    }
 
 
 @neatlogs.span(kind="TOOL", tool_name="scroll")
+@metered
 async def scroll(direction: str) -> dict:
     page = await _active_page()
     delta = SCROLL_PIXELS if direction == "down" else -SCROLL_PIXELS
@@ -106,6 +271,7 @@ async def scroll(direction: str) -> dict:
 
 
 @neatlogs.span(kind="TOOL", tool_name="go_back")
+@metered
 async def go_back() -> dict:
     page = await _active_page()
     await page.go_back()
@@ -113,6 +279,7 @@ async def go_back() -> dict:
 
 
 @neatlogs.span(kind="TOOL", tool_name="note_friction")
+@metered
 async def note_friction(severity: str, expected: str, happened: str) -> dict:
     ctx = current_run.get()
     page = await _active_page()
@@ -127,6 +294,7 @@ async def note_friction(severity: str, expected: str, happened: str) -> dict:
 
 
 @neatlogs.span(kind="TOOL", tool_name="finish")
+@metered
 async def finish(outcome: str, reason: str) -> dict:
     ctx = current_run.get()
     ctx.finished = {"outcome": outcome, "reason": reason}
@@ -165,7 +333,8 @@ TOOL_SCHEMAS = [
         "name": "look",
         "description": (
             "Look at the current page. Returns the URL, the title, a short summary of what is visible, "
-            "and up to 15 things you could interact with. Call this whenever the page may have changed."
+            "and up to 15 things you could interact with. If the page has not changed since your last look, "
+            "it says so instead of repeating the result. Call this when the page may have changed."
         ),
         "input_schema": _schema({}, []),
         "strict": True,
@@ -174,7 +343,8 @@ TOOL_SCHEMAS = [
         "name": "do",
         "description": (
             "Perform ONE single-step action on the page, such as clicking one button or typing text into one field. "
-            "Name the element the way a visitor would see it. Returns success, a message and the URL afterwards."
+            "Name the element the way a visitor would see it. Returns success, whether the page changed, and the URL "
+            "afterwards. success=false with reason 'no_effect' means nothing on the page changed."
         ),
         "input_schema": _schema(
             {

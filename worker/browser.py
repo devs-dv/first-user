@@ -2,12 +2,12 @@ import os
 
 from stagehand import Stagehand, local_browser
 
-from config import LOOKUP_MODEL
+from config import DEVICE_SCALE_FACTOR, LOOKUP_MODEL
 
 
 async def open_browser():
     """Launch a local Chrome window and attach Stagehand to it."""
-    browser = await local_browser.launch(headless=False)
+    browser = await local_browser.launch(headless=False, device_scale_factor=DEVICE_SCALE_FACTOR)
     try:
         stagehand = await Stagehand.create(
             browser=browser,

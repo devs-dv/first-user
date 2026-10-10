@@ -1,0 +1,170 @@
+{
+  "mode": "ladder",
+  "attempts": 5,
+  "end_to_end_success": 5,
+  "steps_that_changed_page": "20/20",
+  "steps_reported_success_but_no_change": 0,
+  "stagehand_tokens": 53139,
+  "results": [
+    {
+      "attempt": 1,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 10624
+    },
+    {
+      "attempt": 2,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 10630
+    },
+    {
+      "attempt": 3,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 10628
+    },
+    {
+      "attempt": 4,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 10624
+    },
+    {
+      "attempt": 5,
+      "steps": [
+        {
+          "instruction": "type 'standard_user' into the username field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "type 'secret_sauce' into the password field",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the Login button",
+          "reported_success": true,
+          "changed": true,
+          "rung": "a"
+        },
+        {
+          "instruction": "click the 'Add to cart' button for Sauce Labs Backpack",
+          "reported_success": true,
+          "changed": true,
+          "rung": "c"
+        }
+      ],
+      "logged_in": true,
+      "item_in_cart": true,
+      "stagehand_tokens": 10633
+    }
+  ]
+}
