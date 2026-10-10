@@ -92,3 +92,62 @@ grant execute on function public.claim_run() to service_role;
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('screenshots', 'screenshots', true, 5242880, array['image/png'])
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Web app (added for web/). Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- Who queued a run, as a keyed hash of their IP address (never the IP itself),
+-- for the per-visitor rate limit. Null for runs queued from the command line.
+alter table public.runs add column if not exists ip_hash text;
+
+create index if not exists runs_ip_hash_created_at_idx
+  on public.runs (ip_hash, created_at) where ip_hash is not null;
+
+-- Queue a run from the web app, enforcing both limits in one transaction.
+-- The advisory lock serialises web enqueues, so two requests cannot both pass
+-- a limit and then both insert. Returns {"id": ...} or {"error": ...}.
+create or replace function public.enqueue_web_run(
+  p_url text,
+  p_goal text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs
+  where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object(
+      'error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer
+    );
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash)
+  values (p_url, p_goal, 'web', p_ip_hash)
+  returning id into new_id;
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_web_run(text, text, text, integer, integer) from public, anon, authenticated;
+grant execute on function public.enqueue_web_run(text, text, text, integer, integer) to service_role;

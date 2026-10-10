@@ -19,6 +19,18 @@ RUNS_DIR = Path(__file__).parent / "runs"
 MAX_INTERACTIVE = 15
 MAX_SUMMARY_CHARS = 400
 MAX_ITEM_CHARS = 80
+
+
+def clip(text: str, limit: int) -> str:
+    """Shorten text to at most `limit` characters at a word boundary, ending with an ellipsis."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    space = cut.rfind(" ")
+    if space > limit // 2:  # a very long single word is cut where it is
+        cut = cut[:space]
+    return cut.rstrip(" ,;:-") + "\u2026"
 SCROLL_PIXELS = 700
 SETTLE_CHECKS_MS = (400, 400, 800)
 
@@ -40,6 +52,8 @@ class RunContext:
     recorder: Any = None
     tool_calls: int = 0
     last_screenshot: Path | None = None
+    # The browser's egress guard (egress.EgressGuard); a refused request ends the run.
+    egress: Any = None
 
     @property
     def run_dir(self) -> Path:
@@ -147,8 +161,8 @@ async def look() -> dict:
     result = {
         "url": await page.url(),
         "title": await page.title(),
-        "summary": content.summary[:MAX_SUMMARY_CHARS],
-        "interactive": [item[:MAX_ITEM_CHARS] for item in content.interactive[:MAX_INTERACTIVE]],
+        "summary": clip(content.summary, MAX_SUMMARY_CHARS),
+        "interactive": [clip(item, MAX_ITEM_CHARS) for item in content.interactive[:MAX_INTERACTIVE]],
     }
     ctx.last_look = (fingerprint, result)
     return result

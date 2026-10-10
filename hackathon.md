@@ -18,7 +18,10 @@
   - Stagehand Python SDK (`stagehand` 4.2.0) driving a local Chrome window, with `anthropic/claude-haiku-4-5` as its lookup model. That is the newest Haiku Stagehand 4.2.0 accepts.
   - neatlogs Python SDK (`neatlogs[anthropic]` 1.4.26), workflow `first-visit-test`
   - `pydantic` 2.14.0 for Stagehand extract schemas; `python-dotenv` for loading `worker/.env`
-- `web/` — Next.js 16.4.0 / React 19.3.0 app (scaffold only so far; no model calls).
+  - `supabase` 2.32.0 (Python) for the job queue: `main.py` claims queued runs, `enqueue.py` adds one from the command line.
+  - `egress.py`: a local filtering proxy that every browser request goes through.
+- `web/` — Next.js 16.4.0 / React 19.3.0 app with Tailwind 4. Landing form, `POST /api/runs`, `GET /api/runs/[id]` and a live run report. It talks to Supabase only from the server, with `@supabase/supabase-js` 2.117.2; no model calls.
+- Supabase — Postgres (`runs`, `steps`, `frictions`, with RLS on and no policies, service role only) and a public Storage bucket `screenshots`. Schema in `supabase/schema.sql`.
 - Entire — checkpoints are on (`.entire/settings.json`, git-refs storage). Commits carry an `Entire-Checkpoint` trailer.
 - GitHub — `origin` is https://github.com/devs-dv/first-user (visibility not confirmed).
 - cfo.ai — pending (not set up yet).
@@ -120,6 +123,70 @@ Not yet verified:
 - Whether the `stagehand.*` and `do.rung` span attributes show up in the neatlogs dashboard. They are set through OpenTelemetry's current span, which the neatlogs SDK itself uses.
 - The ladder's agent-issue path in a full agent run. In both brain runs every action worked on rung (a).
 
+### 2026-10-10 — Supabase job queue (committed as `6a08b29`)
+
+Not logged at the time, so this entry is recorded afterwards.
+
+Completed:
+- `supabase/schema.sql`: `runs`, `steps` and `frictions` tables (RLS on, no policies, granted to `service_role` only), a `claim_run()` function using `FOR UPDATE SKIP LOCKED`, and a public `screenshots` bucket.
+- `worker/db.py` (enqueue, claim, steps, frictions, finish/fail, stale-run sweep, screenshot upload) and a `RunRecorder` that writes each step, friction and screenshot as it happens. `run_once.py` still works without a database.
+- `worker/main.py`: a worker loop that claims one run at a time inside `neatlogs.identify(session_id="run_<id>")`. It marks runs still running after 15 minutes as failed, and on the first Ctrl+C it finishes the current run before flushing neatlogs once. `worker/enqueue.py` queues a run from the command line.
+- The builder committed this as `6a08b29` (2026-10-10 16:36 IST) with the trailer `Entire-Checkpoint: 01M4JQVWZEF4R78NT2M170VMW8`.
+
+Tests that ran:
+- The worker loop against an in-memory fake of `db.py`, with Ctrl+Break sent at step 2. The run finished (`achieved`, 9 steps, $0.0248) and every step reached the recorder. The worker then stopped without claiming another run, shut neatlogs down once, and exited 0.
+- `run_once.py` with no database: `achieved` in 9 steps, $0.0243.
+
+Not yet verified:
+- Anything against a real Supabase project (schema, RPC, inserts, storage uploads).
+
+### 2026-10-10 — Web app
+
+Completed:
+- `web/` is now the product front end. It reads `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from `web/.env.local` on the server only. The client module imports `server-only`, so the build fails if browser code ever imports it.
+- Landing page (`/`): the one-line promise, a URL field, an optional goal, a required "This is my app or I have permission to test it" checkbox, and a plain note that we click around like a visitor, may create a test account, and never enter payment details.
+- `POST /api/runs` validates the URL. It accepts only http(s) on the default port with no credentials. It rejects localhost and `.local`/`.internal`-style names, private, loopback, link-local, CGNAT and other reserved IPv4/IPv6 ranges (including IPv4-mapped and NAT64 forms), and hosts that resolve to any of them. An empty goal gets a default goal.
+- Limits are enforced in one SQL function, `enqueue_web_run`, under an advisory lock so concurrent requests cannot race past them: at most 20 queued runs, and 5 runs per visitor per hour. Visitors are identified by an HMAC of the IP, stored as the new `runs.ip_hash` column; the raw IP is never stored.
+- `GET /api/runs/[id]` returns the run, steps and frictions, without the IP hash or the raw worker error.
+- `/run/[id]` polls every 2 seconds until the run is done or failed. While running it shows the status and each step as it arrives (thought, action, result, screenshot). When finished it shows a report: the outcome and reason, frictions split into "Problems with the site" and "Our agent's own issues", the step timeline, time, cost, a copy-link button, and the line "This is a simulated user. Treat findings as leads to check."
+- Unhappy states each have their own message: invalid URL, queue full (503), rate limited (429 with Retry-After), run failed, run not found.
+
+Tests that ran:
+- `tsc`, ESLint and `next build` passed. A scan of the built browser bundle found no key, no Supabase client code and no server env variable names.
+- 14 requests against the running app returned the expected rejection, among them localhost, `:8080`, 192.168.x.x, 169.254.169.254, `::ffff:127.0.0.1`, `2130706433`, a nonexistent domain, and `localtest.me` (a public name that resolves to 127.0.0.1).
+- Against a local fake of Supabase's REST API: a normal enqueue (201), queue full (503), rate limited (429), and done, failed, queued and missing runs.
+- Every run-page state rendered in Chrome at 390 px with no horizontal scroll. The running page picked up new steps and stopped polling when the run finished.
+
+Not yet verified:
+- `schema.sql` and the end-to-end flow (web → queue → worker → report) on a real Supabase project.
+- Light mode, and the landing form's inline errors in a real browser.
+
+Security note: an automated review flagged that the URL is checked only at submission. The worker's browser resolves names again and follows redirects, so it could still be steered to a private address. Fixed in the next entry.
+
+### 2026-10-10 — Egress guard in the worker
+
+Completed:
+- `worker/egress.py`: a local proxy that every request from Chrome must go through. Chrome launches with `--proxy-server` pointing at it, `<-loopback>` to remove Chrome's built-in localhost bypass, and WebRTC limited to proxied connections.
+- For each new host the guard resolves the name itself, refuses it if any address is not public, and then connects only to an address it checked. Not public means private, loopback, link-local (including the 169.254.169.254 metadata address), CGNAT, unique-local, multicast or reserved, with IPv4-mapped and NAT64 forms unwrapped. Connecting to the checked address, rather than resolving again, stops DNS rebinding. Because the check happens per connection, redirects, subresources and websockets are all covered.
+- Each check runs in a neatlogs `GUARDRAIL` span (`egress_check`), once per host per run.
+- A refused request ends the run as `blocked`, with a reason naming the host and address. The check runs before every model call and once more after the loop. A host that simply does not resolve is refused quietly and does not end the run.
+- Stagehand's built-in extension connects from inside Chrome to Chrome's own DevTools port, so that tunnel is allowed, but only when its first request carries a `chrome-extension://` Origin. Pages cannot forge that header. The check runs in a `GUARDRAIL` span (`devtools_check`). This also closes a gap that existed before: Stagehand launches Chrome with `--remote-allow-origins=*`, so a page could previously have connected to DevTools.
+
+Tests that ran (`python -m unittest test_egress`, 6 tests, all pass):
+- Address rules for blocked and allowed addresses.
+- Through the proxy, plain HTTP to 127.0.0.2, a tunnel to `localhost`, and the metadata IP all got 403, and the private test server received 0 requests.
+- The DevTools port refused a page Origin and accepted an extension Origin.
+- An unresolvable host got 502 and did not count as a safety block.
+- Redirect test in a real Chrome window through `first_visit`: a public-looking origin returned a 302 to `127.0.0.2`. The private server received 0 requests, and the run ended `blocked` with 0 steps (no model call).
+- Negative control: with Chrome's loopback bypass left on, the same redirect test fails (the private server got 2 requests), so the test depends on the guard.
+- A real visit to saucedemo through the guard (Haiku brain): `achieved` in 9 steps, $0.0292, no requests refused.
+
+Failure found and fixed during the session:
+- The first real run failed with "CDP websocket failed to open". Once loopback went through the guard, Stagehand's extension could not reach Chrome's DevTools port. The fix is the extension-only DevTools rule above.
+
+Not yet verified:
+- Whether the `egress_check` and `devtools_check` spans nest under the run in the neatlogs dashboard. The guard copies the run's context when it starts so they should.
+
 ## Demo
 
 - URL: pending
@@ -130,7 +197,11 @@ Not yet verified:
 - The agent has been tested on one demo site (saucedemo) with one easy goal. Both brains found no friction there, so the friction report is untested on a site that has real problems.
 - Stagehand lookups are about 94% of a Haiku-brain run's cost: Stagehand 4.2.0 does not accept Claude Haiku 5.5, so lookups run on Haiku 4.5.
 - With Sonnet at low effort, the `thought` field is often a fragment ("Open the cart.") rather than the first-person sentence the prompt asks for. Haiku followed the instruction.
-- `web/` is an unmodified Next.js scaffold.
+- Nothing has run against a real Supabase project yet, including the schema and the web-to-worker flow.
+- The rate limit trusts `X-Forwarded-For`. That is only safe behind a proxy that sets it, such as Vercel.
+- Screenshots are in a public bucket, so anyone with a screenshot's URL can open it. A private bucket with signed URLs is safer before real users.
+- Any refused request ends the run, including a stray third-party resource on a private address, such as a leftover `localhost` dev script. That is safe but strict.
+- The egress guard runs inside the worker process. A firewall or egress policy on the worker host would be a second layer; none is set up.
 - Next steps (planned, not started):
   1. Confirm the `first-visit-test` traces and span attributes in the neatlogs dashboard, and run `doctor --probe`.
   2. Run the agent on a site with real friction to test the friction report and the agent-issue path.
@@ -150,9 +221,9 @@ Confirmed from https://neatlogs.com/hackathon (read 2026-10-10):
 
 Status of each item:
 - neatlogs: every agent run is traced (`WORKFLOW` → `AGENT` → LLM, TOOL and `GUARDRAIL` spans). Dashboard not yet confirmed. Before-and-after numbers for the click fix are in the build log; matching trace links are pending.
-- Entire: checkpoints on `ab7458b` and `ac3b598`. This session's work is uncommitted.
+- Entire: checkpoints on `ab7458b`, `ac3b598`, `51e480b` and `6a08b29`. The web app and egress guard are uncommitted.
 - cfo.ai: pending (not signed up).
-- Business plan: pending. Measured cost per saucedemo run is about $0.017 (Haiku brain) and $0.034 (Sonnet brain).
+- Business plan: pending. Measured cost per saucedemo run is about $0.017–0.029 (Haiku brain) and $0.034 (Sonnet brain).
 - Failure-recovery run: the recovery ladder recovered "Add to cart" in 5 of 5 measurement attempts. A full agent run that shows recovery is still pending.
 - Building in public: pending (no posts recorded).
 - Public repo: `origin` exists; visibility unconfirmed.

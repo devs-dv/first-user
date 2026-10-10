@@ -46,6 +46,8 @@ async def run_persona(ctx: RunContext) -> dict:
     steps = 0
     try:
         while ctx.finished is None and steps < MAX_STEPS:
+            if _stop_if_egress_blocked(ctx):
+                break
             ctx.usage.set_stagehand(await ctx.stagehand.metrics())
             if not check_budget(ctx.usage.total_tokens, round(ctx.usage.total_cost, 5))["ok"]:
                 ctx.finished = {"outcome": "gave_up", "reason": "budget"}
@@ -101,6 +103,8 @@ async def run_persona(ctx: RunContext) -> dict:
     finally:
         current_run.reset(token)
         ctx.usage.set_stagehand(await ctx.stagehand.metrics())
+    # A refusal during the last step still ends the run as blocked, whatever the model concluded.
+    _stop_if_egress_blocked(ctx)
 
     finished = ctx.finished or {
         "outcome": "max_steps",
@@ -113,6 +117,18 @@ async def run_persona(ctx: RunContext) -> dict:
         "agent_issues": ctx.agent_issues,
         "usage": ctx.usage.summary(),
     }
+
+
+def _stop_if_egress_blocked(ctx: RunContext) -> bool:
+    """End the run as blocked if the egress guard refused any request."""
+    reason = ctx.egress.block_reason() if ctx.egress is not None else None
+    if reason is None:
+        return False
+    if ctx.finished and "egress_blocks" in ctx.finished:
+        return True
+    ctx.finished = {"outcome": "blocked", "reason": reason, "egress_blocks": ctx.egress.blocks[:5]}
+    print(f"[egress] {reason}", flush=True)
+    return True
 
 
 @neatlogs.span(kind="GUARDRAIL", name="budget_check")

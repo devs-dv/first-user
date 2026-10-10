@@ -44,7 +44,7 @@ async def plain_step(stagehand, page, instruction: str) -> dict:
 
 
 async def attempt(mode: str, run_id: str, number: int) -> dict:
-    browser, stagehand, page = await open_browser()
+    browser, stagehand, page, guard = await open_browser()
     try:
         await page.goto(URL)
         await page.wait_for_selector("#user-name")
@@ -77,7 +77,7 @@ async def attempt(mode: str, run_id: str, number: int) -> dict:
             "stagehand_tokens": int(metrics.total_prompt_tokens + metrics.total_completion_tokens),
         }
     finally:
-        await close_browser(browser, stagehand)
+        await close_browser(browser, stagehand, guard)
 
 
 async def main(mode: str, attempts: int) -> None:
