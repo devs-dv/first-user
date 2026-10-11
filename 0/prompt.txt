@@ -1,0 +1,12 @@
+<pasted_content id="c7d7">
+Four report fixes, from run 91e44505-dade-461a-8882-5a256b73b9ee (saucedemo, problem_user).
+
+1. "Your app was blocked at a login. Ways to go deeper" was shown although the visitor signed in successfully and was blocked later at checkout. Show that block only when the run was blocked at a login or sign-up step.
+2. The report said "You let the visitor sign up by itself". Check what access_mode the form sends by default and that the label matches what was chosen. The default must be "No login".
+3. The finding was given the kind "Hidden error" with no console error or failed request involved. Use "hidden error" only when the evidence includes one; otherwise it is a site problem.
+4. When findings exist, do not repeat the same items under "Problems with the site"; show only frictions that did not become findings. In "Steps to reproduce", do not add a final step that restates earlier ones.
+
+Also: this run used 14 of 15 steps and stopped before finishing. Raise the step limit to 20 and keep the budget guardrail as the real limit.
+
+Add tests, and update hackathon.md.
+</pasted_content id="c7d7">

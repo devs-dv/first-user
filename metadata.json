@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4P4S27CAQT3DSNWRGFWMKNX",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "hackathon.md",
+    "web/app/api/runs/route.ts",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-logic.test.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/types.ts",
+    "web/package.json",
+    "web/tsconfig.json",
+    "worker/browse.py",
+    "worker/config.py",
+    "worker/report_writer.py",
+    "worker/test_access_modes.py",
+    "worker/test_credentials.py",
+    "worker/test_report_writer.py",
+    "worker/tools.py",
+    "worker/visit.py",
+    "worker/worker_run.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 44520,
+    "cache_read_tokens": 6181623,
+    "output_tokens": 36240,
+    "api_call_count": 15
+  }
+}
