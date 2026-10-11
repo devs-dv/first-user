@@ -1,0 +1,92 @@
+{
+  "verified_on": "2026-10-11",
+  "verified_how": "Each URL opened in the worker's own browser setup (Chrome behind the egress guard) and the flow carried out with plain browser actions (CSS selectors, typing, DOM click events), with no model calls.",
+  "cases": [
+    {
+      "id": "saucedemo_standard",
+      "kind": "achievable",
+      "url": "https://www.saucedemo.com/",
+      "goal": "Log in as standard_user, add a product to the cart and reach the checkout page.",
+      "verified": true,
+      "verification": "Logged in, added the backpack (cart badge 1), opened the cart and reached checkout-step-one.html."
+    },
+    {
+      "id": "herokuapp_login",
+      "kind": "achievable",
+      "url": "https://the-internet.herokuapp.com/login",
+      "goal": "Log in with the username and password shown on the page and reach the secure area.",
+      "verified": true,
+      "verification": "The page shows tomsmith / SuperSecretPassword!; logging in reached /secure with 'You logged into a secure area!'.",
+      "note": "Loads slowly in Chrome: each script takes 25-30 s, so the page finishes loading after about 35 s (curl gets everything in under 2 s, with or without the egress proxy; Chrome without the proxy is just as slow). The worker's page.goto gives up after 15 s."
+    },
+    {
+      "id": "herokuapp_dynamic_loading",
+      "kind": "achievable",
+      "url": "https://the-internet.herokuapp.com/dynamic_loading/1",
+      "goal": "Start the loading and read the text that appears when it finishes.",
+      "verified": true,
+      "verification": "Clicked Start; after the loading bar the page shows 'Hello World!'.",
+      "note": "Same slow loading in Chrome as herokuapp_login (about 35 s)."
+    },
+    {
+      "id": "herokuapp_add_remove",
+      "kind": "achievable",
+      "url": "https://the-internet.herokuapp.com/add_remove_elements/",
+      "goal": "Add three elements, then remove one of them.",
+      "verified": true,
+      "verification": "Clicked 'Add Element' three times and one 'Delete' button; 2 elements remained."
+    },
+    {
+      "id": "todomvc_react",
+      "kind": "achievable",
+      "url": "https://todomvc.com/examples/react/dist/",
+      "goal": "Add three to-do items and mark one of them as complete.",
+      "verified": true,
+      "verification": "Typed three items with Enter (3 in the list) and ticked one (1 completed)."
+    },
+    {
+      "id": "uitesting_click",
+      "kind": "achievable",
+      "url": "http://uitestingplayground.com/click",
+      "goal": "Click the button and confirm that it changes colour.",
+      "verified": true,
+      "verification": "The button's class changed from 'btn btn-primary' (blue) to 'btn btn-success' (green) after a click.",
+      "note": "http only: https://uitestingplayground.com fails with a certificate error."
+    },
+    {
+      "id": "practice_hammer",
+      "kind": "achievable",
+      "url": "https://practicesoftwaretesting.com/",
+      "goal": "Find a hammer, add it to the cart and open the cart.",
+      "verified": true,
+      "verification": "Searching 'hammer' listed 5+ hammers; added 'Claw Hammer with Shock Reduction Grip' and the cart (/checkout) listed it."
+    },
+    {
+      "id": "saucedemo_locked_out",
+      "kind": "broken",
+      "url": "https://www.saucedemo.com/",
+      "goal": "Log in as locked_out_user and add a product to the cart.",
+      "known_issue": "The user cannot log in: the login page shows 'Epic sadface: Sorry, this user has been locked out.'",
+      "verified": true,
+      "verification": "Logging in as locked_out_user stayed on the login page with 'Epic sadface: Sorry, this user has been locked out.'"
+    },
+    {
+      "id": "saucedemo_problem_user",
+      "kind": "broken",
+      "url": "https://www.saucedemo.com/",
+      "goal": "Log in as problem_user, add products to the cart and complete the checkout.",
+      "known_issue": "Parts of the flow do not work for this user: only some 'Add to cart' buttons work, every product shows the same image, and at checkout typing the last name changes the first-name field instead, so checkout stops with 'Error: Last Name is required'.",
+      "verified": true,
+      "verification": "6 'Add to cart' clicks gave a cart badge of 3; all 6 product images were the same file; typing 'Jane' then 'Doe' left first name 'Doe' and last name empty, and Continue showed 'Error: Last Name is required'."
+    },
+    {
+      "id": "saucedemo_error_user",
+      "kind": "broken",
+      "url": "https://www.saucedemo.com/",
+      "goal": "Log in as error_user and complete a purchase.",
+      "known_issue": "Errors during the flow: only some 'Add to cart' buttons work, the last-name field does not accept input, and 'Finish' on the last checkout step does nothing, so the purchase never completes.",
+      "verified": true,
+      "verification": "6 'Add to cart' clicks gave a cart badge of 3; the last-name field stayed empty after typing; Continue still reached checkout-step-two, but Finish left the page on checkout-step-two."
+    }
+  ]
+}

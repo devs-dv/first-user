@@ -338,6 +338,34 @@ Tests that ran (same saucedemo goal, Haiku brain, `check_costs.py`):
 
 Evidence: `evidence/2026-10-11-trace-quality/check-20261011-080803-costs.json`.
 
+### 2026-10-11 — Eval harness and v0 baseline
+
+Completed:
+- `evals/sites.json`: 10 cases, 7 achievable and 3 broken (saucedemo's `locked_out_user`, `problem_user` and `error_user`).
+  - Every URL was opened and every flow was carried out with plain browser actions, with no model calls, in the worker's own browser setup. All 10 are marked verified, with what was seen.
+  - `uitestingplayground.com` works only over `http://` (its HTTPS certificate fails).
+  - The two herokuapp login and dynamic-loading pages take about 35 s to load in Chrome, with or without the egress proxy, while `curl` gets them in under 2 s. They were kept, with a note.
+- `evals/run.py --version V`: queues each case as a run with source `eval`, waits for the separately running worker, judges each broken case with one `claude-haiku-5-5` call (forced tool, `EVALUATOR` span, judged text printed), and writes `evals/results/V.json` and `V.md`. It flushes and shuts down neatlogs at the end.
+- `supabase/schema.sql` gains `runs.eval_version`. The column is not in the live database yet, so v0's label is only in the results file.
+
+v0 baseline (agent `ec2bbcc`, Haiku brain; no agent changes made for the eval):
+
+| Metric | v0 |
+|---|---|
+| Completion rate (achievable) | 3/7 |
+| False-praise rate (broken) | 0/3 (but see below) |
+| Stopped by budget or step limit | 2 |
+| agent_issue frictions | 11 |
+| Median steps | 9.5 (2 runs had no steps) |
+| Total cost | $0.0430 (runs $0.0426, judge $0.0004) |
+
+- The two herokuapp cases failed before the first step: `page.goto` gave up after 15 s.
+- `todomvc_react` (gave_up, 5 agent issues) and `uitesting_click` (blocked, 3 agent issues) failed through our browser tool on sites that plain actions completed.
+- Both `problem_user` and `error_user` ran out of steps (15) without calling finish.
+- **Judge caveat:** for `error_user`, the judge counted three `agent_issue` entries ("no_effect" on typing the last name and on Finish) as naming the known issue. The report files those as our own tool's problems, though, not the site's, so a founder would read them as our bug. By hand this is closer to false praise.
+
+Evidence: `evals/results/v0.json`, `v0.md`, `v0.log` (includes the judged text).
+
 ## Demo
 
 - URL: pending

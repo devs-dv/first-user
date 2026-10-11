@@ -151,3 +151,7 @@ $$;
 
 revoke execute on function public.enqueue_web_run(text, text, text, integer, integer) from public, anon, authenticated;
 grant execute on function public.enqueue_web_run(text, text, text, integer, integer) to service_role;
+
+-- Evals: evals/run.py queues runs with source 'eval' and labels them with the eval version.
+alter table public.runs add column if not exists eval_version text;
+create index if not exists runs_eval_version_idx on public.runs (eval_version) where eval_version is not null;

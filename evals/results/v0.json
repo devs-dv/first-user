@@ -1,0 +1,200 @@
+{
+  "version": "v0",
+  "finished_at": "2026-10-11T03:46:36+00:00",
+  "agent_versions": [
+    "ec2bbcc"
+  ],
+  "brain_models": [
+    "claude-haiku-5-5"
+  ],
+  "judge_model": "claude-haiku-5-5",
+  "eval_version_column": false,
+  "metrics": {
+    "completion_rate": {
+      "count": 3,
+      "of": 7,
+      "rate": 0.429
+    },
+    "false_praise_rate": {
+      "count": 0,
+      "of": 3,
+      "rate": 0.0
+    },
+    "stopped_by_budget_or_step_limit": 2,
+    "agent_issue_frictions": 11,
+    "median_steps": 9.5,
+    "runs_without_steps": 2,
+    "failed_runs": 2,
+    "total_cost_usd": 0.04299,
+    "run_cost_usd": 0.04258,
+    "judge_cost_usd": 0.00041
+  },
+  "cases": [
+    {
+      "id": "saucedemo_standard",
+      "kind": "achievable",
+      "run_id": "9ae0e945-6f9c-4b44-bdb5-7694d4f69e41",
+      "status": "done",
+      "outcome": "achieved",
+      "stopped_by": "finish",
+      "steps": 8,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00403,
+      "reason": "Logged in as standard_user, added the first product to the cart, and reached the checkout information page (checkout-step-one.html).",
+      "completed": true
+    },
+    {
+      "id": "herokuapp_login",
+      "kind": "achievable",
+      "run_id": "486e6ba4-1f68-4d8f-9ae8-5a215dd43faf",
+      "status": "failed",
+      "outcome": null,
+      "stopped_by": null,
+      "steps": null,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": null,
+      "reason": "RPCError: waitForMainLoadState(domcontentloaded) timed out after 14997ms",
+      "completed": false
+    },
+    {
+      "id": "herokuapp_dynamic_loading",
+      "kind": "achievable",
+      "run_id": "81a2cf7c-472c-431b-999e-9b0d4f354f47",
+      "status": "failed",
+      "outcome": null,
+      "stopped_by": null,
+      "steps": null,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": null,
+      "reason": "RPCError: waitForMainLoadState(domcontentloaded) timed out after 14992ms",
+      "completed": false
+    },
+    {
+      "id": "herokuapp_add_remove",
+      "kind": "achievable",
+      "run_id": "c1caae7a-3458-4ca3-997e-83527f0d057d",
+      "status": "done",
+      "outcome": "achieved",
+      "stopped_by": "finish",
+      "steps": 8,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00304,
+      "reason": "I clicked Add Element three times, then clicked Delete once, and the page shows two Delete buttons remaining.",
+      "completed": true
+    },
+    {
+      "id": "todomvc_react",
+      "kind": "achievable",
+      "run_id": "ab9d9bd4-5d35-468e-90d0-911cc61f90a9",
+      "status": "done",
+      "outcome": "gave_up",
+      "stopped_by": "finish",
+      "steps": 15,
+      "frictions": 1,
+      "agent_issue_frictions": 5,
+      "cost_usd": 0.00657,
+      "reason": "I typed three to-do items (Buy milk, Walk the dog, Read a book) and they appeared to be accepted, but I could not confirm them on screen or tick any checkbox to mark one complete; repeated clicks on the toggle had no effect.",
+      "completed": false
+    },
+    {
+      "id": "uitesting_click",
+      "kind": "achievable",
+      "run_id": "6895e867-2503-4b7b-b3c3-315fa5fcc614",
+      "status": "done",
+      "outcome": "blocked",
+      "stopped_by": "finish",
+      "steps": 7,
+      "frictions": 0,
+      "agent_issue_frictions": 3,
+      "cost_usd": 0.0027,
+      "reason": "I could see the \"Button That Ignores DOM Click Event\" but four click attempts had no effect, so I could not click it or confirm any colour change.",
+      "completed": false
+    },
+    {
+      "id": "practice_hammer",
+      "kind": "achievable",
+      "run_id": "4da77850-f140-423b-9952-d0c69b4b73c8",
+      "status": "done",
+      "outcome": "achieved",
+      "stopped_by": "finish",
+      "steps": 11,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00936,
+      "reason": "I searched for hammer, opened the Hammer product, added it to the cart, and opened the cart, which shows Hammer x1 at $12.58.",
+      "completed": true
+    },
+    {
+      "id": "saucedemo_locked_out",
+      "kind": "broken",
+      "run_id": "549fe9c8-b62f-40e4-b1aa-528fa78088b5",
+      "status": "done",
+      "outcome": "blocked",
+      "stopped_by": "finish",
+      "steps": 6,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00229,
+      "reason": "Logging in as locked_out_user with the password secret_sauce failed with the message \"Sorry, this user has been locked out,\" so no product could be added to the cart. I did not try other accounts because the goal was specifically this user.",
+      "mentions_issue": true,
+      "judge_evidence": "\"Logging in as locked_out_user with the password secret_sauce failed with the message \"Sorry, this user has been locked out,\"",
+      "false_praise": false
+    },
+    {
+      "id": "saucedemo_problem_user",
+      "kind": "broken",
+      "run_id": "31e35c99-c266-4932-986e-def789f9644d",
+      "status": "done",
+      "outcome": "max_steps",
+      "stopped_by": "max_steps",
+      "steps": 15,
+      "frictions": 1,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00687,
+      "reason": "Stopped after 15 steps without calling finish.",
+      "mentions_issue": true,
+      "judge_evidence": "happened 'First Name shows \"Doe\", Last Name is empty, and an error says Last Name is required.'",
+      "false_praise": false
+    },
+    {
+      "id": "saucedemo_error_user",
+      "kind": "broken",
+      "run_id": "4d97c8ee-04f0-4ff1-b23e-b043aaf465f6",
+      "status": "done",
+      "outcome": "max_steps",
+      "stopped_by": "max_steps",
+      "steps": 15,
+      "frictions": 0,
+      "agent_issue_frictions": 3,
+      "cost_usd": 0.00772,
+      "reason": "Stopped after 15 steps without calling finish.",
+      "mentions_issue": true,
+      "judge_evidence": "Agent issue: no_effect on \"type 'User' into the Last Name textbox\"; Agent issue: no_effect on 'click the Last Name textbox'; Agent issue: no_effect on 'click the Finish button'",
+      "false_praise": false
+    }
+  ],
+  "judge": {
+    "saucedemo_locked_out": {
+      "judged_text": "Outcome: blocked (status done)\nReason: Logging in as locked_out_user with the password secret_sauce failed with the message \"Sorry, this user has been locked out,\" so no product could be added to the cart. I did not try other accounts because the goal was specifically this user.",
+      "mentions_issue": true,
+      "evidence": "\"Logging in as locked_out_user with the password secret_sauce failed with the message \"Sorry, this user has been locked out,\"",
+      "cost_usd": 0.0001292
+    },
+    "saucedemo_problem_user": {
+      "judged_text": "Outcome: max_steps (status done)\nReason: Stopped after 15 steps without calling finish.\nFriction (medium): expected 'First Name shows \"Jane\" and Last Name shows \"Doe\".'; happened 'First Name shows \"Doe\", Last Name is empty, and an error says Last Name is required.'",
+      "mentions_issue": true,
+      "evidence": "happened 'First Name shows \"Doe\", Last Name is empty, and an error says Last Name is required.'",
+      "cost_usd": 0.00013160000000000003
+    },
+    "saucedemo_error_user": {
+      "judged_text": "Outcome: max_steps (status done)\nReason: Stopped after 15 steps without calling finish.\nAgent issue: no_effect on \"type 'User' into the Last Name textbox\"\nAgent issue: no_effect on 'click the Last Name textbox'\nAgent issue: no_effect on 'click the Finish button'",
+      "mentions_issue": true,
+      "evidence": "Agent issue: no_effect on \"type 'User' into the Last Name textbox\"; Agent issue: no_effect on 'click the Last Name textbox'; Agent issue: no_effect on 'click the Finish button'",
+      "cost_usd": 0.0001494
+    }
+  }
+}
