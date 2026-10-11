@@ -56,7 +56,6 @@ RUN pip install --no-deps -r requirements.lock.txt
 COPY --chown=worker:worker *.py ./
 
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji && rm -rf /var/lib/apt/lists/*
 USER worker
 
 # Healthy while the worker's heartbeat file is fresh (healthcheck.py).
