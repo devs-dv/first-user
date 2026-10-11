@@ -22,6 +22,7 @@ import neatlogs
 from anthropic import AsyncAnthropic
 from stagehand import LLMStructuredGenerateResult
 
+import trace_safety
 from config import LOOKUP_CALLBACK_MODEL, LOOKUP_MAX_TOKENS
 
 _client = None
@@ -150,7 +151,9 @@ def _content(content) -> list[dict]:
 
 def _block(block) -> dict:
     if block.type == "text":
-        return {"type": "text", "text": block.text}
+        # A run's test login is replaced by its label before anything is sent to the model: the
+        # lookup model reads the page's accessibility tree, which can hold a typed value.
+        return {"type": "text", "text": trace_safety.scrub_text(block.text)}
     if block.type == "image":
         return {"type": "image", "source": {"type": "base64", "media_type": block.mime_type, "data": block.data}}
     raise TypeError(f"Unsupported content block for the lookup model: {block.type}")

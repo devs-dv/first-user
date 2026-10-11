@@ -62,6 +62,10 @@ async def close_browser(browser, stagehand, guard):
     finally:
         try:
             await browser.close()
+        except PermissionError as error:
+            # On Windows, Chrome can still hold a cache file while Stagehand deletes its
+            # temporary profile. The visit is over by then, so keep its result.
+            print(f"[browser] could not remove Chrome's temporary profile: {error}", flush=True)
         finally:
             try:
                 await guard.close()

@@ -72,6 +72,7 @@ class RunUsage:
     brain: TokenTally = field(default_factory=TokenTally)
     lookup: TokenTally = field(default_factory=TokenTally)
     verifier: TokenTally = field(default_factory=TokenTally)
+    review: TokenTally = field(default_factory=TokenTally)
     # Stagehand's metrics() for the session; cumulative, so the latest snapshot is stored.
     stagehand_prompt: int = 0
     stagehand_completion: int = 0
@@ -85,6 +86,9 @@ class RunUsage:
 
     def add_verifier_response(self, response) -> None:
         self.verifier.add(response)
+
+    def add_review_response(self, response) -> None:
+        self.review.add(response)
 
     def set_stagehand(self, metrics) -> None:
         self.stagehand_prompt = int(metrics.total_prompt_tokens)
@@ -105,11 +109,11 @@ class RunUsage:
 
     @property
     def total_tokens(self) -> int:
-        return self.brain.total_tokens + self.lookup_tokens + self.verifier.total_tokens
+        return self.brain.total_tokens + self.lookup_tokens + self.verifier.total_tokens + self.review.total_tokens
 
     @property
     def total_cost(self) -> float:
-        return self.brain.cost + self.lookup_cost + self.verifier.cost
+        return self.brain.cost + self.lookup_cost + self.verifier.cost + self.review.cost
 
     def summary(self) -> dict:
         return {
@@ -119,6 +123,7 @@ class RunUsage:
                 self.lookup.summary() if LOOKUP_VIA == "callback" else {"models": [LOOKUP_MODEL]}
             ),
             "verifier_tokens": self.verifier.summary(),
+            "review_tokens": self.review.summary(),
             "stagehand_metrics": {
                 "prompt": self.stagehand_prompt,
                 "completion": self.stagehand_completion,
@@ -129,6 +134,7 @@ class RunUsage:
                 "brain": round(self.brain.cost, 5),
                 "lookup": round(self.lookup_cost, 5),
                 "verifier": round(self.verifier.cost, 5),
+                "review": round(self.review.cost, 5),
                 "total": round(self.total_cost, 5),
             },
         }

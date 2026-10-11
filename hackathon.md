@@ -461,6 +461,173 @@ v0 had no verifier, so its completions are the agent's own "achieved" and count 
 
 Evidence: `evals/results/v2.json`, `v2.md`, `v2.log`.
 
+### 2026-10-11 — Trace integrity, four agent improvements, screenshot masking, and eval v3
+
+Completed (Part A, trace integrity):
+- `worker/check_traces.py` runs visits in one event loop, like the worker, and collects every span from the provider that exports to neatlogs. It checks: one trace per visit, no orphan or unexported parents, every span ended, nothing ending after the root, and no ERROR span on a normal run. It also runs guard scenarios: the guard outside a run, the guard closed mid-check, and a refusal inside a run.
+- **The egress guard no longer traces host checks.** A refused request gets one `egress_refused` GUARDRAIL span, created synchronously in the run's context. A guard outside an active neatlogs run (tests, scripts) creates no spans. Each visit ends with one `egress_summary` span (hosts checked, allowed, unresolved, refused), and the summary is also in the run result.
+- **Each run's neatlogs trace id** is returned as `trace_id` and saved in the new `runs.trace_id` column (`supabase/schema.sql`). Until that column exists, runs are saved without it and the worker prints one warning.
+
+| | Before | After |
+|---|---|---|
+| Traces per visit | 1, 1, 1 | 1, 1, 1 and 1, 1, 1 |
+| Orphan / ERROR / unended spans | 0 / 0 / 0 | 0 / 0 / 0 |
+| Guard outside a run | 2 standalone traces | 0 spans |
+| Guard closed mid-check | span cut off (UNSET) | no span |
+| Spans in one uitesting visit | 60 | 23 |
+
+The "Trace processing failed" state of runs `c350f9b9` and `ab9d9bd4` was not reproduced. The standalone 2-span traces came from the guard running outside a visit.
+
+Completed (Part B, agent):
+1. **Vision.** `look()` attaches a screenshot that the brain sees as an image.
+2. **Typing.** A "click the text field" instruction with nothing to type returns "nothing to do, typing focuses the field" instead of running the ladder. Rung d can type: a trusted click to focus, then the keyboard.
+3. **Read-back.** Typing results include the focused field's label and actual value, and flag when the typed text is not in it. The verifier's record includes it too.
+4. **Readiness.** When an action has no effect and the page reports a "not loaded yet" error ("... is not defined", chunk-load errors), it waits up to 15 s for the page to finish loading and runs the ladder once more.
+
+Completed (screenshot masking): `worker/trace_media.py` is passed as `neatlogs.init(mask=...)` in `main.py`, `run_once.py` and `check_costs.py`. It replaces inline base64 images in exported spans with `[screenshot omitted from trace, N KB: <public URL>]`. The model still gets the real image. `look()` and the verifier upload their screenshots when a database is configured.
+
+| Exported LLM spans, one uitesting visit | Before | After |
+|---|---|---|
+| Brain call carrying a look() screenshot | 75-76 KB | 10-12 KB |
+| Verifier call | 56 KB | 7 KB |
+| All LLM spans in the visit | 321 KB | 78 KB |
+
+Eval v3 (fresh worker, Haiku brain):
+
+| Metric | v0 | v1 | v2 | v3 |
+|---|---|---|---|---|
+| Completed and verified (achievable) | – | 2/7 | 4/7 | 4/7 |
+| Completed but unverified (achievable) | 3/7 | – | 0/7 | 0/7 |
+| Contradicted by the verifier | – | – | 0 | 1 |
+| False-praise rate (broken) | 0/3 | 1/3 | 1/3 | 0/3 |
+| Stopped by budget or step limit | 2 | 0 | 0 | 0 |
+| agent_issue frictions | 11 | 2 | 5 | 4 |
+| Site frictions found through page errors | – | 2 | 3 | 2 |
+| Failed runs | 2 | 0 | 0 | 2 |
+| Median steps | 9.5 | 8.0 | 7.5 | 9.5 |
+| Total cost | $0.0430 | $0.0470 | $0.0490 | $0.0504 |
+
+- **Fixed in v3:**
+  - `todomvc_react` completed and verified for the first time: the agent typed straight in.
+  - `saucedemo_problem_user` named its bug, so there was no false praise: the read-back showed the Last Name field empty after typing 'Doe'.
+  - `uitesting_click`: the agent saw the button turn green.
+- **Verifier error:** for `uitesting_click` the verifier returned `contradicted`, while its own reason says the green button is "consistent with the click" and only the before-colour is undocumented. That is `unverified` at most.
+- **Failed runs:** `herokuapp_dynamic_loading` and `herokuapp_add_remove` finished their visits, but closing Chrome raised the Windows profile-cleanup `PermissionError`, which failed both runs. In add/remove, the readiness retry waited, but jQuery never loaded on herokuapp, so the agent concluded blocked.
+- **Uploads:** the Supabase `screenshots` bucket rejects `image/jpeg`, so `look()` screenshots were not uploaded in v3, and their placeholders had no URL.
+
+Fixed after v3 (not yet run in an eval):
+- `look()` screenshots are PNG, which the bucket accepts.
+- A `PermissionError` from Chrome's profile cleanup is logged and no longer fails a finished run.
+- `python -m unittest test_egress`: 7 tests pass.
+
+Still open:
+- The verifier's choice between `contradicted` and `unverified` when it lacks a before-state.
+- herokuapp's slow and sometimes missing scripts.
+
+Evidence: `evals/results/v3.json`, `v3.md`, `v3.log`.
+
+### 2026-10-11 — Security fix: an API key in a trace; verifier calibration; eval v4
+
+**Incident.** A neatlogs trace (12:04 PM) recorded an Anthropic API key as span input. Cause: `judge(client, ...)` in `evals/run.py` was a traced function that took the Anthropic client as its first argument. The neatlogs decorator records a function's arguments and walks an object's public attributes, so `client.api_key` was captured. All four evals (v0 to v3) ran that judge, 3 judge spans each. The key has been rotated; those 12 judge traces should be deleted in the neatlogs dashboard.
+
+Completed:
+- **Traced functions no longer receive secrets or live objects.**
+  - `judge()` takes only strings (`case_id`, `known_issue`, `text`); its client is created inside the module and closed at the end.
+  - `first_visit`, `run_persona` and `verify` take objects (a recorder, a run context, a page). They use `capture_input=False` and record their plain-value input explicitly with `trace_safety.set_input()`.
+  - Every other traced function was checked: they take strings, numbers and dicts only.
+- **The neatlogs mask now redacts secrets** (`worker/trace_safety.py`, installed in `main.py`, `run_once.py`, `check_costs.py` and `evals/run.py`), in every string of a span: attributes, events, status and name.
+  - Key shapes: Anthropic and other `sk-` keys, JWTs (Supabase service and anon keys), `sb_secret_` and `sb_publishable_` keys, `Bearer` tokens, and `x-api-key:` and `Authorization:` header text.
+  - The exact value of every secret-named environment variable of the process (names containing KEY, TOKEN, SECRET, PASSWORD, ...), whatever its shape. This covers the neatlogs key without reading `.env`.
+  - Values of fields named `api_key`, `key`, `token`, `secret`, `password` or `authorization` and close variants, including inside JSON text.
+  - Counts and ordinary names are untouched (`max_tokens`, `token_count`, `prompt_key`).
+  - It then replaces inline screenshots (`trace_media.py`). It never raises: on failure it falls back to regex-only redaction, and drops the span if even that fails.
+- **Tests** (`test_trace_safety.py`, 14 tests; fake keys are assembled at run time so no key-shaped string is in the repo). Spans go through neatlogs' own `MaskingSpanExporter` into an in-memory exporter, and the tests check that:
+  - a client and a config object passed as traced arguments arrive redacted;
+  - keys in free text, headers, exception events and span names arrive redacted;
+  - an environment secret of any shape is redacted, and an unrelated variable is not;
+  - a secret next to a screenshot is redacted and the screenshot is replaced;
+  - ordinary telemetry is untouched;
+  - a static scan of every traced function fails if one takes a client, config, context, page, recorder or similar without `capture_input=False`.
+- **Negative controls:** with an identity mask, the fake key leaks; with the real mask it does not; the original `judge(client, ...)` signature is flagged by the scan.
+- **End to end**, a real visit and the real judge, with a recording mask counting secrets before and after redaction: 24 spans in the visit and 4 in the judge, 0 secret values and 0 key-shaped strings before the mask (the leak is fixed at its source) and 0 after.
+- **Search for key-shaped strings** (`worker/scan_secrets.py`: paths, line numbers and counts only, never values): the working tree (including `evals/results`, `evidence`, `hackathon.md` and the gitignored `worker/runs`), and every commit on every ref (38 at the time; rescanned after the docs were written: 49, same result).
+  - **Result: 0 matches**, for key shapes and for the exact values of the 5 secret-named environment variables of the process. `worker/.env` and `web/.env.local` are gitignored and not tracked.
+  - The scan loads `worker/.env` the way the worker does and does not read `web/.env.local`. It covers the web app's key only if that is the same value as the worker's.
+
+Completed (verifier calibration):
+- "contradicted" now needs positive evidence that is present: an error message, a wrong result, or an action that was tried and did not change the page. Missing evidence (no before-state, a thin record, a result that might already have been there) is "unverified". The prompt says so and gives examples.
+- The verdict tool requires a quoted `contradicting_evidence`; a "contradicted" without it is downgraded to "unverified" in code. An empty record is shown as "nothing recorded; says nothing about success".
+- Real-model check, 3 runs per case (`worker/calibrate_verifier.py`):
+
+| Case | Expected | Before the change | After |
+|---|---|---|---|
+| Button turned green, no before-state | unverified (or verified) | contradicted in v3 | unverified 3/3 |
+| Empty record, final page shows the result | unverified | contradicted 3/3 (first attempt at the prompt) | unverified 3/3 |
+| Error "locked out" on the page | contradicted | | contradicted 3/3 |
+
+- `test_verifier.py`, 7 tests with the model mocked: the downgrade guard, pass-through of the other verdicts, and that the agent's thoughts and finish reason never reach the verifier.
+
+Eval v4 (fresh worker, Haiku brain; includes the PNG and cleanup-error fixes):
+
+| Metric | v0 | v1 | v2 | v3 | v4 |
+|---|---|---|---|---|---|
+| Completed and verified (achievable) | – | 2/7 | 4/7 | 4/7 | **5/7** |
+| Completed but unverified (achievable) | 3/7 | – | 0/7 | 0/7 | 0/7 |
+| Contradicted by the verifier | – | – | 0 | 1 | 0 |
+| False-praise rate (broken) | 0/3 | 1/3 | 1/3 | 0/3 | 0/3 |
+| Stopped by budget or step limit | 2 | 0 | 0 | 0 | 0 |
+| agent_issue frictions | 11 | 2 | 5 | 4 | 3 |
+| Site frictions found through page errors | – | 2 | 3 | 2 | 4 |
+| Failed runs | 2 | 0 | 0 | 2 | 0 |
+| Median steps | 9.5 | 8.0 | 7.5 | 9.5 | 7.5 |
+| Total cost | $0.0430 | $0.0470 | $0.0490 | $0.0504 | $0.0575 |
+
+- **Fixed in v4:**
+  - `uitesting_click`: completed and verified (contradicted in v3).
+  - No failed runs: the Chrome cleanup error is now only logged (0 warnings in this run), and 0 JPEG upload errors.
+  - `saucedemo_problem_user` and the other two broken cases all named the known issue (0 of 3 false praise).
+  - All 10 runs saved their neatlogs `trace_id`.
+- **Still failing:**
+  - `herokuapp_add_remove`: blocked on "$ is not defined"; herokuapp's jQuery never loads here.
+  - `herokuapp_dynamic_loading`: the "Start" button had no effect, with 3 agent issues.
+  - Both are about herokuapp's slow or missing scripts in this Chrome, not about the agent's verdicts.
+- **Cost:** $0.0575 against $0.0504 in v3, mostly the longer step counts on two cases and the todomvc run (13 steps).
+
+Evidence: `evals/results/v4.json`, `v4.md`, `v4.log`.
+
+### 2026-10-11 — Reports for apps behind a login: start link, test login, self sign-up, first impression
+
+Completed:
+- **Start link** (web form, `runs.start_url`). Optional. The visit goes to the app's address first (for the first impression), then to the start link, and the report says so. It gets the same address checks as the main address, in the API and again by the worker's egress guard.
+- **Test login** (web form, optional email and password).
+  - The form says it must be a throwaway account, and the API only takes it with https addresses, with the permission box ticked.
+  - **Storage:** the login is stored in a separate table, `run_secrets`, which only the service role can use. It is deleted in the same statement that the worker reads it (`take_run_secrets()`), so it is gone from the database before the visit starts. A safety-net delete runs at the end of every run, success or failure, and unclaimed logins older than 30 minutes are swept. The web app never reads the table.
+  - **Where it goes:** into the page being tested, typed by the new `sign_in` tool through Stagehand variables (the model sees `%email%` and `%password%`; caching is off for those calls). If a variable fill leaves the wrong value in the field, a local fill puts it there. The agent calls `sign_in` with no arguments.
+- **Self sign-up** (`sign_up` tool). It fills an email-and-password form with a generated identity (`first.user.<hex>@example.com`, a random password with every character class) and ticks a required terms box. If the app asks for email verification, the run ends as blocked with that reason. It never uses Google, GitHub or any other third-party login: when those are the only options the run ends as blocked and names them, and `do` refuses an instruction that would use one.
+- **First impression** (`first_impression.py`, its own `CHAIN` span). Written once per run from the public landing page (visible text and a screenshot) right after it loads, before the visit continues to a start link. It is a fixed structure: what it does, who it is for, whether the main action is obvious, up to four hesitations, up to three suggestions. It is saved as soon as it is written, so the live page and a blocked run show it. The report shows it first, under "First impression".
+- **Report:** a "How the visitor got in" box (start link, test login used or not, account created, third-party options), and when a run is blocked at a login, the three options for a deeper run.
+- `runs` gains `start_url`, `has_test_login`, `first_impression` and `entry`; `enqueue_web_run` takes three new arguments (the old five-argument version is dropped). The worker saves without a column that does not exist yet, with a warning, so it works before the SQL is run.
+
+Keeping the test login away from everything:
+- The holder has no `__dict__` and a hidden repr, cannot be copied or pickled, so a serializer that walks attributes (neatlogs does) finds nothing.
+- Registered values are replaced by labels (`[test email]`, `[test password]`) in tool results, steps, frictions, the final result, error text, tracebacks, model requests (including the accessibility tree sent to the lookup model), the verifier's page read, and every exported span (the neatlogs mask).
+- Screenshots and page reads are taken with the values swapped for labels inside the page, then put back (`credentials.redacted_page`). Shadow DOM and iframes are not reached.
+- **Security review finding, fixed:** the first version of that swap sent the whole process-wide secret registry into the page as a script, so a hostile or third-party page could have hooked built-ins and read other runs' logins. Now no secret is ever sent into a page as part of a script: the page returns its own text, Python finds what to replace, and only node indexes and labels go back. `sign_in`'s check that a field holds the right value also compares in Python. A test with a recording stand-in page (another run's secret registered) and a live test (every script sent into a real page during four runs) both assert that no secret is in any script.
+- A generated identity's email is shown to the founder on purpose (so they can delete the account); only its password is secret.
+
+Tests that ran:
+- `test_credentials.py`: 24 tests, all pass (15 unit and browser tests, 9 live end-to-end tests with the real model against a local site with a login, a sign-up, a verification page and a "Google only" page). After the runs, the login is searched for in: what the database would be given, every exported span (after the mask), every model request, the process's output, and what the page showed during screenshots. Zero hits in all, with the site confirming it received the right email and password, and the stand-in database holding no login afterwards.
+- **Negative control:** with registration and scrubbing disabled, the email appears in database writes (2), spans (17), model requests (6) and process output (1), and 4 of 6 page reads showed it. The password stayed at 0 even then, since it only ever goes through variables or a local fill into a password field.
+- Web: tsc and eslint clean; against a fake database API, the new fields validate (both-or-neither login, https only, private and ported start links refused), the values reach the database function intact, neither the app's log nor any response contains the password, no request touches `run_secrets`, and every run state renders at 390 px with no horizontal scroll.
+- A sanity visit on saucedemo found a regression of mine: the new "never type credentials yourself" rule made the agent give up where it used to use the demo login written on the page. The prompt now says to use a login the page itself shows. Saucedemo (8 steps) and herokuapp login (6 steps) are achieved again.
+- `python -m unittest test_trace_safety test_verifier test_credentials test_egress`: 52 tests, 9 live tests skipped when `SKIP_LIVE_TESTS=1`. `scan_secrets.py`: 0 matches in the working tree and 50 commits.
+
+Not verified:
+- The SQL has not been run against a real Supabase project, so `take_run_secrets`, the new `enqueue_web_run` and `run_secrets` are untested there. The worker's database calls were tested against a stand-in.
+- No real app behind a login has been visited. The sign-in and sign-up detection is heuristic (form fields found by type, label and position; two-step logins handled), and was tested on one local site.
+- The eval set (v4) has not been re-run with these changes.
+- `PAGE_READY_TIMEOUT_MS` is now 75 s (was 45 s): herokuapp's pages take 36 s or more in Chrome and twice reached 45 s in a row.
+
 ## Demo
 
 - URL: pending

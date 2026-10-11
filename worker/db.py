@@ -25,10 +25,11 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-async def enqueue_run(url: str, goal: str, source: str = "live") -> dict:
-    response = await (await client()).table("runs").insert(
-        {"url": url, "goal": goal, "source": source}
-    ).execute()
+async def enqueue_run(url: str, goal: str, source: str = "live", start_url: str | None = None) -> dict:
+    row = {"url": url, "goal": goal, "source": source}
+    if start_url:
+        row["start_url"] = start_url
+    response = await (await client()).table("runs").insert(row).execute()
     return response.data[0]
 
 
@@ -79,7 +80,7 @@ async def add_friction(
 
 
 async def finish_run(run_id: str, result: dict, agent_version: str, brain_model: str) -> None:
-    await (await client()).table("runs").update({
+    await _update_run(run_id, {
         "status": "done",
         "outcome": result.get("outcome"),
         "reason": result.get("reason"),
@@ -87,8 +88,60 @@ async def finish_run(run_id: str, result: dict, agent_version: str, brain_model:
         "cost_usd": result.get("usage", {}).get("estimated_cost_usd", {}).get("total"),
         "agent_version": agent_version,
         "brain_model": brain_model,
+        "trace_id": result.get("trace_id"),
+        "first_impression": result.get("first_impression"),
+        "entry": result.get("entry"),
         "finished_at": _now(),
-    }).eq("id", run_id).execute()
+    })
+
+
+# Columns added after the first schema. If the database does not have one yet (supabase/schema.sql
+# not re-run), runs are saved without it and a warning is printed once, rather than failing.
+OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry")
+_missing_columns: set[str] = set()
+
+
+async def _update_run(run_id: str, update: dict) -> None:
+    update = {k: v for k, v in update.items() if k not in _missing_columns}
+    try:
+        await (await client()).table("runs").update(update).eq("id", run_id).execute()
+    except Exception as error:
+        missing = {c for c in OPTIONAL_COLUMNS if c in update and c in str(error)}
+        if not missing:
+            raise
+        _missing_columns.update(missing)
+        print(f"runs.{', runs.'.join(sorted(missing))} does not exist yet (run the last lines of "
+              "supabase/schema.sql); saving runs without it.", flush=True)
+        update = {k: v for k, v in update.items() if k not in _missing_columns}
+        await (await client()).table("runs").update(update).eq("id", run_id).execute()
+
+
+async def take_run_secrets(run_id: str) -> dict | None:
+    """Read a run's test login and delete it from the database in the same statement.
+
+    Returns {"email", "password"} or None if the run has none. After this call the database no
+    longer holds the login; it lives only in the worker's memory for the run.
+    """
+    response = await (await client()).rpc("take_run_secrets", {"p_run_id": run_id}).execute()
+    row = response.data[0] if response.data else None
+    return {"email": row["test_email"], "password": row["test_password"]} if row else None
+
+
+async def delete_run_secrets(run_id: str) -> None:
+    """Safety net at the end of a run, whatever happened: no test login stays behind."""
+    try:
+        await (await client()).table("run_secrets").delete().eq("run_id", run_id).execute()
+    except Exception as error:
+        print(f"Could not clear the test login for run {run_id}: {type(error).__name__}", flush=True)
+
+
+async def delete_old_run_secrets(minutes: int = 30) -> None:
+    """A test login whose run was never claimed (or never finished) is not kept."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+    try:
+        await (await client()).table("run_secrets").delete().lt("created_at", cutoff).execute()
+    except Exception:
+        pass
 
 
 async def fail_run(
@@ -109,8 +162,11 @@ async def fail_run(
             "reason": result.get("reason"),
             "result": result,
             "cost_usd": result.get("usage", {}).get("estimated_cost_usd", {}).get("total"),
+            "trace_id": result.get("trace_id"),
+            "first_impression": result.get("first_impression"),
+            "entry": result.get("entry"),
         })
-    await (await client()).table("runs").update(update).eq("id", run_id).execute()
+    await _update_run(run_id, update)
 
 
 async def fail_stale_runs(minutes: int = 15) -> list[dict]:
@@ -125,13 +181,14 @@ async def fail_stale_runs(minutes: int = 15) -> list[dict]:
 
 
 async def upload_screenshot(run_id: str, local_path: Path) -> str:
-    """Upload a PNG to the public screenshots bucket and return its public URL."""
+    """Upload a PNG or JPEG to the public screenshots bucket and return its public URL."""
     storage_path = f"{run_id}/{local_path.name}"
     bucket = (await client()).storage.from_(BUCKET)
+    content_type = "image/jpeg" if local_path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
     await bucket.upload(
         storage_path,
         local_path.read_bytes(),
-        {"content-type": "image/png", "x-upsert": "true"},
+        {"content-type": content_type, "x-upsert": "true"},
     )
     return await bucket.get_public_url(storage_path)
 
@@ -148,6 +205,10 @@ class RunRecorder:
     async def upload_screenshot(self, path: Path) -> str:
         """Upload one step's screenshot; do() calls this so the URL can go into its span output."""
         return await upload_screenshot(self.run_id, path)
+
+    async def first_impression(self, review: dict) -> None:
+        """Save the first-impression review as soon as it is written, so the live page can show it."""
+        await _update_run(self.run_id, {"first_impression": review})
 
     async def step(self, idx, tool, thought, input, result, url, screenshot_url: str | None) -> None:
         await add_step(self.run_id, idx, tool, thought, input, result, url, screenshot_url)

@@ -60,6 +60,8 @@ class EgressGuard:
     _locks: dict[str, asyncio.Lock] = field(default_factory=dict)
     _server: asyncio.AbstractServer | None = None
     _context: contextvars.Context | None = None
+    # True while the guard belongs to an active neatlogs run (see start()).
+    _traced: bool = False
     # One task per open browser connection, so close() can cancel the ones still piping.
     _connections: set[asyncio.Task] = field(default_factory=set)
     port: int = 0
@@ -72,15 +74,22 @@ class EgressGuard:
         return f"http://127.0.0.1:{self.port}"
 
     async def start(self) -> None:
-        # Guardrail spans run in this context, so they nest under the run's trace.
+        # Refusal spans are created in this context, so they nest under the run's trace. With
+        # no neatlogs run active (tests, scripts), the guard creates no spans at all.
         self._context = contextvars.copy_context()
+        self._traced = neatlogs.inject_trace_context({})
         self._server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
         self.port = self._server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
-        """Stop accepting connections, then cancel and await the ones still open."""
+        """Stop accepting connections, then cancel and await the ones still open.
+
+        Cancelled connections create no spans: host checks are not traced, and a refusal
+        span is created and ended in one synchronous call.
+        """
         if self._server is None:
             return
+        self._traced = False
         self._server.close()
         connections = list(self._connections)
         for task in connections:
@@ -88,6 +97,23 @@ class EgressGuard:
         await asyncio.gather(*connections, return_exceptions=True)
         await self._server.wait_closed()
         self._server = None
+
+    def summary(self) -> dict:
+        """Hosts checked and refused during the run, for one summary on the run's trace."""
+        refused = sorted({block["host"] for block in self.blocks})
+        return {
+            "hosts_checked": len(self._decisions),
+            "hosts_allowed": sum(d.allowed for d in self._decisions.values()),
+            "hosts_unresolved": sum(not d.allowed and not d.private for d in self._decisions.values()),
+            "hosts_refused": refused,
+            "refusals": len(self.blocks),
+        }
+
+    def _refused(self, record: dict) -> None:
+        """Record a refusal, with a GUARDRAIL span in the run's trace while the run is active."""
+        self.blocks.append(record)
+        if self._traced and self._context is not None:
+            self._context.copy().run(_refusal_span, record)
 
     def block_reason(self) -> str | None:
         """A visitor-facing reason for the first refused request, or None."""
@@ -108,17 +134,14 @@ class EgressGuard:
             lock = self._locks.setdefault(key, asyncio.Lock())
             async with lock:
                 if key not in self._decisions:
-                    task = asyncio.get_running_loop().create_task(
-                        _guarded_check(key, port), context=self._context.copy()
-                    )
-                    result = await task
+                    result = await _check_host(key, port)
                     self._decisions[key] = Decision(
                         result["allowed"], result["addresses"], result["reason"], result["private"]
                     )
             decision = self._decisions[key]
         if decision.private:
-            self.blocks.append({"host": host, "port": port, "url": url, "addresses": decision.addresses,
-                                "reason": decision.reason})
+            self._refused({"host": host, "port": port, "url": url, "addresses": decision.addresses,
+                           "reason": decision.reason})
         return decision
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -200,12 +223,10 @@ class EgressGuard:
         origin = next(
             (line.split(":", 1)[1].strip() for line in header_lines if line.lower().startswith("origin:")), ""
         )
-        task = asyncio.get_running_loop().create_task(
-            _guarded_devtools_check(origin, request_line[:200]), context=self._context.copy()
-        )
-        if not (await task)["allowed"]:
-            self.blocks.append({"host": host, "port": port, "url": f"DevTools: {request_line[:200]}",
-                                "addresses": [host], "reason": f"DevTools request from origin {origin or 'none'}"})
+        # Only a browser extension (Stagehand's) may use the DevTools port.
+        if not origin.startswith("chrome-extension://"):
+            self._refused({"host": host, "port": port, "url": f"DevTools: {request_line[:200]}",
+                           "addresses": [host], "reason": f"DevTools request from origin {origin or 'none'}"})
             return
         upstream_reader, upstream = await _open_vetted(["127.0.0.1"], port)
         if upstream is None:
@@ -217,15 +238,19 @@ class EgressGuard:
             upstream.close()
 
 
-@neatlogs.span(kind="GUARDRAIL", name="devtools_check")
-async def _guarded_devtools_check(origin: str, request_line: str) -> dict:
-    """Allow a tunnel to the browser's DevTools port only for a browser extension (Stagehand's)."""
-    allowed = origin.startswith("chrome-extension://")
-    return {"allowed": allowed, "origin": origin or None, "request": request_line}
+@neatlogs.span(kind="GUARDRAIL", name="egress_refused")
+def _refusal_span(record: dict) -> dict:
+    """One span per refused request: synchronous, so it cannot be cut off by cancellation."""
+    return {"refused": True, **record}
 
 
-@neatlogs.span(kind="GUARDRAIL", name="egress_check")
-async def _guarded_check(host: str, port: int) -> dict:
+@neatlogs.span(kind="GUARDRAIL", name="egress_summary")
+def summary_span(summary: dict) -> dict:
+    """The guard's work for one run: how many hosts were checked, and which were refused."""
+    return summary
+
+
+async def _check_host(host: str, port: int) -> dict:
     """Resolve a host once per run and decide whether the browser may connect to it."""
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)

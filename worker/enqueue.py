@@ -1,6 +1,6 @@
 """Queue one run for the worker, without the web app.
 
-Usage: python enqueue.py --url URL --goal "GOAL" [--source manual]
+Usage: python enqueue.py --url URL --goal "GOAL" [--source manual] [--start-url URL]
 """
 
 import argparse
@@ -19,9 +19,10 @@ def main() -> None:
     parser.add_argument("--url", required=True)
     parser.add_argument("--goal", required=True)
     parser.add_argument("--source", default="manual")
+    parser.add_argument("--start-url", help="a page past the login to begin at")
     args = parser.parse_args()
 
-    run = asyncio.run(db.enqueue_run(args.url, args.goal, args.source))
+    run = asyncio.run(db.enqueue_run(args.url, args.goal, args.source, args.start_url))
     print(f"Queued run {run['id']} ({run['status']}): {run['url']}")
 
 

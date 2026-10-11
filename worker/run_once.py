@@ -13,9 +13,11 @@ from pathlib import Path
 import neatlogs
 from dotenv import load_dotenv
 
+import trace_safety
+
 load_dotenv(Path(__file__).parent / ".env")
 
-neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-visit-test")
+neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-visit-test", mask=trace_safety.mask)
 
 from config import BRAIN_EFFORT, BRAIN_MODEL  # noqa: E402
 from visit import first_visit  # noqa: E402

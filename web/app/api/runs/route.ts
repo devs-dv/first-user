@@ -4,6 +4,9 @@ import { clientIp, hashIp } from "@/lib/visitor";
 
 const DEFAULT_GOAL = "Work out what this product does and try its main feature as a first-time visitor.";
 const MAX_GOAL_LENGTH = 500;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 200;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_QUEUED = 20;
 const MAX_RUNS_PER_HOUR = 5;
 
@@ -18,7 +21,7 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission } = (body ?? {}) as Record<string, unknown>;
+  const { url, goal, permission, startUrl, testEmail, testPassword } = (body ?? {}) as Record<string, unknown>;
 
   if (permission !== true) {
     return fail(400, "permission_required", "Confirm that this is your app or that you have permission to test it.");
@@ -37,14 +40,57 @@ export async function POST(request: Request) {
   const target = await checkTargetUrl(url);
   if (!target.ok) return fail(400, "invalid_url", target.message);
 
+  // Optional: a start link past the login, with the same address checks as the main address.
+  let start: string | null = null;
+  if (startUrl !== undefined && startUrl !== null && startUrl !== "") {
+    if (typeof startUrl !== "string") return fail(400, "invalid_start_url", "The start link must be an address.");
+    const checked = await checkTargetUrl(startUrl);
+    if (!checked.ok) return fail(400, "invalid_start_url", checked.message);
+    start = checked.url;
+  }
+
+  // Optional: a throwaway test login. Both or neither. The values are only passed to the database
+  // function below; they are never logged, returned or stored on the run itself.
+  const hasEmail = typeof testEmail === "string" && testEmail.trim() !== "";
+  const hasPassword = typeof testPassword === "string" && testPassword !== "";
+  if (
+    (testEmail !== undefined && testEmail !== null && typeof testEmail !== "string") ||
+    (testPassword !== undefined && testPassword !== null && typeof testPassword !== "string")
+  ) {
+    return fail(400, "invalid_credentials", "The test login must be text.");
+  }
+  if (hasEmail !== hasPassword) {
+    return fail(400, "invalid_credentials", "Enter both a test email and a test password, or leave both empty.");
+  }
+  let email: string | null = null;
+  let password: string | null = null;
+  if (hasEmail && hasPassword) {
+    email = (testEmail as string).trim();
+    password = testPassword as string;
+    if (email.length > MAX_EMAIL_LENGTH || !EMAIL.test(email)) {
+      return fail(400, "invalid_credentials", "That doesn't look like an email address.");
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return fail(400, "invalid_credentials", `Keep the test password under ${MAX_PASSWORD_LENGTH} characters.`);
+    }
+    // Typing a password over plain http would expose it on the network.
+    if (!target.url.startsWith("https://") || (start && !start.startsWith("https://"))) {
+      return fail(400, "invalid_credentials", "A test login can only be used with https:// addresses.");
+    }
+  }
+
   const { data, error } = await supabase().rpc("enqueue_web_run", {
     p_url: target.url,
     p_goal: goalText || DEFAULT_GOAL,
     p_ip_hash: hashIp(clientIp(request.headers)),
     p_max_queued: MAX_QUEUED,
     p_max_per_hour: MAX_RUNS_PER_HOUR,
+    p_start_url: start,
+    p_test_email: email,
+    p_test_password: password,
   });
   if (error) {
+    // The message names the failure, never the arguments.
     console.error("enqueue_web_run failed:", error.message);
     return fail(500, "server_error", "Something went wrong on our side. Please try again in a minute.");
   }

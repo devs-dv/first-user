@@ -10,28 +10,34 @@ import os
 import signal
 import subprocess
 import time
-import traceback
 from pathlib import Path
 
 import neatlogs
 from dotenv import load_dotenv
 
+import trace_safety
+
 load_dotenv(Path(__file__).parent / ".env")
 
 # This process owns SIGINT so it can finish the current run first; it shuts neatlogs down itself.
+# mask redacts secrets and keeps screenshots out of exported traces; the model still gets the
+# screenshots (trace_safety.py, trace_media.py).
 neatlogs.init(
     api_key=os.environ["NEATLOGS_API_KEY"],
     workflow_name="first-visit-test",
     register_shutdown_handlers=False,
+    mask=trace_safety.mask,
 )
 
 import db  # noqa: E402
 from config import BRAIN_MODEL  # noqa: E402
-from visit import first_visit  # noqa: E402
+from worker_run import execute  # noqa: E402
 
 IDLE_SECONDS = 2
 STALE_MINUTES = 15
 STALE_SWEEP_SECONDS = 60
+# A test login still in the database this long after it was queued is deleted unread.
+SECRETS_MINUTES = 30
 DB_ERROR_BACKOFF_SECONDS = 10
 
 _stop_requested = False
@@ -64,26 +70,6 @@ async def _sleep_unless_stopping(seconds: float) -> None:
         await asyncio.sleep(0.2)
 
 
-async def execute(run: dict) -> None:
-    run_id = run["id"]
-    print(f"Claimed run {run_id}: {run['url']} (brain {BRAIN_MODEL}, agent {AGENT_VERSION})", flush=True)
-    try:
-        with neatlogs.identify(session_id=f"run_{run_id}"):
-            result = await first_visit(run["url"], run["goal"], run_id, recorder=db.RunRecorder(run_id))
-    except Exception as error:
-        traceback.print_exc()
-        await db.fail_run(run_id, f"{type(error).__name__}: {error}", AGENT_VERSION, BRAIN_MODEL)
-        print(f"Run {run_id} failed: {type(error).__name__}", flush=True)
-        return
-
-    if result["outcome"] == "error":
-        await db.fail_run(run_id, result["reason"], AGENT_VERSION, BRAIN_MODEL, result=result)
-        print(f"Run {run_id} failed: {result['reason'][:200]}", flush=True)
-    else:
-        await db.finish_run(run_id, result, AGENT_VERSION, BRAIN_MODEL)
-        print(f"Run {run_id} done: {result['outcome']} in {result['steps']} steps", flush=True)
-
-
 async def worker_loop() -> None:
     print(f"Worker started (agent {AGENT_VERSION}, brain {BRAIN_MODEL}). Waiting for queued runs.", flush=True)
     last_sweep = float("-inf")
@@ -93,6 +79,7 @@ async def worker_loop() -> None:
                 last_sweep = time.monotonic()
                 for stale in await db.fail_stale_runs(STALE_MINUTES):
                     print(f"Marked stale run {stale['id']} as failed", flush=True)
+                await db.delete_old_run_secrets(SECRETS_MINUTES)
             run = await db.claim_run()
         except Exception as error:
             print(f"Database error: {type(error).__name__}: {error}; retrying in {DB_ERROR_BACKOFF_SECONDS}s", flush=True)
@@ -103,7 +90,7 @@ async def worker_loop() -> None:
             await _sleep_unless_stopping(IDLE_SECONDS)
             continue
         try:
-            await execute(run)
+            await execute(run, AGENT_VERSION)
         except Exception as error:
             # Saving the outcome failed; the stale-run sweep will mark the run failed later.
             print(f"Could not save run {run['id']}: {type(error).__name__}: {error}", flush=True)

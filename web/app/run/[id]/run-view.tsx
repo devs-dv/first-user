@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import type { Friction, Outcome, Run, RunDetails, Step } from "@/lib/types";
+import type { Clarity, Entry, FirstImpression, Friction, Outcome, Run, RunDetails, Step } from "@/lib/types";
 
 const POLL_MS = 2000;
 
@@ -63,7 +63,7 @@ export function RunView({ id }: { id: string }) {
       {run.status === "queued" || run.status === "running" ? (
         <InProgress run={run} steps={steps} />
       ) : run.status === "failed" ? (
-        <Failed steps={steps} frictions={frictions} />
+        <Failed run={run} steps={steps} frictions={frictions} />
       ) : (
         <Report run={run} steps={steps} frictions={frictions} />
       )}
@@ -84,6 +84,14 @@ function RunHeader({ run }: { run: Run }) {
         <span className="text-subtle">Goal: </span>
         {run.goal}
       </p>
+      {run.start_url && (
+        <p className="break-all text-muted">
+          <span className="text-subtle">Start link: </span>
+          <a href={run.start_url} target="_blank" rel="noopener noreferrer nofollow" className="hover:underline">
+            {displayUrl(run.start_url)}
+          </a>
+        </p>
+      )}
     </section>
   );
 }
@@ -104,14 +112,16 @@ function InProgress({ run, steps }: { run: Run; steps: Step[] }) {
           This page updates by itself, and you can come back to this link later.
         </p>
       </section>
+      {run.first_impression && <FirstImpressionCard review={run.first_impression} />}
       {steps.length > 0 && <Timeline steps={steps} />}
     </>
   );
 }
 
-function Failed({ steps, frictions }: { steps: Step[]; frictions: Friction[] }) {
+function Failed({ run, steps, frictions }: { run: Run; steps: Step[]; frictions: Friction[] }) {
   return (
     <>
+      {run.first_impression && <FirstImpressionCard review={run.first_impression} />}
       <section role="alert" className="rounded-xl border border-danger/30 bg-danger-soft p-5">
         <p className="font-medium text-danger">This run didn&apos;t finish</p>
         <p className="mt-2 text-sm">
@@ -147,11 +157,14 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
   const outcome = OUTCOMES[run.outcome ?? "error"] ?? OUTCOMES.error;
   return (
     <>
+      {run.first_impression && <FirstImpressionCard review={run.first_impression} />}
       <section className="space-y-4">
         <div className={`rounded-xl border p-5 ${outcome.tone}`}>
           <p className="text-lg font-semibold">{outcome.label}</p>
           {run.reason && <p className="mt-2 text-foreground">{run.reason}</p>}
         </div>
+        <WayIn run={run} />
+        {run.outcome === "blocked" && run.entry?.blocked_at_login && <LoginWallHelp run={run} />}
         <p className="text-sm text-muted">This is a simulated user. Treat findings as leads to check.</p>
         <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
           <Fact label="Steps" value={String(steps.length)} />
@@ -163,6 +176,164 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
       <Frictions frictions={frictions} />
       <Timeline steps={steps} />
     </>
+  );
+}
+
+const CLARITY: Record<Clarity, { yes: string; tone: string }> = {
+  yes: { yes: "Clear", tone: "bg-success-soft text-success" },
+  partly: { yes: "Partly clear", tone: "bg-warning-soft text-warning" },
+  no: { yes: "Not clear", tone: "bg-danger-soft text-danger" },
+};
+const OBVIOUS: Record<Clarity, string> = { yes: "Obvious", partly: "Somewhat obvious", no: "Not obvious" };
+
+function ClarityRow({ label, clarity, summary, obvious }: {
+  label: string;
+  clarity: Clarity | undefined;
+  summary: string | undefined;
+  obvious?: boolean;
+}) {
+  const known = clarity && clarity in CLARITY ? clarity : null;
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <dt className="font-medium">{label}</dt>
+        {known && (
+          <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${CLARITY[known].tone}`}>
+            {obvious ? OBVIOUS[known] : CLARITY[known].yes}
+          </span>
+        )}
+      </div>
+      {summary && <dd className="text-muted">{summary}</dd>}
+    </div>
+  );
+}
+
+// What a newcomer sees on the landing page without logging in. Shown first, so a run that was
+// blocked at a login still gives the builder something useful.
+function FirstImpressionCard({ review }: { review: FirstImpression }) {
+  const hesitations = review.hesitations ?? [];
+  const suggestions = review.suggestions ?? [];
+  return (
+    <section className="space-y-4" aria-labelledby="first-impression">
+      <div>
+        <h2 id="first-impression" className="text-xl font-semibold tracking-tight">
+          First impression
+        </h2>
+        <p className="mt-1 text-sm text-muted">What a newcomer sees on your landing page, without logging in.</p>
+      </div>
+      <div className="space-y-5 rounded-xl border border-line bg-surface p-5">
+        <dl className="space-y-4">
+          <ClarityRow label="What it does" clarity={review.what_it_does?.clear} summary={review.what_it_does?.summary} />
+          <ClarityRow label="Who it is for" clarity={review.who_its_for?.clear} summary={review.who_its_for?.summary} />
+          <ClarityRow
+            label="The main action"
+            clarity={review.main_action?.obvious}
+            summary={review.main_action?.summary}
+            obvious
+          />
+        </dl>
+        {hesitations.length > 0 && (
+          <div>
+            <h3 className="font-medium">What might make a newcomer hesitate</h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+              {hesitations.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {suggestions.length > 0 && (
+          <div>
+            <h3 className="font-medium">Suggestions</h3>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              {suggestions.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function wayInLines(run: Run): string[] {
+  const entry: Entry | null = run.entry;
+  const lines: string[] = [];
+  lines.push(
+    run.start_url
+      ? `Started at the start link you gave (${displayUrl(run.start_url)}).`
+      : "Started at your app's address.",
+  );
+  if (entry?.test_login === "used") lines.push("Signed in with your test account.");
+  else if (entry?.test_login === "failed") lines.push("Tried your test account, but the sign-in did not work.");
+  else if (entry?.test_login === "provided_not_used" || (!entry && run.has_test_login)) {
+    lines.push("A test account was provided, but the visitor did not need it.");
+  }
+  if (entry?.self_signup === "used") {
+    lines.push(
+      entry.created_account_email
+        ? `Created a test account (${entry.created_account_email}) to get in. You may want to delete it.`
+        : "Created a test account to get in.",
+    );
+  } else if (entry?.self_signup === "blocked_verification") {
+    lines.push("Tried to sign up, but the app needs email verification, which the visitor can't do.");
+  } else if (entry?.self_signup === "blocked_third_party") {
+    const options = entry.third_party_options.length ? ` (${entry.third_party_options.join(", ")})` : "";
+    lines.push(`Only third-party sign-in was offered${options}. The visitor never uses those.`);
+  } else if (entry?.self_signup === "failed") {
+    lines.push("Tried to sign up with a made-up test account, but the form did not accept it.");
+  }
+  if (!run.start_url && !run.has_test_login && (!entry || entry.self_signup === "not_used")) {
+    lines.push("No login was used: the visitor saw only what is public.");
+  }
+  return lines;
+}
+
+function WayIn({ run }: { run: Run }) {
+  return (
+    <div className="rounded-xl border border-line bg-surface p-4 text-sm">
+      <p className="font-medium">How the visitor got in</p>
+      <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+        {wayInLines(run).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Shown when the run was blocked at a login: the three ways to a deeper visit.
+function LoginWallHelp({ run }: { run: Run }) {
+  const tried = run.entry;
+  return (
+    <section className="space-y-3 rounded-xl border border-warning/30 bg-warning-soft p-5" aria-labelledby="deeper">
+      <h2 id="deeper" className="text-lg font-semibold">
+        Your app was blocked at a login. Three ways to go deeper
+      </h2>
+      <ol className="list-decimal space-y-3 pl-5">
+        <li>
+          <span className="font-medium">Give a start link.</span> A demo page, guest mode or preview build that is
+          already past the login. The visit begins there.
+          {run.start_url && " (You gave one this time.)"}
+        </li>
+        <li>
+          <span className="font-medium">Give a throwaway test login.</span> A test email and password for an account
+          with no real data. We use it to sign in, keep it only until the run starts, and the AI visitor never sees
+          it.
+          {tried?.test_login === "failed" && " (The one you gave this time did not work.)"}
+        </li>
+        <li>
+          <span className="font-medium">Let the visitor sign up itself.</span> This works when your signup is an
+          email-and-password form that needs no email verification. It never uses Google, GitHub or other
+          third-party sign-in.
+          {tried?.self_signup === "blocked_verification" && " (Your signup needs email verification.)"}
+        </li>
+      </ol>
+      <Link href="/" className="inline-block text-sm font-medium text-accent hover:underline">
+        Start a new run
+      </Link>
+    </section>
   );
 }
 

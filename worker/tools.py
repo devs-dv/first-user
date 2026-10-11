@@ -1,5 +1,6 @@
 """Browser tools the visitor agent can call, plus their Anthropic tool schemas."""
 
+import base64
 import functools
 import hashlib
 import json
@@ -12,7 +13,9 @@ from typing import Any
 import neatlogs
 from pydantic import BaseModel, Field
 
+import credentials as credentials_module
 import page_watch
+import trace_media
 from config import ACT_TIMEOUT_MS
 from costs import RunUsage
 from lookup_model import lookups_nest_here
@@ -55,9 +58,27 @@ class RunContext:
     tool_calls: int = 0
     # The browser's egress guard (egress.EgressGuard); a refused request ends the run.
     egress: Any = None
+    # The founder's test login (credentials.TestCredentials), or None. It only ever goes into the page
+    # being tested, typed by sign_in; see credentials.py.
+    credentials: Any = None
+    # The start link the visit began at, when the founder gave one.
+    start_url: str | None = None
+    # How the visit got in, and what it met on the way; read at the end of the run (browse.py).
+    entry: dict = field(default_factory=lambda: {
+        "test_login": "not_provided",
+        "self_signup": "not_used",
+        "third_party_options": [],
+        "created_account_email": None,
+        "login_wall_seen": False,
+    })
+    # The first-impression review, once written (first_impression.py).
+    first_impression: dict | None = None
+    first_impression_tried: bool = False
     # The factual record of the run for the verifier: actions, their effects and look()
     # summaries, never the agent's thoughts or conclusions (see record_step in browse.py).
     record: list[dict] = field(default_factory=list)
+    # A screenshot from the latest look(), base64 PNG, sent to the brain with that result.
+    pending_image: str | None = None
 
     @property
     def run_dir(self) -> Path:
@@ -180,6 +201,20 @@ async def look() -> dict:
         "summary": clip(content.summary, MAX_SUMMARY_CHARS),
         "interactive": [clip(item, MAX_ITEM_CHARS) for item in content.interactive[:MAX_INTERACTIVE]],
     }
+    # The brain sees this screenshot as an image next to the result (browse.py), so it can
+    # judge visual state such as colours; it is not part of the span output.
+    try:
+        # Taken with any test login hidden in the page, so the screenshot cannot show it.
+        async with credentials_module.redacted_page(page):
+            image = await page.screenshot(type="png")  # PNG: the screenshots bucket accepts no JPEG
+    except Exception:
+        image = None
+    if image is not None:
+        ctx.pending_image = base64.b64encode(image).decode()
+        result["screenshot_attached"] = True
+        if url := await publish_image(ctx, image, "look", "png"):
+            # The exported trace shows this URL in place of the inline image (trace_media.py).
+            trace_media.register_url(ctx.pending_image, url)
     ctx.last_look = (fingerprint, result)
     return result
 
@@ -284,33 +319,74 @@ async def _rung_mouse(instruction: str, action: dict | None) -> dict:
     Rung c's DOM click event is scripted (event.isTrusted is false), and some elements
     ignore it. With no observed element, this rung looks for a checkbox or toggle that
     matches the instruction, because observe often misses visually hidden checkboxes.
+    For typing, the same click focuses the field and the text is typed on the keyboard.
     """
     page = await _active_page()
     words = []
     if any(word in instruction.lower() for word in _TOGGLE_WORDS):
         words = [w for w in re.findall(r"[a-z0-9]+", instruction.lower()) if len(w) >= 3 and w not in _STOP_WORDS]
-    selector = action["selector"] if action and action["method"] in ("click", "check", "uncheck") else None
+    typing = bool(action and action["method"] in ("fill", "type") and action["arguments"])
+    clicking = bool(action and action["method"] in ("click", "check", "uncheck"))
+    selector = action["selector"] if typing or clicking else None
     if selector is None and not words:
         return {"reported_success": False, "via": "no element to click"}
     target = await page.evaluate(_MOUSE_TARGET_JS.replace("%s", json.dumps({"selector": selector, "words": words})))
     if not target:
         return {"reported_success": False, "via": "no element to click"}
     await page.click(target["x"], target["y"])
+    if typing:
+        await page.type(action["arguments"][0])
+        return {"reported_success": True, "via": "mouse.click+keyboard.type", "target": target["how"]}
     return {"reported_success": True, "via": "mouse.click", "target": target["how"], "toggle": target["toggle"]}
 
 
-@neatlogs.span(kind="TOOL", tool_name="do")
-@metered
-async def do(instruction: str) -> dict:
-    ctx = current_run.get()
-    page = await _active_page()
-    with_focus = not _TYPING.search(instruction)
-    before = await page_fingerprint(page, with_focus)
-    since = await page_watch.now(page)
-    rungs: list[dict] = []
-    worked = None
-    action = None
+# "Click the search box" with nothing to type: typing focuses the field itself, so there is
+# nothing to do, and no visible change is not a failure.
+_FIELD_CLICK = re.compile(
+    r"^\s*(click|tap|focus|go to|move to)\b.*\b(text ?box|field|input|search (box|bar)|text ?area)\b",
+    re.IGNORECASE,
+)
+FOCUS_MESSAGE = (
+    "Nothing to do: you do not need to click a text field before typing. Use do(\"type '<text>' into the "
+    "<field name>\") and the field is focused for you."
+)
 
+# Errors that mean a script has not finished loading yet, rather than a broken site.
+_NOT_LOADED = re.compile(
+    r"is not defined|ChunkLoadError|Loading chunk|dynamically imported module|Failed to fetch dynamically",
+    re.IGNORECASE,
+)
+READY_WAIT_MS = 15000
+
+# Reads back the field that was typed into: the focused field, else the observed element.
+_READ_FIELD_JS = r"""((spec) => {
+  const byXpath = (xpath) => document.evaluate(
+    xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  const find = (selector) => selector.startsWith('xpath=') ? byXpath(selector.slice(6))
+    : selector.startsWith('/') ? byXpath(selector) : document.querySelector(selector);
+  const isField = (el) => el && el.matches && el.matches(
+    'input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=hidden]),' +
+    ' textarea, [contenteditable=""], [contenteditable=true]');
+  let el = document.activeElement;
+  if (!isField(el) && spec.selector) el = find(spec.selector);
+  if (!isField(el)) return null;
+  const value = el.isContentEditable ? el.innerText : (el.value || '');
+  const label = ((el.labels && el.labels[0] && el.labels[0].innerText) || el.getAttribute('aria-label')
+    || el.placeholder || el.name || el.id || el.tagName.toLowerCase()).trim().slice(0, 60);
+  return {
+    label,
+    value: el.type === 'password' ? '(hidden, ' + value.length + ' characters)' : value.slice(0, 200),
+    contains_typed_text: spec.expected ? value.includes(spec.expected) : null,
+  };
+})(%s)"""
+_QUOTED = re.compile(r"""['"\u2018\u201c]([^'"\u2019\u201d]+)['"\u2019\u201d]""")
+_SUBMITS = re.compile(r"\b(press|enter key|submit|hit enter)\b", re.IGNORECASE)
+
+
+async def _ladder(instruction: str, before: str, with_focus: bool) -> tuple[str | None, list[dict], dict | None]:
+    """Run rungs a to d until one changes the page; return (rung that worked, rungs, observed action)."""
+    rungs: list[dict] = []
+    action = None
     for name in ("a", "b", "c", "d"):
         if name == "c" and action is None:
             rungs.append({"rung": "c", "skipped": "no observed element to replay"})
@@ -330,12 +406,89 @@ async def do(instruction: str) -> dict:
         outcome["changed"] = await _changed_since(before, with_focus)
         rungs.append({"rung": name, **outcome})
         if outcome["changed"]:
-            worked = name
-            break
+            return name, rungs, action
+    return None, rungs, action
 
+
+async def _wait_until_loaded(page) -> None:
+    """Give a page whose scripts are still loading up to READY_WAIT_MS to finish."""
+    for _ in range(READY_WAIT_MS // 500):
+        if await page.evaluate("document.readyState") == "complete":
+            break
+        await page.wait_for_timeout(500)
+    await page.wait_for_timeout(1000)
+
+
+async def _read_back(page, instruction: str, action: dict | None) -> dict | None:
+    """The typed-into field's label and actual value, and whether it contains the typed text."""
+    expected = None
+    if action and action["method"] in ("fill", "type") and action["arguments"]:
+        expected = action["arguments"][0]
+    elif match := _QUOTED.search(instruction):
+        expected = match.group(1)
+    try:
+        return await page.evaluate(_READ_FIELD_JS.replace("%s", json.dumps(
+            {"selector": action["selector"] if action else None, "expected": expected})))
+    except Exception:
+        return None
+
+
+@neatlogs.span(kind="TOOL", tool_name="do")
+@metered
+async def do(instruction: str) -> dict:
+    ctx = current_run.get()
     page = await _active_page()
+    if credentials_module.is_third_party_login(instruction):
+        return {
+            "success": False,
+            "changed": False,
+            "rung": "none",
+            "via": "none",
+            "reason": "third_party_login_not_allowed",
+            "kind": "action",
+            "url": await page.url(),
+            "page_error_count": 0,
+            "page_errors": [],
+            "message": (
+                "Not done: the visitor never uses Google, GitHub or any other third-party login. Use the "
+                "email-and-password form with sign_in or sign_up, or call finish with outcome blocked and name "
+                "the options the page offered."
+            ),
+        }
+    typing = bool(_TYPING.search(instruction))
+    if not typing and _FIELD_CLICK.search(instruction) and not _QUOTED.search(instruction):
+        return {
+            "success": True,
+            "changed": False,
+            "rung": "none",
+            "via": "none",
+            "reason": "focus_not_needed",
+            "kind": "action",
+            "url": await page.url(),
+            "page_error_count": 0,
+            "page_errors": [],
+            "message": FOCUS_MESSAGE,
+        }
+
+    with_focus = not typing
+    retried_after_wait = False
+    while True:
+        page = await _active_page()
+        before = await page_fingerprint(page, with_focus)
+        since = await page_watch.now(page)
+        worked, rungs, action = await _ladder(instruction, before, with_focus)
+        page = await _active_page()
+        page_errors = await page_watch.collect(page, since)
+        if worked or retried_after_wait or not any(_NOT_LOADED.search(e) for e in page_errors):
+            break
+        # The page's own scripts had not loaded yet: wait for them, then try once more.
+        print(f"[step {ctx.tool_calls}]   .. page scripts not loaded yet ({page_errors[0]}); waiting and retrying",
+              flush=True)
+        await _wait_until_loaded(page)
+        retried_after_wait = True
+
     url = await page.url()
-    page_errors = await page_watch.collect(page, since)
+    field = await _read_back(page, instruction, action) if typing else None
     screenshot_url = await _screenshot(ctx, page)
 
     # Every do() result has the same keys in the same order, with fixed values, so traces
@@ -346,12 +499,12 @@ async def do(instruction: str) -> dict:
             "changed": True,
             "rung": worked,
             "via": VIA[worked] if worked in VIA else rungs[-1].get("via", "locator"),
-            "reason": "worked_first_try" if worked == "a" else "worked_after_retry",
+            "reason": "worked_first_try" if worked == "a" and not retried_after_wait else "worked_after_retry",
             "kind": "action",
             "url": url,
             "page_error_count": len(page_errors),
             "page_errors": page_errors,
-            "message": "The action worked." if worked == "a" else RETRY_MESSAGE,
+            "message": "The action worked." if worked == "a" and not retried_after_wait else RETRY_MESSAGE,
         }
     elif page_errors:
         # Nothing changed, and the page itself reported errors or failed requests while we
@@ -404,6 +557,15 @@ async def do(instruction: str) -> dict:
                 "site friction on its own. Try a differently worded instruction or another way to reach your goal."
             ),
         }
+    if retried_after_wait:
+        result["retried_after_wait"] = True
+    if typing:
+        result["field"] = field
+        if field and field.get("contains_typed_text") is False and not _SUBMITS.search(instruction):
+            result["message"] += (
+                f" Check the field: '{field['label']}' now reads '{field['value']}', which does not contain the "
+                "text you typed. It may have gone into another field or been lost; look at the page before going on."
+            )
     if screenshot_url:
         result["screenshot_url"] = screenshot_url
     return result
@@ -419,6 +581,21 @@ RETRY_MESSAGE = (
 VIA = {"a": "act", "b": "observe_act"}
 
 
+async def publish_image(ctx: RunContext, image: bytes, prefix: str, extension: str) -> str | None:
+    """Save an image in the run's folder and, when a database is configured, upload it."""
+    ctx.screenshots += 1
+    ctx.run_dir.mkdir(parents=True, exist_ok=True)
+    path = ctx.run_dir / f"{prefix}_{ctx.screenshots}.{extension}"
+    path.write_bytes(image)
+    if ctx.recorder is None:
+        return None
+    try:
+        return await ctx.recorder.upload_screenshot(path)
+    except Exception as error:
+        print(f"[step {ctx.tool_calls}]   !! could not upload {path.name}: {type(error).__name__}: {error}", flush=True)
+        return None
+
+
 async def _screenshot(ctx: RunContext, page) -> str | None:
     """Save a screenshot of the page and, when a database is configured, upload it.
 
@@ -428,7 +605,12 @@ async def _screenshot(ctx: RunContext, page) -> str | None:
     ctx.screenshots += 1
     ctx.run_dir.mkdir(parents=True, exist_ok=True)
     path = ctx.run_dir / f"step_{ctx.screenshots}.png"
-    await page.screenshot(path=path)
+    try:
+        # With any test login hidden in the page; if it cannot be hidden, no screenshot is saved.
+        async with credentials_module.redacted_page(page):
+            await page.screenshot(path=path)
+    except Exception:
+        return None
     if ctx.recorder is None:
         return None
     try:
@@ -517,8 +699,9 @@ TOOL_SCHEMAS = [
         "name": "look",
         "description": (
             "Look at the current page. Returns the URL, the title, a short summary of what is visible, "
-            "and up to 15 things you could interact with. If the page has not changed since your last look, "
-            "it says so instead of repeating the result. Call this when the page may have changed."
+            "up to 15 things you could interact with, and a screenshot of the visible part of the page. "
+            "If the page has not changed since your last look, it says so instead of repeating the result. "
+            "Call this when the page may have changed."
         ),
         "input_schema": _schema({}, []),
         "strict": True,
@@ -527,6 +710,8 @@ TOOL_SCHEMAS = [
         "name": "do",
         "description": (
             "Perform ONE single-step action on the page, such as clicking one button or typing text into one field. "
+            "Typing focuses the field for you, so do not click a text field first. After typing, the result shows "
+            "what the field actually contains. "
             "Name the element the way a visitor would see it. Returns success, whether the page changed, and the URL "
             "afterwards. success=false with reason 'no_effect' means nothing on the page changed."
         ),

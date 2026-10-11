@@ -42,7 +42,9 @@ load_dotenv(WORKER / ".env")
 import neatlogs  # noqa: E402
 from anthropic import AsyncAnthropic  # noqa: E402
 
-neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-user-evals")
+import trace_safety  # noqa: E402
+
+neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-user-evals", mask=trace_safety.mask)
 
 import db  # noqa: E402
 from costs import response_cost  # noqa: E402
@@ -136,9 +138,29 @@ def result_text(row: dict) -> str:
     return "\n".join(lines)
 
 
+# The judge's client lives here, never in a traced function's arguments: neatlogs records a
+# traced function's arguments, and walks an object's attributes, which would capture the
+# client's API key as span input.
+_judge_client = None
+
+
+def _client():
+    global _judge_client
+    if _judge_client is None:
+        _judge_client = neatlogs.wrap(AsyncAnthropic())
+    return _judge_client
+
+
+async def close_judge_client() -> None:
+    global _judge_client
+    if _judge_client is not None:
+        client, _judge_client = _judge_client, None
+        await client.close()
+
+
 @neatlogs.span(kind="EVALUATOR", name="false_praise_judge")
-async def judge(client, case_id: str, known_issue: str, text: str) -> dict:
-    response = await client.messages.create(
+async def judge(case_id: str, known_issue: str, text: str) -> dict:
+    response = await _client().messages.create(
         model=JUDGE_MODEL,
         max_tokens=1024,
         system=(
@@ -332,17 +354,16 @@ async def main(version: str, only: list[str] | None, timeout_minutes: float, com
         if friction["kind"] == "agent_issue":
             agent_issue_frictions[friction["run_id"]] = agent_issue_frictions.get(friction["run_id"], 0) + 1
 
-    judge_client = neatlogs.wrap(AsyncAnthropic())
     verdicts = {}
     try:
         for case in (c for c in cases if c["kind"] == "broken"):
             text = result_text(rows[run_ids[case["id"]]])
             print(f"\n--- judge input for {case['id']} ---\nKnown issue: {case['known_issue']}\n{text}", flush=True)
-            verdicts[case["id"]] = {"judged_text": text, **await judge(judge_client, case["id"], case["known_issue"], text)}
+            verdicts[case["id"]] = {"judged_text": text, **await judge(case["id"], case["known_issue"], text)}
             print(f"--- verdict: mentions_issue={verdicts[case['id']]['mentions_issue']} "
                   f"evidence={verdicts[case['id']]['evidence']!r}", flush=True)
     finally:
-        await judge_client.close()
+        await close_judge_client()
 
     per_case, metrics = score(cases, rows, run_ids, verdicts, agent_issue_frictions)
     finished = [rows[run_id] for run_id in run_ids.values()]
