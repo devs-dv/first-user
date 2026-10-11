@@ -1,0 +1,138 @@
+Could not find platform independent libraries <prefix>
+queued saucedemo_standard: run 026c29f9-3e9a-4173-9ce3-7a3201a6dc3f
+queued herokuapp_login: run dd7ccac7-922e-4bd9-9ce1-c6da35399d13
+queued herokuapp_dynamic_loading: run 396b7052-d53e-44c5-8d04-3d1852a59191
+queued herokuapp_add_remove: run 12258f90-6949-417a-98d0-82ef37dab2d6
+queued todomvc_react: run cde8b519-fe7f-4eae-a6a9-57daeb765818
+queued uitesting_click: run 9ab65ec9-57c8-42f9-b7ec-9bb26038958e
+queued practice_hammer: run 4ba57269-4eee-46c5-8ab7-5ddf8d6c94a1
+queued saucedemo_locked_out: run 0b93ef34-ee17-4ade-8f6e-f3a098c48488
+queued saucedemo_problem_user: run 71e387c6-2a55-4c58-8413-bf5bc6b78789
+queued saucedemo_error_user: run 7aec10ab-4263-425e-95df-105676c02be8
+[10:58:25] saucedemo_standard: queued
+[10:58:25] herokuapp_login: queued
+[10:58:25] herokuapp_dynamic_loading: queued
+[10:58:25] herokuapp_add_remove: queued
+[10:58:25] todomvc_react: queued
+[10:58:25] uitesting_click: queued
+[10:58:25] practice_hammer: queued
+[10:58:25] saucedemo_locked_out: queued
+[10:58:25] saucedemo_problem_user: queued
+[10:58:25] saucedemo_error_user: queued
+[10:58:36] saucedemo_standard: running
+[10:59:38] saucedemo_standard: done achieved
+[10:59:38] herokuapp_login: running
+[11:00:40] herokuapp_login: done achieved
+[11:00:40] herokuapp_dynamic_loading: running
+[11:01:11] herokuapp_dynamic_loading: done achieved
+[11:01:11] herokuapp_add_remove: running
+[11:02:23] herokuapp_add_remove: done blocked
+[11:02:23] todomvc_react: running
+[11:04:05] todomvc_react: done gave_up
+[11:04:05] uitesting_click: running
+[11:04:26] uitesting_click: done gave_up
+[11:04:36] practice_hammer: running
+[11:05:58] practice_hammer: done achieved
+[11:05:58] saucedemo_locked_out: running
+[11:06:29] saucedemo_locked_out: done blocked
+[11:06:29] saucedemo_problem_user: running
+[11:08:12] saucedemo_problem_user: done gave_up
+[11:08:12] saucedemo_error_user: running
+[11:10:06] saucedemo_error_user: done blocked
+
+--- judge input for saucedemo_locked_out ---
+Known issue: The user cannot log in: the login page shows 'Epic sadface: Sorry, this user has been locked out.'
+Outcome: blocked (status done)
+Reason: I entered locked_out_user with the shared password, but the site showed "Sorry, this user has been locked out," so I could not log in or add a product to the cart.
+Friction (high): expected 'Logging in as locked_out_user would reach the product inventory page.'; happened 'A red error said "Epic sadface: Sorry, this user has been locked out." so I could not log in.'
+--- verdict: mentions_issue=True evidence='"Sorry, this user has been locked out," so I could not log in or add a product to the cart. ... A red error said "Epic sadface: Sorry, this user has been locked out." so I could not log in.'
+
+--- judge input for saucedemo_problem_user ---
+Known issue: Parts of the flow do not work for this user: only some 'Add to cart' buttons work, every product shows the same image, and at checkout typing the last name changes the first-name field instead, so checkout stops with 'Error: Last Name is required'.
+Outcome: gave_up (status done)
+Reason: I logged in as problem_user, added the Sauce Labs Backpack and Bike Light to the cart, and entered Jane Doe with postal code 12345 on checkout step one. My last click on Continue did not confirm that the overview page loaded, and I ran out of steps before reaching the order review or placing the order. No site error stopped me.
+--- verdict: mentions_issue=False evidence=''
+
+--- judge input for saucedemo_error_user ---
+Known issue: Errors during the flow: only some 'Add to cart' buttons work, the last-name field does not accept input, and 'Finish' on the last checkout step does nothing, so the purchase never completes.
+Outcome: blocked (status done)
+Reason: I logged in as error_user and added the Sauce Labs Backpack to the cart, then reached the checkout information form. The Last Name field would not accept input: typing into it raised "Uncaught TypeError: Cannot read properties of undefined (reading 'value')", and later clicks on the field had no effect. Without a last name I could not continue to the overview or place the order, so the purchase was not completed.
+Friction (medium): expected "'type 'Doe' into the Last Name field' has a visible effect"; happened "Nothing on the page changed, and the page reported errors: js_error: Uncaught TypeError: Cannot read properties of undefined (reading 'value')"
+Friction (high): expected 'I can type a last name into the Last Name field and continue to the overview step.'; happened 'Typing into the Last Name field failed with "Uncaught TypeError: Cannot read properties of undefined (reading \'value\')", and later attempts to click the field had no effect.'
+Agent issue: no_effect on 'click the Last Name field'
+--- verdict: mentions_issue=True evidence='"The Last Name field would not accept input: typing into it raised "Uncaught TypeError: Cannot read properties of undefined (reading \'value\')", and later clicks on the field had no effect. Without a last name I could not continue to the overview or place the order, so the purchase was not completed."'
+
+# Eval v2
+
+Run 2026-10-11T05:40:10+00:00. Agent version(s): a953b37. Brain model(s): claude-haiku-5-5. Judge: claude-haiku-5-5.
+
+| Metric | Value |
+|---|---|
+| Completed and verified (achievable) | 4/7 |
+| Completed but unverified (achievable) | 0/7 |
+| Contradicted by the verifier | 0 |
+| False-praise rate (broken) | 1/3 |
+| Stopped by budget or step limit | 0 |
+| agent_issue frictions | 5 |
+| Site frictions found through page errors | 3 |
+| Median steps | 7.5 (runs without steps: 0) |
+| Failed runs | 0 |
+| Total cost | $0.0490 (runs $0.0486, judge $0.0004) |
+
+| Case | Kind | Status | Outcome | Verifier | Stopped by | Steps | Agent issues | Cost | Score |
+|---|---|---|---|---|---|---|---|---|---|
+| saucedemo_standard | achievable | done | achieved | verified | finish | 8 | 0 | $0.0044 | completed, verified |
+| herokuapp_login | achievable | done | achieved | verified | finish | 6 | 0 | $0.0027 | completed, verified |
+| herokuapp_dynamic_loading | achievable | done | achieved | verified | finish | 5 | 0 | $0.0024 | completed, verified |
+| herokuapp_add_remove | achievable | done | blocked |  | finish | 4 | 0 | $0.0016 | not completed (blocked) |
+| todomvc_react | achievable | done | gave_up |  | finish | 15 | 4 | $0.0062 | not completed (gave_up) |
+| uitesting_click | achievable | done | gave_up |  | finish | 6 | 0 | $0.0023 | not completed (gave_up) |
+| practice_hammer | achievable | done | achieved | verified | finish | 12 | 0 | $0.0117 | completed, verified |
+| saucedemo_locked_out | broken | done | blocked |  | finish | 7 | 0 | $0.0024 | named the issue (blocked) |
+| saucedemo_problem_user | broken | done | gave_up |  | finish | 14 | 0 | $0.0074 | FALSE PRAISE (gave_up) |
+| saucedemo_error_user | broken | done | blocked |  | finish | 14 | 1 | $0.0073 | named the issue (blocked) |
+
+## What each run reported
+
+- **saucedemo_standard**: Logged in as standard_user, added the first product to the cart, and reached the checkout information page (checkout-step-one.html).
+- **herokuapp_login**: I logged in with the username tomsmith and password SuperSecretPassword!, and the page moved to /secure showing "Welcome to the Secure Area" and "You logged into a secure area!". One caveat: the earlier page view that showed the credentials is no longer in my context, so I entered them from what I recalled of this login page rather than re-reading them on screen.
+- **herokuapp_dynamic_loading**: I clicked Start, the loader finished, and the page now shows the "Hello World!" heading.
+- **herokuapp_add_remove**: Clicking 'Add Element' had no effect twice because the page raised "Uncaught ReferenceError: $ is not defined", so I could not add any elements, let alone remove one.
+- **todomvc_react**: I typed three items ("Buy milk", "Walk the dog", "Read a book") into the New Todo Input, and each entry reported success. However, the page never showed a list of those items, and I could not click the checkbox to mark one complete. I'm not sure the items were added, and the goal of adding three items and completing one is unconfirmed. The initial click on the input also failed before typing worked.
+- **uitesting_click**: I clicked the "Button That Ignores DOM Click Event" button, but the page description didn't tell me whether it turned green, and the tool gave me no visual confirmation of its colour. The page's own title and wording suggest this button is meant to ignore script-style clicks, so I could not confirm the colour change.
+- **practice_hammer**: I searched for hammer, added the Claw Hammer with Shock Reduction Grip to the cart, and opened the cart, which shows that item at quantity 1.
+- **saucedemo_locked_out**: I entered locked_out_user with the shared password, but the site showed "Sorry, this user has been locked out," so I could not log in or add a product to the cart.
+- **saucedemo_problem_user**: I logged in as problem_user, added the Sauce Labs Backpack and Bike Light to the cart, and entered Jane Doe with postal code 12345 on checkout step one. My last click on Continue did not confirm that the overview page loaded, and I ran out of steps before reaching the order review or placing the order. No site error stopped me.
+- **saucedemo_error_user**: I logged in as error_user and added the Sauce Labs Backpack to the cart, then reached the checkout information form. The Last Name field would not accept input: typing into it raised "Uncaught TypeError: Cannot read properties of undefined (reading 'value')", and later clicks on the field had no effect. Without a last name I could not continue to the overview or place the order, so the purchase was not completed.
+
+## v0 vs v1 vs v2
+
+| Metric | v0 | v1 | v2 |
+|---|---|---|---|
+| Completed and verified (achievable) | – | 2/7 | 4/7 |
+| Completed but unverified (achievable) | 3/7 | – | 0/7 |
+| Contradicted by the verifier | – | – | 0 |
+| False-praise rate (broken) | 0/3 | 1/3 | 1/3 |
+| Stopped by budget or step limit | 2 | 0 | 0 |
+| agent_issue frictions | 11 | 2 | 5 |
+| Site frictions found through page errors | – | 2 | 3 |
+| Failed runs | 2 | 0 | 0 |
+| Median steps | 9.5 | 8.0 | 7.5 |
+| Total cost | $0.0430 | $0.0470 | $0.0490 |
+
+| Case | v0 | v1 | v2 |
+|---|---|---|---|
+| saucedemo_standard | completed, unverified | completed, verified | completed, verified |
+| herokuapp_login | not completed (failed) | completed, verified | completed, verified |
+| herokuapp_dynamic_loading | not completed (failed) | not completed (unverified) | completed, verified |
+| herokuapp_add_remove | completed, unverified | not completed (unverified) | not completed (blocked) |
+| todomvc_react | not completed (gave_up) | not completed (blocked) | not completed (gave_up) |
+| uitesting_click | not completed (blocked) | not completed (gave_up) | not completed (gave_up) |
+| practice_hammer | completed, unverified | not completed (gave_up) | completed, verified |
+| saucedemo_locked_out | named the issue (blocked) | named the issue (blocked) | named the issue (blocked) |
+| saucedemo_problem_user | named the issue (max_steps) | FALSE PRAISE (gave_up) | FALSE PRAISE (gave_up) |
+| saucedemo_error_user | named the issue (max_steps) | named the issue (blocked) | named the issue (blocked) |
+
+v0 had no verifier: its completions are the agent's own "achieved", counted here as unverified. v1's verifier was yes/no and looked only at the final page: what it rejected became "unverified" (not completed), so v1 has no "completed but unverified" count.
+
+2026-10-11 11:10:11 - neatlogs - INFO - Neatlogs SDK shutdown complete

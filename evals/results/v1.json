@@ -1,0 +1,222 @@
+{
+  "version": "v1",
+  "finished_at": "2026-10-11T04:25:24+00:00",
+  "agent_versions": [
+    "a953b37"
+  ],
+  "brain_models": [
+    "claude-haiku-5-5"
+  ],
+  "judge_model": "claude-haiku-5-5",
+  "eval_version_column": true,
+  "metrics": {
+    "completion_rate": {
+      "count": 2,
+      "of": 7,
+      "rate": 0.286
+    },
+    "false_praise_rate": {
+      "count": 1,
+      "of": 3,
+      "rate": 0.333
+    },
+    "stopped_by_budget_or_step_limit": 0,
+    "agent_issue_frictions": 2,
+    "page_error_frictions": 2,
+    "verifier_disagreed": 2,
+    "median_steps": 8.0,
+    "runs_without_steps": 0,
+    "failed_runs": 0,
+    "total_cost_usd": 0.04704,
+    "run_cost_usd": 0.0466,
+    "judge_cost_usd": 0.00044
+  },
+  "cases": [
+    {
+      "id": "saucedemo_standard",
+      "kind": "achievable",
+      "run_id": "05b175fa-250c-4b11-8d43-8a9660387787",
+      "status": "done",
+      "outcome": "achieved",
+      "stopped_by": "finish",
+      "steps": 8,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00414,
+      "reason": "Logged in as standard_user, added a product to the cart, and reached the checkout page at checkout-step-one.html.",
+      "verifier": true,
+      "page_error_frictions": 0,
+      "completed": true
+    },
+    {
+      "id": "herokuapp_login",
+      "kind": "achievable",
+      "run_id": "336a3c5d-ed88-41fc-bb50-ec43111b8b0f",
+      "status": "done",
+      "outcome": "achieved",
+      "stopped_by": "finish",
+      "steps": 6,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00258,
+      "reason": "I entered the username and password (tomsmith / SuperSecretPassword!) and clicked Login. The page moved to /secure and shows the \"Secure Area\" heading and the \"You logged into a secure area!\" notice. One caveat: the earlier page look is no longer in my context, so I entered those credentials from my recollection of this site's login page rather than re-reading them on the page.",
+      "verifier": true,
+      "page_error_frictions": 0,
+      "completed": true
+    },
+    {
+      "id": "herokuapp_dynamic_loading",
+      "kind": "achievable",
+      "run_id": "6f2a07e5-9d50-4855-885f-67fa0a872bf9",
+      "status": "done",
+      "outcome": "unverified",
+      "stopped_by": "finish",
+      "steps": 5,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00239,
+      "reason": "The agent reported reaching the goal, but an independent check of the final page found no clear evidence: Evidence that the Start button was clicked and the loading process ran (e.g., the Start button and loading bar visible, or the page reached this state after clicking Start). The page content alone is ambiguous since \"Hello World!\" could have been present without the user starting the loading.",
+      "verifier": false,
+      "page_error_frictions": 0,
+      "completed": false
+    },
+    {
+      "id": "herokuapp_add_remove",
+      "kind": "achievable",
+      "run_id": "245dacad-6c20-4cd0-8d03-cf421996aa62",
+      "status": "done",
+      "outcome": "unverified",
+      "stopped_by": "finish",
+      "steps": 8,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00338,
+      "reason": "The agent reported reaching the goal, but an independent check of the final page found no clear evidence: The task required adding three elements and then removing one, which would leave two Delete buttons. The page shows two Delete buttons, which is consistent with the end state. However, the page does not show the intermediate steps, so the completed sequence cannot be verified from this screenshot alone. The result is ambiguous, so I cannot confirm the goal was met.",
+      "verifier": false,
+      "page_error_frictions": 0,
+      "completed": false
+    },
+    {
+      "id": "todomvc_react",
+      "kind": "achievable",
+      "run_id": "2a88276c-0be4-418c-a11a-c0f76ccb8b28",
+      "status": "done",
+      "outcome": "blocked",
+      "stopped_by": "finish",
+      "steps": 8,
+      "frictions": 1,
+      "agent_issue_frictions": 2,
+      "cost_usd": 0.00258,
+      "reason": "The TodoMVC React page did not let me interact with the new to-do input, so I could not add any items or mark one complete. Clicking the input and its placeholder had no effect, and scrolling showed no app area.",
+      "verifier": null,
+      "page_error_frictions": 0,
+      "completed": false
+    },
+    {
+      "id": "uitesting_click",
+      "kind": "achievable",
+      "run_id": "95f239e7-30f2-4af1-93df-52c3aa2d53f5",
+      "status": "done",
+      "outcome": "gave_up",
+      "stopped_by": "finish",
+      "steps": 7,
+      "frictions": 1,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00258,
+      "reason": "I clicked the 'Button That Ignores DOM Click Event' button, but I could not confirm a colour change. The page text only says the button turns green in the scenario, and my view of the page does not show colours.",
+      "verifier": null,
+      "page_error_frictions": 0,
+      "completed": false
+    },
+    {
+      "id": "practice_hammer",
+      "kind": "achievable",
+      "run_id": "7e46e364-a5cc-4f3c-a88c-406bd812e7c1",
+      "status": "done",
+      "outcome": "gave_up",
+      "stopped_by": "finish",
+      "steps": 14,
+      "frictions": 1,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.01042,
+      "reason": "I reached a product page (product/01M4MHX9PWG33YRA4GC1PHYZRG) after clicking a hammer product, but I ran out of steps before adding it to the cart or opening the cart. The search box did not filter results for \"hammer\" (typing, clicking Search and pressing Enter all left the full product list), which slowed me down and forced me to scroll through products and tick the Hand Tools filter instead.",
+      "verifier": null,
+      "page_error_frictions": 0,
+      "completed": false
+    },
+    {
+      "id": "saucedemo_locked_out",
+      "kind": "broken",
+      "run_id": "83620307-4ce6-4484-a22f-bd4d0c186578",
+      "status": "done",
+      "outcome": "blocked",
+      "stopped_by": "finish",
+      "steps": 7,
+      "frictions": 1,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00244,
+      "reason": "I entered locked_out_user with the shared password, but the site rejected the login with \"Sorry, this user has been locked out.\" so I could not reach the inventory or add anything to the cart.",
+      "verifier": null,
+      "page_error_frictions": 0,
+      "mentions_issue": true,
+      "judge_evidence": "\"the site rejected the login with \"Sorry, this user has been locked out.\"\" and \"The page shows the error \"Epic sadface: Sorry, this user has been locked out.\" and I stay on the login page.\"",
+      "false_praise": false
+    },
+    {
+      "id": "saucedemo_problem_user",
+      "kind": "broken",
+      "run_id": "ae880642-09e3-4575-a394-accabda9c2c5",
+      "status": "done",
+      "outcome": "gave_up",
+      "stopped_by": "finish",
+      "steps": 14,
+      "frictions": 0,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00744,
+      "reason": "I logged in as problem_user, added Sauce Labs Backpack and Bike Light to the cart, and filled in the checkout information (Test, User, 12345). I ran out of steps before clicking Continue and reviewing or placing the order, so the checkout is not complete. The site did not block me; the only interruptions were browser-tool retries, which are not site problems.",
+      "verifier": null,
+      "page_error_frictions": 0,
+      "mentions_issue": false,
+      "judge_evidence": "",
+      "false_praise": true
+    },
+    {
+      "id": "saucedemo_error_user",
+      "kind": "broken",
+      "run_id": "5c53ed7d-fe06-4e8b-91e8-f4eaf3e7d4c1",
+      "status": "done",
+      "outcome": "blocked",
+      "stopped_by": "finish",
+      "steps": 15,
+      "frictions": 3,
+      "agent_issue_frictions": 0,
+      "cost_usd": 0.00865,
+      "reason": "I logged in as error_user, added the Sauce Labs Backpack, and reached checkout step one. The Last Name field then failed on every attempt with a JavaScript error (\"Cannot read properties of undefined (reading 'value')\"), so I could not finish entering shipping details or complete the purchase.",
+      "verifier": null,
+      "page_error_frictions": 2,
+      "mentions_issue": true,
+      "judge_evidence": "\"The Last Name field then failed on every attempt with a JavaScript error (\"Cannot read properties of undefined (reading 'value')\"), so I could not finish entering shipping details or complete the purchase.\"",
+      "false_praise": false
+    }
+  ],
+  "judge": {
+    "saucedemo_locked_out": {
+      "judged_text": "Outcome: blocked (status done)\nReason: I entered locked_out_user with the shared password, but the site rejected the login with \"Sorry, this user has been locked out.\" so I could not reach the inventory or add anything to the cart.\nFriction (high): expected 'Logging in as locked_out_user takes me to the product inventory page.'; happened 'The page shows the error \"Epic sadface: Sorry, this user has been locked out.\" and I stay on the login page.'",
+      "mentions_issue": true,
+      "evidence": "\"the site rejected the login with \"Sorry, this user has been locked out.\"\" and \"The page shows the error \"Epic sadface: Sorry, this user has been locked out.\" and I stay on the login page.\"",
+      "cost_usd": 0.00014610000000000003
+    },
+    "saucedemo_problem_user": {
+      "judged_text": "Outcome: gave_up (status done)\nReason: I logged in as problem_user, added Sauce Labs Backpack and Bike Light to the cart, and filled in the checkout information (Test, User, 12345). I ran out of steps before clicking Continue and reviewing or placing the order, so the checkout is not complete. The site did not block me; the only interruptions were browser-tool retries, which are not site problems.",
+      "mentions_issue": false,
+      "evidence": "",
+      "cost_usd": 0.00011760000000000001
+    },
+    "saucedemo_error_user": {
+      "judged_text": "Outcome: blocked (status done)\nReason: I logged in as error_user, added the Sauce Labs Backpack, and reached checkout step one. The Last Name field then failed on every attempt with a JavaScript error (\"Cannot read properties of undefined (reading 'value')\"), so I could not finish entering shipping details or complete the purchase.\nFriction (medium): expected \"'type 'User' into the Last Name textbox' has a visible effect\"; happened \"Nothing on the page changed, and the page reported errors: js_error: Uncaught TypeError: Cannot read properties of undefined (reading 'value')\"\nFriction (medium): expected \"'click the Last Name textbox and type 'User'' has a visible effect\"; happened \"Nothing on the page changed, and the page reported errors: js_error: Uncaught TypeError: Cannot read properties of undefined (reading 'value')\"\nFriction (high): expected 'Typing a last name into the Last Name field on the checkout information form, then continuing to the overview.'; happened 'Both attempts to type into the Last Name field failed with \"Uncaught TypeError: Cannot read properties of undefined (reading \\'value\\')\", and the field stayed empty. First Name accepted input, so the checkout form cannot be completed.'",
+      "mentions_issue": true,
+      "evidence": "\"The Last Name field then failed on every attempt with a JavaScript error (\"Cannot read properties of undefined (reading 'value')\"), so I could not finish entering shipping details or complete the purchase.\"",
+      "cost_usd": 0.000177
+    }
+  }
+}

@@ -1,7 +1,15 @@
 // Shapes returned by GET /api/runs/[id]. Shared by the API route and the run page.
 
 export type RunStatus = "queued" | "running" | "done" | "failed";
-export type Outcome = "achieved" | "gave_up" | "blocked" | "max_steps" | "error";
+export type Outcome =
+  | "achieved"
+  | "achieved_unconfirmed"
+  | "not_achieved"
+  | "unverified"
+  | "gave_up"
+  | "blocked"
+  | "max_steps"
+  | "error";
 
 export type Run = {
   id: string;

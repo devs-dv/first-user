@@ -1,6 +1,6 @@
-"""Token and cost accounting for one run: the brain model plus Stagehand's lookup model.
+"""Token and cost accounting for one run: the brain model, Stagehand's lookup model and the verifier.
 
-Each model call is counted once. Brain responses are always added here. Lookup
+Each model call is counted once. Brain and verifier responses are always added here. Lookup
 calls are counted from our own callback's responses when LOOKUP_VIA is
 "callback", and from Stagehand's cumulative metrics() otherwise; in callback
 mode the metrics snapshot is kept only to cross-check our own count.
@@ -71,6 +71,7 @@ class TokenTally:
 class RunUsage:
     brain: TokenTally = field(default_factory=TokenTally)
     lookup: TokenTally = field(default_factory=TokenTally)
+    verifier: TokenTally = field(default_factory=TokenTally)
     # Stagehand's metrics() for the session; cumulative, so the latest snapshot is stored.
     stagehand_prompt: int = 0
     stagehand_completion: int = 0
@@ -81,6 +82,9 @@ class RunUsage:
 
     def add_lookup_response(self, response) -> None:
         self.lookup.add(response)
+
+    def add_verifier_response(self, response) -> None:
+        self.verifier.add(response)
 
     def set_stagehand(self, metrics) -> None:
         self.stagehand_prompt = int(metrics.total_prompt_tokens)
@@ -101,11 +105,11 @@ class RunUsage:
 
     @property
     def total_tokens(self) -> int:
-        return self.brain.total_tokens + self.lookup_tokens
+        return self.brain.total_tokens + self.lookup_tokens + self.verifier.total_tokens
 
     @property
     def total_cost(self) -> float:
-        return self.brain.cost + self.lookup_cost
+        return self.brain.cost + self.lookup_cost + self.verifier.cost
 
     def summary(self) -> dict:
         return {
@@ -114,6 +118,7 @@ class RunUsage:
             "lookup_tokens": (
                 self.lookup.summary() if LOOKUP_VIA == "callback" else {"models": [LOOKUP_MODEL]}
             ),
+            "verifier_tokens": self.verifier.summary(),
             "stagehand_metrics": {
                 "prompt": self.stagehand_prompt,
                 "completion": self.stagehand_completion,
@@ -123,6 +128,7 @@ class RunUsage:
             "estimated_cost_usd": {
                 "brain": round(self.brain.cost, 5),
                 "lookup": round(self.lookup_cost, 5),
+                "verifier": round(self.verifier.cost, 5),
                 "total": round(self.total_cost, 5),
             },
         }

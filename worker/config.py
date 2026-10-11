@@ -22,6 +22,15 @@ LOOKUP_MAX_TOKENS = int(os.environ.get("LOOKUP_MAX_TOKENS", "4096"))
 LOOKUP_MODEL = os.environ.get("LOOKUP_MODEL", "anthropic/claude-haiku-4-5")
 
 MAX_STEPS = int(os.environ.get("MAX_STEPS", "15"))
+# With this many steps left, the agent is told to conclude and call finish.
+WRAP_UP_STEPS = int(os.environ.get("WRAP_UP_STEPS", "2"))
+
+# The first page load waits for the DOM (not the full load event), up to this long. A page
+# that still has not finished parsing by then is used as it is.
+PAGE_READY_TIMEOUT_MS = int(os.environ.get("PAGE_READY_TIMEOUT_MS", "45000"))
+
+# Independent check of an "achieved" verdict: sees only the goal and the final page.
+VERIFIER_MODEL = os.environ.get("VERIFIER_MODEL", "claude-haiku-5-5")
 
 ACT_TIMEOUT_MS = int(os.environ.get("ACT_TIMEOUT_MS", "30000"))
 

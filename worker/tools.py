@@ -3,6 +3,7 @@
 import functools
 import hashlib
 import json
+import re
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 import neatlogs
 from pydantic import BaseModel, Field
 
+import page_watch
 from config import ACT_TIMEOUT_MS
 from costs import RunUsage
 from lookup_model import lookups_nest_here
@@ -53,6 +55,9 @@ class RunContext:
     tool_calls: int = 0
     # The browser's egress guard (egress.EgressGuard); a refused request ends the run.
     egress: Any = None
+    # The factual record of the run for the verifier: actions, their effects and look()
+    # summaries, never the agent's thoughts or conclusions (see record_step in browse.py).
+    record: list[dict] = field(default_factory=list)
 
     @property
     def run_dir(self) -> Path:
@@ -72,30 +77,46 @@ async def current_url() -> str:
     return await (await _active_page()).url()
 
 
-# Visible text plus form state, so typing into a field counts as a change.
-_FINGERPRINT_JS = """JSON.stringify([
-  document.body ? document.body.innerText : '',
-  Array.from(document.querySelectorAll('input, textarea, select'))
-    .map(el => (el.type === 'checkbox' || el.type === 'radio') ? String(el.checked) : el.value)
-])"""
+# Visible text, form state, class and ARIA state attributes and, optionally, which text field
+# has focus, hashed in the page. Classes catch changes with no text (a button turning green);
+# focus on a text field catches "click the search box". Focus is left out for typing actions
+# (moving into an empty field is not typing into it) and for anything but text fields (a
+# click on a button that does nothing does not count as a change).
+_FINGERPRINT_JS = r"""((withFocus) => {
+  const parts = [document.body ? document.body.innerText : ''];
+  for (const el of document.querySelectorAll('input, textarea, select'))
+    parts.push((el.type === 'checkbox' || el.type === 'radio') ? String(el.checked) : el.value);
+  for (const el of document.querySelectorAll(
+      'body [class], [aria-checked], [aria-pressed], [aria-expanded], [aria-selected]'))
+    parts.push((el.getAttribute('class') || '') + '|' + (el.getAttribute('aria-checked') || '') +
+      (el.getAttribute('aria-pressed') || '') + (el.getAttribute('aria-expanded') || '') +
+      (el.getAttribute('aria-selected') || ''));
+  const active = document.activeElement;
+  if (withFocus && active && active.matches('input, textarea, select, [contenteditable=""], [contenteditable=true]'))
+    parts.push('focus:' + active.tagName + '#' + active.id + '|' + (active.getAttribute('name') || ''));
+  const text = parts.join('\u0001');
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+  return (hash >>> 0).toString(16) + ':' + text.length;
+})(%s)"""
 
 
-async def page_fingerprint(page) -> str:
-    """URL plus a hash of visible text and form values; no model call."""
+async def page_fingerprint(page, with_focus: bool = False) -> str:
+    """URL plus a hash of what is visible and settable on the page; no model call."""
     url = await page.url()
     try:
-        state = await page.evaluate(_FINGERPRINT_JS)
+        state = await page.evaluate(_FINGERPRINT_JS % ("true" if with_focus else "false"))
     except Exception:
         state = ""
     return f"{url}#{hashlib.sha256(str(state).encode()).hexdigest()[:16]}"
 
 
-async def _changed_since(before: str) -> bool:
+async def _changed_since(before: str, with_focus: bool = False) -> bool:
     """Wait briefly for the page to react, then compare fingerprints."""
     for wait_ms in SETTLE_CHECKS_MS:
         page = await _active_page()
         await page.wait_for_timeout(wait_ms)
-        if await page_fingerprint(await _active_page()) != before:
+        if await page_fingerprint(await _active_page(), with_focus) != before:
             return True
     return False
 
@@ -189,7 +210,7 @@ async def _rung_observe_then_act(instruction: str) -> dict:
 
 
 @neatlogs.span(kind="TOOL", name="do.rung_c_locator")
-async def _rung_locator(action: dict, before: str) -> dict:
+async def _rung_locator(action: dict, before: str, with_focus: bool) -> dict:
     """Replay the observed element through the page locator API, without coordinates where possible."""
     locator = (await _active_page()).locator(action["selector"])
     method, arguments = action["method"], action["arguments"]
@@ -201,7 +222,7 @@ async def _rung_locator(action: dict, before: str) -> dict:
         return {"reported_success": True, "via": "locator.select_option"}
     if method == "click":
         await locator.click()
-        if await _changed_since(before):
+        if await _changed_since(before, with_focus):
             return {"reported_success": True, "via": "locator.click"}
         # A DOM click event needs no screen coordinates.
         await locator.send_click_event()
@@ -209,16 +230,88 @@ async def _rung_locator(action: dict, before: str) -> dict:
     return {"reported_success": False, "via": f"unsupported method {method!r}"}
 
 
+# Finds the element to click for rung d, scrolls it to the middle of the viewport and returns
+# its centre. With no observed element, it picks the checkbox or toggle whose surrounding text
+# best matches the instruction. A checkbox drawn with zero size is clicked through its label.
+_MOUSE_TARGET_JS = r"""((spec) => {
+  const byXpath = (xpath) => document.evaluate(
+    xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  const find = (selector) => selector.startsWith('xpath=') ? byXpath(selector.slice(6))
+    : selector.startsWith('/') ? byXpath(selector) : document.querySelector(selector);
+  const TOGGLES = 'input[type=checkbox], input[type=radio], [role=checkbox], [role=switch], [aria-pressed]';
+  let element = spec.selector ? find(spec.selector) : null;
+  let how = 'observed element';
+  if (!element && spec.words.length) {
+    let bestScore = 0;
+    for (const candidate of document.querySelectorAll(TOGGLES)) {
+      const row = candidate.closest('li, tr, label, [role=listitem], [role=row]');
+      const text = [row ? row.innerText : '', candidate.getAttribute('aria-label') || '',
+        candidate.id, candidate.getAttribute('class') || '', candidate.getAttribute('name') || ''].join(' ').toLowerCase();
+      const score = spec.words.filter((word) => text.includes(word)).length;
+      if (score > bestScore) { element = candidate; bestScore = score; }
+    }
+    how = 'toggle matched by its text';
+  }
+  if (!element) return null;
+  const isToggle = element.matches(TOGGLES);
+  let target = element;
+  const box = element.getBoundingClientRect();
+  if (isToggle && (box.width < 2 || box.height < 2)) {
+    const label = (element.id && document.querySelector('label[for="' + CSS.escape(element.id) + '"]'))
+      || element.closest('label')
+      || (element.nextElementSibling && element.nextElementSibling.tagName === 'LABEL' ? element.nextElementSibling : null);
+    if (label) { target = label; how += ', through its label'; }
+  }
+  target.scrollIntoView({block: 'center', inline: 'center'});
+  const rect = target.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return null;
+  return {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, how, toggle: isToggle};
+})(%s)"""
+
+# Instructions that type text, for which focus moving into a field is not a change.
+_TYPING = re.compile(r"\b(type|enter|fill|write|paste)\b", re.IGNORECASE)
+
+# Words that mark an instruction as being about a checkbox or toggle.
+_TOGGLE_WORDS = ("check", "tick", "toggle", "complete", "mark", "switch", "select", "done")
+_STOP_WORDS = {"the", "and", "click", "next", "for", "into", "with", "that", "this", "box", "button", "left",
+               "right", "item", "first", "one", "its", "then", "please"}
+
+
+@neatlogs.span(kind="TOOL", name="do.rung_d_mouse")
+async def _rung_mouse(instruction: str, action: dict | None) -> dict:
+    """A trusted mouse click at the element's centre through the browser's input API.
+
+    Rung c's DOM click event is scripted (event.isTrusted is false), and some elements
+    ignore it. With no observed element, this rung looks for a checkbox or toggle that
+    matches the instruction, because observe often misses visually hidden checkboxes.
+    """
+    page = await _active_page()
+    words = []
+    if any(word in instruction.lower() for word in _TOGGLE_WORDS):
+        words = [w for w in re.findall(r"[a-z0-9]+", instruction.lower()) if len(w) >= 3 and w not in _STOP_WORDS]
+    selector = action["selector"] if action and action["method"] in ("click", "check", "uncheck") else None
+    if selector is None and not words:
+        return {"reported_success": False, "via": "no element to click"}
+    target = await page.evaluate(_MOUSE_TARGET_JS.replace("%s", json.dumps({"selector": selector, "words": words})))
+    if not target:
+        return {"reported_success": False, "via": "no element to click"}
+    await page.click(target["x"], target["y"])
+    return {"reported_success": True, "via": "mouse.click", "target": target["how"], "toggle": target["toggle"]}
+
+
 @neatlogs.span(kind="TOOL", tool_name="do")
 @metered
 async def do(instruction: str) -> dict:
     ctx = current_run.get()
-    before = await page_fingerprint(await _active_page())
+    page = await _active_page()
+    with_focus = not _TYPING.search(instruction)
+    before = await page_fingerprint(page, with_focus)
+    since = await page_watch.now(page)
     rungs: list[dict] = []
     worked = None
     action = None
 
-    for name in ("a", "b", "c"):
+    for name in ("a", "b", "c", "d"):
         if name == "c" and action is None:
             rungs.append({"rung": "c", "skipped": "no observed element to replay"})
             continue
@@ -228,11 +321,13 @@ async def do(instruction: str) -> dict:
             elif name == "b":
                 outcome = await _rung_observe_then_act(instruction)
                 action = outcome.pop("action")
+            elif name == "c":
+                outcome = await _rung_locator(action, before, with_focus)
             else:
-                outcome = await _rung_locator(action, before)
+                outcome = await _rung_mouse(instruction, action)
         except Exception as error:
             outcome = {"reported_success": False, "error": f"{type(error).__name__}: {error}"[:300]}
-        outcome["changed"] = await _changed_since(before)
+        outcome["changed"] = await _changed_since(before, with_focus)
         rungs.append({"rung": name, **outcome})
         if outcome["changed"]:
             worked = name
@@ -240,6 +335,7 @@ async def do(instruction: str) -> dict:
 
     page = await _active_page()
     url = await page.url()
+    page_errors = await page_watch.collect(page, since)
     screenshot_url = await _screenshot(ctx, page)
 
     # Every do() result has the same keys in the same order, with fixed values, so traces
@@ -249,11 +345,41 @@ async def do(instruction: str) -> dict:
             "success": True,
             "changed": True,
             "rung": worked,
-            "via": VIA[worked] if worked != "c" else rungs[-1].get("via", "locator"),
+            "via": VIA[worked] if worked in VIA else rungs[-1].get("via", "locator"),
             "reason": "worked_first_try" if worked == "a" else "worked_after_retry",
             "kind": "action",
             "url": url,
+            "page_error_count": len(page_errors),
+            "page_errors": page_errors,
             "message": "The action worked." if worked == "a" else RETRY_MESSAGE,
+        }
+    elif page_errors:
+        # Nothing changed, and the page itself reported errors or failed requests while we
+        # tried: that points at the site, so it is site friction, not our tool's issue.
+        ctx.frictions.append({
+            "kind": "site",
+            "severity": "medium",
+            "expected": f"'{instruction}' has a visible effect",
+            "happened": "Nothing on the page changed, and the page reported errors: " + "; ".join(page_errors),
+            "url": url,
+            "detected_by": "page_errors",
+        })
+        result = {
+            "success": False,
+            "changed": False,
+            "rung": "none",
+            "via": "none",
+            "reason": "page_errors",
+            "kind": "site_problem",
+            "url": url,
+            "page_error_count": len(page_errors),
+            "page_errors": page_errors,
+            "message": (
+                "Your action had NO EFFECT, and while it was tried the page itself reported errors "
+                "(listed in page_errors). That points to a problem with the website, and it has already been "
+                "recorded as site friction, so do not record it again. Decide whether a real visitor could "
+                "still reach the goal another way, or conclude."
+            ),
         }
     else:
         reported_any = any(r.get("reported_success") for r in rungs)
@@ -269,11 +395,13 @@ async def do(instruction: str) -> dict:
             "reason": reason,
             "kind": "agent_issue",
             "url": url,
+            "page_error_count": 0,
+            "page_errors": [],
             "message": (
-                "Your action had NO EFFECT: after three different tries, the URL, visible text and form fields "
-                "are exactly the same as before. The browser tool may have failed to operate that element; "
-                "this was recorded as an agent issue, so do not record it as site friction on its own. "
-                "Try a differently worded instruction or another way to reach your goal."
+                "Your action had NO EFFECT: after four different tries, the URL, visible text and form fields "
+                "are exactly the same as before, and the page reported no errors. The browser tool may have "
+                "failed to operate that element; this was recorded as an agent issue, so do not record it as "
+                "site friction on its own. Try a differently worded instruction or another way to reach your goal."
             ),
         }
     if screenshot_url:

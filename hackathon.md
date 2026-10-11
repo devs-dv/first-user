@@ -366,6 +366,101 @@ v0 baseline (agent `ec2bbcc`, Haiku brain; no agent changes made for the eval):
 
 Evidence: `evals/results/v0.json`, `v0.md`, `v0.log` (includes the judged text).
 
+### 2026-10-11 — Agent changes from the v0 baseline, and eval v1
+
+Completed (uncommitted when v1 ran; the runs are labelled `a953b37`, the last commit):
+- **Page loading** (`visit.py`): the first navigation waits for `domcontentloaded` with a 45 s cap (`PAGE_READY_TIMEOUT_MS`), not the full load event. After the cap, the visit continues with whatever has rendered.
+- **Rung d** (`do.rung_d_mouse`): a trusted mouse click at the element's centre through `page.click(x, y)`, for elements that ignore scripted click events. With no observed element, it picks the checkbox or toggle whose surrounding text best matches the instruction. A zero-size checkbox is clicked through its label.
+- **Change detection.** This was not on the requested list, but rung d needs it. The page fingerprint now also covers `class` and ARIA state attributes, and, for click actions, focus moving into a text field. Typing actions leave focus out, so moving into an empty field is not counted as typing into it.
+- **Wrap-up** (`WRAP_UP_STEPS=2`): with 2 steps left, the agent is told to conclude and call finish. On its last step, it is told to call finish now.
+- **Hidden errors** (`page_watch.py`): a script on every page records JS errors, unhandled rejections, `console.error`, fetch/XHR responses of 4xx/5xx and failed resource loads.
+  - Each `do` result includes `page_error_count` and `page_errors`, and so does its step record. These cover the page's own site only, and the cross-origin "Script error." is ignored.
+  - A `do` with no effect while page errors occurred is recorded as site friction (`"kind": "site_problem"`, `"reason": "page_errors"`), not `agent_issue`.
+- **Verifier** (`verifier.py`, `EVALUATOR` span `verify_goal`, `claude-haiku-5-5`): after `finish(achieved)`, it gets only the goal and a fresh read of the final page (URL, title, visible text, form fields with passwords hidden, and a screenshot).
+  - If it disagrees, the outcome becomes `unverified`, with its reason. The agent's own reason is kept as `agent_reason`, and `verification` is added to the run result.
+  - Its cost is counted in `costs.py`, and `check_costs.py` checks it.
+  - The web app shows `unverified` as "Said it reached the goal, but we could not confirm it".
+- **Eval:** "completed" now requires the verifier to agree. `run.py --compare-to v0` adds side-by-side tables.
+
+Tests that ran:
+- Without a model, on real pages:
+  - The fingerprint caught the uitesting button turning green, and rung d's mouse click worked.
+  - Rung d found and ticked the todomvc "Buy milk" toggle from the instruction text.
+  - On saucedemo `error_user`, each broken "Add to cart", the last-name field and "Finish" produced a JS error that was captured.
+- `check_costs.py` on herokuapp login: `achieved` in 6 steps, verifier agreed, all checks passed, $0.0029.
+- `python -m unittest test_egress`: 7 tests pass.
+- **Eval v1:** the user's worker was stopped while idle, and a fresh worker ran the new code with the Haiku brain, like v0.
+
+| Metric | v0 | v1 |
+|---|---|---|
+| Completion rate (achievable) | 3/7 | 2/7 |
+| False-praise rate (broken) | 0/3 | 1/3 |
+| Stopped by budget or step limit | 2 | 0 |
+| agent_issue frictions | 11 | 2 |
+| Site frictions found through page errors | – | 2 |
+| Verifier disagreed with "achieved" | – | 2 |
+| Failed runs | 2 | 0 |
+| Median steps | 9.5 | 8.0 |
+| Total cost | $0.0430 | $0.0470 |
+
+Fixed:
+- `herokuapp_login` completes.
+- `herokuapp_dynamic_loading` no longer fails before step 1.
+- `error_user` now names the site's JS error as a site problem and concludes as blocked.
+- No run hit the step limit.
+- `agent_issue` frictions fell from 11 to 2.
+
+Not fixed or regressed:
+- **Verifier too strict for process goals.** `herokuapp_dynamic_loading` and `herokuapp_add_remove` were marked unverified although their step records show the agent did the task. The verifier wanted evidence of the steps, which a final page cannot show.
+- **`uitesting_click`.** The click worked on rung a, but the agent reads only page text, could not see the colour change and gave up.
+- **`todomvc_react`.** Clicking the new-to-do input still had no effect on every rung. The agent gave up instead of typing, which worked in v0.
+- **`practice_hammer` (regression).** The search changed the page, but the agent's next look described the unfiltered list. It logged that as site friction, took the category-filter route and was cut off by the wrap-up notice.
+- **`saucedemo_problem_user` (new false praise).** Typing the last name changed the page (the bug moves it into the first-name field), so it counted as success. The agent never looked again. Its reason also dismissed two "Add to cart" retries as "browser-tool retries, which are not site problems", following the retry wording from the earlier session.
+
+Possible next steps (not started): tell the verifier that the final state is the evidence for process goals; give the brain a screenshot after `do`; look again after typing into form fields; rethink the retry wording so broken site buttons are not dismissed.
+
+Evidence: `evals/results/v1.json`, `v1.md`, `v1.log`.
+
+### 2026-10-11 — Verifier with the run's factual record, three verdicts, and eval v2
+
+Completed:
+- **What the verifier sees** (`worker/verifier.py`). It still never sees the agent's thoughts, notes or finish reason. It now gets the factual record of the run (`ctx.record`, built by `record_step` in `browse.py`): each action's instruction, whether the page changed, the URL afterwards, any page errors, and the `look()` summaries. It also gets a fresh read of the final page (text, form fields, screenshot).
+- **Three verdicts, each with a short reason:**
+  - `verified` keeps the outcome `achieved`.
+  - `contradicted` makes it `not_achieved`, with the verifier's reason shown and the agent's kept as `agent_reason`.
+  - `unverified` makes it `achieved_unconfirmed`, shown in the web app as "Reached the goal, not independently confirmed".
+- **Eval scoring** (`evals/run.py`). It reports "completed and verified" and "completed but unverified" separately, and contradicted counts as not completed. False praise counts both `achieved` and `achieved_unconfirmed` as claimed success. `--compare-to v0 v1` shows any number of versions side by side.
+
+Tests that ran:
+- `check_costs.py` on `herokuapp_add_remove`, the process goal v1's verifier wrongly rejected: `verified`, citing the three "Add Element" clicks that changed the page and the two remaining Delete buttons. All checks passed, $0.0037.
+- **Eval v2:** a fresh worker on the new code with the Haiku brain, like v0 and v1.
+
+| Metric | v0 | v1 | v2 |
+|---|---|---|---|
+| Completed and verified (achievable) | – | 2/7 | 4/7 |
+| Completed but unverified (achievable) | 3/7 | – | 0/7 |
+| Contradicted by the verifier | – | – | 0 |
+| False-praise rate (broken) | 0/3 | 1/3 | 1/3 |
+| Stopped by budget or step limit | 2 | 0 | 0 |
+| agent_issue frictions | 11 | 2 | 5 |
+| Site frictions found through page errors | – | 2 | 3 |
+| Failed runs | 2 | 0 | 0 |
+| Median steps | 9.5 | 8.0 | 7.5 |
+| Total cost | $0.0430 | $0.0470 | $0.0490 |
+
+v0 had no verifier, so its completions are the agent's own "achieved" and count here as unverified. v1's verifier was yes/no and looked only at the final page.
+
+- **Verifier:** all 4 "achieved" verdicts were `verified`, none were `contradicted` or `unverified`, and none looked wrong when I read the step records.
+- **`herokuapp_dynamic_loading`:** now completed and verified. v1's final-page-only verifier had rejected it.
+- **`practice_hammer`:** completed and verified again, after giving up in v1. The difference came from the agent's own route, not from this change.
+- **`herokuapp_add_remove` (blocked):** the page raised "Uncaught ReferenceError: $ is not defined" on each "Add Element" click. The site's slow jQuery had not loaded yet, so the agent correctly blamed the site. Run to run this case depends on herokuapp's script loading, not on the verifier.
+- **Still failing:**
+  - `todomvc_react`: input clicks have no effect.
+  - `uitesting_click`: the agent cannot see the colour change.
+  - `saucedemo_problem_user` (false praise again): the agent reported entering "Jane Doe" and never noticed that the last name had gone into the first-name field.
+
+Evidence: `evals/results/v2.json`, `v2.md`, `v2.log`.
+
 ## Demo
 
 - URL: pending

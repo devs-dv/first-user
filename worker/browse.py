@@ -6,8 +6,11 @@ import anthropic
 import neatlogs
 from anthropic import AsyncAnthropic
 
-from config import BRAIN_EFFORT, BRAIN_MODEL, MAX_RUN_COST_USD, MAX_RUN_TOKENS, MAX_STEPS, MAX_TOKENS_PER_TURN
+from config import (
+    BRAIN_EFFORT, BRAIN_MODEL, MAX_RUN_COST_USD, MAX_RUN_TOKENS, MAX_STEPS, MAX_TOKENS_PER_TURN, WRAP_UP_STEPS,
+)
 from tools import TOOL_FUNCTIONS, TOOL_SCHEMAS, RunContext, current_run, current_url
+from verifier import verify
 
 # Older look results are replaced with stubs, which edits history; drop the affected
 # thinking blocks instead of failing the request.
@@ -101,10 +104,11 @@ async def run_persona(ctx: RunContext) -> dict:
                     print(f"[step {steps}] says: {block.text.strip()}", flush=True)
 
             tool_uses = [block for block in response.content if block.type == "tool_use"]
+            wrap_up = _wrap_up_notice(steps)
             if not tool_uses:
                 messages.append({
                     "role": "user",
-                    "content": "Continue as the visitor: take your next action, or call finish if you are done.",
+                    "content": wrap_up or "Continue as the visitor: take your next action, or call finish if you are done.",
                 })
                 continue
 
@@ -117,6 +121,8 @@ async def run_persona(ctx: RunContext) -> dict:
                     if latest_look is not None:
                         latest_look["content"] = STUB
                     latest_look = block
+            if wrap_up:
+                tool_results.append({"type": "text", "text": wrap_up})
             messages.append({"role": "user", "content": tool_results})
     finally:
         current_run.reset(token)
@@ -125,6 +131,7 @@ async def run_persona(ctx: RunContext) -> dict:
         ctx.usage.set_stagehand(await ctx.stagehand.metrics())
     # A refusal during the last step still ends the run as blocked, whatever the model concluded.
     _stop_if_egress_blocked(ctx)
+    verification = await _verify_if_achieved(ctx)
 
     finished = ctx.finished or {
         "outcome": "max_steps",
@@ -137,6 +144,8 @@ async def run_persona(ctx: RunContext) -> dict:
         "outcome": finished["outcome"],
         "stopped_by": finished["stopped_by"],
         "reason": finished["reason"],
+        **({"agent_reason": finished["agent_reason"]} if "agent_reason" in finished else {}),
+        "verification": verification,
         "steps": steps,
         "friction_count": len(ctx.frictions),
         "agent_issue_count": len(ctx.agent_issues),
@@ -145,6 +154,82 @@ async def run_persona(ctx: RunContext) -> dict:
         **({"egress_blocks": finished["egress_blocks"]} if "egress_blocks" in finished else {}),
         "usage": ctx.usage.summary(),
     }
+
+
+def _wrap_up_notice(steps: int) -> str | None:
+    """The notice added after a step when the run is about to hit its step limit."""
+    remaining = MAX_STEPS - steps
+    if remaining == WRAP_UP_STEPS:
+        return (
+            f"You have {remaining} steps left. Conclude now with what you have found: call finish with "
+            "achieved, gave_up or blocked, and a reason that names anything on the site that stopped or "
+            "slowed you. If you still need to record a problem, use one step for note_friction and the last "
+            "for finish."
+        )
+    if remaining == 1:
+        return "This is your last step. Call finish now with your verdict and reason."
+    return None
+
+
+async def _verify_if_achieved(ctx: RunContext) -> dict | None:
+    """Check an "achieved" verdict independently and set the outcome from the verifier's verdict.
+
+    verified      stays "achieved"
+    contradicted  becomes "not_achieved", with the verifier's reason
+    unverified    becomes "achieved_unconfirmed": achieved, not independently confirmed
+    """
+    if not ctx.finished or ctx.finished.get("outcome") != "achieved":
+        return None
+    page = await ctx.stagehand.browser.context.active_page() or ctx.page
+    try:
+        verification = await verify(ctx.goal, ctx.record, page, ctx.usage)
+    except Exception as error:
+        print(f"[verify] could not run: {type(error).__name__}: {error}", flush=True)
+        verification = {"verdict": "unverified", "reason": f"The check could not run: {type(error).__name__}",
+                        "error": f"{type(error).__name__}: {error}"[:300]}
+    print(f"[verify] {verification['verdict']}: {verification['reason']}", flush=True)
+    if verification["verdict"] == "contradicted":
+        ctx.finished = {
+            **ctx.finished,
+            "outcome": "not_achieved",
+            "agent_reason": ctx.finished["reason"],
+            "reason": f"The agent reported reaching the goal, but our independent check found it was not met: "
+                      f"{verification['reason']}"[:1000],
+        }
+    elif verification["verdict"] == "unverified":
+        ctx.finished = {**ctx.finished, "outcome": "achieved_unconfirmed"}
+    return verification
+
+
+def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict | None, error: str | None) -> None:
+    """Add one tool call to the factual record the verifier sees.
+
+    Only what happened: the action, whether the page changed, the URL and look() summaries.
+    The agent's thoughts, note_friction and finish are left out.
+    """
+    if tool in ("note_friction", "finish"):
+        return
+    entry: dict = {"step": step, "tool": tool}
+    if tool == "do":
+        entry["instruction"] = args.get("instruction", "")
+    elif tool == "scroll":
+        entry["direction"] = args.get("direction", "")
+    if error is not None:
+        entry["error"] = error
+    elif tool == "look":
+        entry["url"] = result.get("url")
+        if result.get("unchanged"):
+            entry["summary"] = "(unchanged since the previous look)"
+        else:
+            entry["summary"] = result.get("summary", "")
+            entry["interactive"] = result.get("interactive", [])
+    else:
+        if "changed" in result:
+            entry["page_changed"] = result["changed"]
+        if result.get("page_errors"):
+            entry["page_errors"] = result["page_errors"]
+        entry["url_after"] = result.get("url")
+    ctx.record.append(entry)
 
 
 def _stop_if_egress_blocked(ctx: RunContext) -> bool:
@@ -213,12 +298,14 @@ async def _run_tool(step: int, tool_use) -> tuple[dict, dict | None]:
         message = f"{type(error).__name__}: {error}"[:500]
         print(f"[step {step}]   <- error: {message}", flush=True)
         failure = {"kind": "tool_error", "error": message}
+        record_step(ctx, step, tool_use.name, args, None, message)
         await _record(ctx, tool_use.name, thought, args, failure, frictions_before, issues_before)
         return {
             "type": "tool_result", "tool_use_id": tool_use.id, "content": json.dumps(failure), "is_error": True
         }, None
 
     print(f"[step {step}]   <- {_brief(tool_use.name, result)}", flush=True)
+    record_step(ctx, step, tool_use.name, args, result, None)
     await _record(ctx, tool_use.name, thought, args, result, frictions_before, issues_before)
     # The screenshot URL is for the trace and the report; the model does not need it.
     for_model = {key: value for key, value in result.items() if key != "screenshot_url"}

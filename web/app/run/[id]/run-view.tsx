@@ -130,6 +130,13 @@ function Failed({ steps, frictions }: { steps: Step[]; frictions: Friction[] }) 
 
 const OUTCOMES: Record<Outcome, { label: string; tone: string }> = {
   achieved: { label: "Reached the goal", tone: "border-success/30 bg-success-soft text-success" },
+  achieved_unconfirmed: {
+    label: "Reached the goal, not independently confirmed",
+    tone: "border-warning/30 bg-warning-soft text-warning",
+  },
+  not_achieved: { label: "Did not reach the goal", tone: "border-danger/30 bg-danger-soft text-danger" },
+  // Runs from before the three-way check (2026-10-11).
+  unverified: { label: "Said it reached the goal, but we could not confirm it", tone: "border-warning/30 bg-warning-soft text-warning" },
   blocked: { label: "Got blocked", tone: "border-danger/30 bg-danger-soft text-danger" },
   gave_up: { label: "Gave up", tone: "border-warning/30 bg-warning-soft text-warning" },
   max_steps: { label: "Ran out of steps", tone: "border-warning/30 bg-warning-soft text-warning" },

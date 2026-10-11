@@ -1,6 +1,6 @@
 """Run the eval set through the real queue and score the results.
 
-Usage: python evals/run.py --version v0 [--only ID ...] [--timeout-minutes 60]
+Usage: python evals/run.py --version v2 [--compare-to v0 v1] [--only ID ...] [--timeout-minutes 60]
 
 Queues every case in evals/sites.json as a run with source 'eval' (and the version
 label in runs.eval_version when that column exists), waits for the worker, which
@@ -8,7 +8,11 @@ runs separately (worker/main.py), to finish them, then writes
 evals/results/<version>.json and evals/results/<version>.md.
 
 Metrics:
-  completion rate    achievable cases whose outcome is "achieved" (the agent's own verdict)
+  completed and verified    achievable cases with outcome "achieved", which needs the
+                            independent verifier (worker/verifier.py) to say "verified"
+  completed but unverified  achievable cases with outcome "achieved_unconfirmed": the agent
+                            said achieved and the verifier found too little evidence
+                            either way; "contradicted" ("not_achieved") is not completed
   false-praise rate  broken cases whose outcome is "achieved", or whose result never
                      mentions the known issue; one claude-haiku-5-5 call per broken case
                      judges the mention, and the text it judged is printed for checking
@@ -43,7 +47,10 @@ neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-user-
 import db  # noqa: E402
 from costs import response_cost  # noqa: E402
 
+NL = "\n"
 JUDGE_MODEL = "claude-haiku-5-5"
+# Outcomes in which the run tells the founder the goal was reached.
+CLAIMED_SUCCESS = ("achieved", "achieved_unconfirmed")
 POLL_SECONDS = 10
 JUDGE_TOOL = {
     "name": "verdict",
@@ -166,13 +173,20 @@ def score(cases: list[dict], rows: dict[str, dict], run_ids: dict[str, str],
             "cost_usd": float(row["cost_usd"]) if row.get("cost_usd") is not None else None,
             "reason": row.get("reason") or (row.get("error") or "")[:300],
         }
+        verification = result.get("verification") or {}
+        entry["verdict"] = verification.get("verdict")
+        entry["verifier_reason"] = verification.get("reason")
+        entry["page_error_frictions"] = sum(f.get("detected_by") == "page_errors" for f in result.get("frictions", []))
         if case["kind"] == "achievable":
-            entry["completed"] = row.get("outcome") == "achieved"
+            outcome = row.get("outcome")
+            entry["completion"] = ("verified" if outcome == "achieved" and entry["verdict"] == "verified"
+                                   else "unverified" if outcome == "achieved_unconfirmed" else "not_completed")
+            entry["completed"] = entry["completion"] == "verified"
         else:
             verdict = verdicts[case["id"]]
             entry["mentions_issue"] = verdict["mentions_issue"]
             entry["judge_evidence"] = verdict["evidence"]
-            entry["false_praise"] = row.get("outcome") == "achieved" or not verdict["mentions_issue"]
+            entry["false_praise"] = row.get("outcome") in CLAIMED_SUCCESS or not verdict["mentions_issue"]
         per_case.append(entry)
 
     achievable = [e for e in per_case if e["kind"] == "achievable"]
@@ -181,10 +195,13 @@ def score(cases: list[dict], rows: dict[str, dict], run_ids: dict[str, str],
     run_cost = sum(e["cost_usd"] or 0 for e in per_case)
     judge_cost = sum(v["cost_usd"] for v in verdicts.values())
     metrics = {
-        "completion_rate": _rate(sum(e["completed"] for e in achievable), len(achievable)),
+        "completed_verified": _rate(sum(e["completion"] == "verified" for e in achievable), len(achievable)),
+        "completed_unverified": _rate(sum(e["completion"] == "unverified" for e in achievable), len(achievable)),
+        "contradicted": sum(e["outcome"] == "not_achieved" for e in per_case),
         "false_praise_rate": _rate(sum(e["false_praise"] for e in broken), len(broken)),
         "stopped_by_budget_or_step_limit": sum(e["stopped_by"] in ("budget", "max_steps") for e in per_case),
         "agent_issue_frictions": sum(e["agent_issue_frictions"] for e in per_case),
+        "page_error_frictions": sum(e["page_error_frictions"] for e in per_case),
         "median_steps": statistics.median(steps) if steps else None,
         "runs_without_steps": len(per_case) - len(steps),
         "failed_runs": sum(e["status"] == "failed" for e in per_case),
@@ -203,23 +220,24 @@ def markdown(version: str, per_case: list[dict], metrics: dict, meta: dict) -> s
     def cell(value):
         return "" if value is None else str(value).replace("|", "\\|").replace("\n", " ")
 
-    rows = ["| Case | Kind | Status | Outcome | Stopped by | Steps | Agent issues | Cost | Score |",
-            "|---|---|---|---|---|---|---|---|---|"]
+    rows = ["| Case | Kind | Status | Outcome | Verifier | Stopped by | Steps | Agent issues | Cost | Score |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
     for e in per_case:
-        if e["kind"] == "achievable":
-            verdict = "completed" if e["completed"] else "not completed"
-        else:
-            verdict = "FALSE PRAISE" if e["false_praise"] else "named the issue"
+        verdict = case_score(e)
         cost = f"${e['cost_usd']:.4f}" if e["cost_usd"] is not None else ""
-        rows.append(f"| {e['id']} | {e['kind']} | {e['status']} | {cell(e['outcome'])} | {cell(e['stopped_by'])} "
+        verifier = e.get("verdict") or ""
+        rows.append(f"| {e['id']} | {e['kind']} | {e['status']} | {cell(e['outcome'])} | {verifier} | {cell(e['stopped_by'])} "
                     f"| {cell(e['steps'])} | {e['agent_issue_frictions']} | {cost} | {verdict} |")
     m = metrics
     summary = [
         "| Metric | Value |", "|---|---|",
-        f"| Completion rate (achievable) | {m['completion_rate']['count']}/{m['completion_rate']['of']} |",
+        f"| Completed and verified (achievable) | {m['completed_verified']['count']}/{m['completed_verified']['of']} |",
+        f"| Completed but unverified (achievable) | {m['completed_unverified']['count']}/{m['completed_unverified']['of']} |",
+        f"| Contradicted by the verifier | {m['contradicted']} |",
         f"| False-praise rate (broken) | {m['false_praise_rate']['count']}/{m['false_praise_rate']['of']} |",
         f"| Stopped by budget or step limit | {m['stopped_by_budget_or_step_limit']} |",
         f"| agent_issue frictions | {m['agent_issue_frictions']} |",
+        f"| Site frictions found through page errors | {m.get('page_error_frictions', 0)} |",
         f"| Median steps | {cell(m['median_steps'])} (runs without steps: {m['runs_without_steps']}) |",
         f"| Failed runs | {m['failed_runs']} |",
         f"| Total cost | ${m['total_cost_usd']:.4f} (runs ${m['run_cost_usd']:.4f}, judge ${m['judge_cost_usd']:.4f}) |",
@@ -233,7 +251,71 @@ def markdown(version: str, per_case: list[dict], metrics: dict, meta: dict) -> s
     ])
 
 
-async def main(version: str, only: list[str] | None, timeout_minutes: float) -> None:
+def case_score(e: dict) -> str:
+    """One case's score, for results from any version (older files lack the newer fields)."""
+    outcome = e.get("outcome") or e.get("status")
+    if e["kind"] == "broken":
+        return ("FALSE PRAISE" if e["false_praise"] else "named the issue") + f" ({outcome})"
+    if "completion" in e:
+        return {"verified": "completed, verified", "unverified": "completed, unverified"}.get(
+            e["completion"], f"not completed ({outcome})")
+    if "verifier" in e:  # v1: a yes/no verifier
+        return "completed, verified" if e["completed"] else f"not completed ({outcome})"
+    return "completed, unverified" if e["completed"] else f"not completed ({outcome})"  # v0: no verifier
+
+
+def _legacy_metrics(result: dict) -> dict:
+    """Metrics in today's terms for result files written before them."""
+    m = dict(result["metrics"])
+    if "completed_verified" not in m:
+        if "verifier_disagreed" in m:  # v1: completion needed the yes/no verifier to agree
+            m["completed_verified"], m["completed_unverified"] = m["completion_rate"], None
+        else:  # v0: completion was the agent's own "achieved", never checked
+            m["completed_verified"], m["completed_unverified"] = None, m["completion_rate"]
+    return m
+
+
+def comparison(results: list[dict]) -> str:
+    """Side-by-side metrics and per-case scores for several result files, oldest first."""
+    metrics = [_legacy_metrics(r) for r in results]
+
+    def cell(m, key):
+        value = m.get(key)
+        if isinstance(value, dict):
+            return f"{value['count']}/{value['of']}"
+        if value is None:
+            return "–"
+        if key == "total_cost_usd":
+            return f"${value:.4f}"
+        return str(value)
+
+    names = [r["version"] for r in results]
+    lines = [f"## {' vs '.join(names)}", "",
+             "| Metric | " + " | ".join(names) + " |", "|---" * (len(names) + 1) + "|"]
+    for key, label in [("completed_verified", "Completed and verified (achievable)"),
+                       ("completed_unverified", "Completed but unverified (achievable)"),
+                       ("contradicted", "Contradicted by the verifier"),
+                       ("false_praise_rate", "False-praise rate (broken)"),
+                       ("stopped_by_budget_or_step_limit", "Stopped by budget or step limit"),
+                       ("agent_issue_frictions", "agent_issue frictions"),
+                       ("page_error_frictions", "Site frictions found through page errors"),
+                       ("failed_runs", "Failed runs"),
+                       ("median_steps", "Median steps"),
+                       ("total_cost_usd", "Total cost")]:
+        lines.append(f"| {label} | " + " | ".join(cell(m, key) for m in metrics) + " |")
+
+    by_version = [{e["id"]: e for e in r["cases"]} for r in results]
+    lines += ["", "| Case | " + " | ".join(names) + " |", "|---" * (len(names) + 1) + "|"]
+    for e in results[-1]["cases"]:
+        lines.append(f"| {e['id']} | " + " | ".join(
+            case_score(cases[e["id"]]) if e["id"] in cases else "" for cases in by_version) + " |")
+    lines += ["", "v0 had no verifier: its completions are the agent's own \"achieved\", counted here as "
+                  "unverified. v1's verifier was yes/no and looked only at the final page: what it rejected became "
+                  "\"unverified\" (not completed), so v1 has no \"completed but unverified\" count."]
+    return NL.join(lines) + NL
+
+
+async def main(version: str, only: list[str] | None, timeout_minutes: float, compare_to: list[str]) -> None:
     cases = load_cases(only)
     client = await db.client()
     with_label = await has_eval_version_column(client)
@@ -277,6 +359,9 @@ async def main(version: str, only: list[str] | None, timeout_minutes: float) -> 
     report = {**meta, "metrics": metrics, "cases": per_case, "judge": verdicts}
     (out_dir / f"{version}.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     table = markdown(version, per_case, metrics, meta)
+    if compare_to:
+        older = [json.loads((out_dir / f"{name}.json").read_text(encoding="utf-8")) for name in compare_to]
+        table += NL + comparison([*older, report])
     (out_dir / f"{version}.md").write_text(table, encoding="utf-8")
     print("\n" + table, flush=True)
 
@@ -286,9 +371,10 @@ if __name__ == "__main__":
     parser.add_argument("--version", required=True)
     parser.add_argument("--only", nargs="*", help="case ids to run (default: all)")
     parser.add_argument("--timeout-minutes", type=float, default=60)
+    parser.add_argument("--compare-to", nargs="*", default=[], help="earlier versions to show side by side, oldest first")
     args = parser.parse_args()
     try:
-        asyncio.run(main(args.version, args.only, args.timeout_minutes))
+        asyncio.run(main(args.version, args.only, args.timeout_minutes, args.compare_to))
     finally:
         neatlogs.flush()
         neatlogs.shutdown()

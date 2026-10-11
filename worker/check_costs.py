@@ -113,7 +113,8 @@ def main() -> None:
     llm = sorted((s for s in collector.spans if s.attributes.get("neatlogs.llm.provider")),
                  key=lambda s: s.start_time)
     parent = {id(s): getattr(parent_of(s), "name", None) for s in llm}
-    lookup_spans = [s for s in llm if parent[id(s)] != "persona_run"]
+    lookup_spans = [s for s in llm if parent[id(s)] not in ("persona_run", "verify_goal")]
+    verifier_spans = [s for s in llm if parent[id(s)] == "verify_goal"]
     brain_spans = [s for s in llm if parent[id(s)] == "persona_run"]
     other_llm_kind = [s for s in collector.spans if s.attributes.get("openinference.span.kind") == "LLM"]
 
@@ -156,11 +157,12 @@ def main() -> None:
             "lookup cache reads: ours == stagehand cached": lookup.get("cache_read") == metrics["cached_input"],
             "brain tokens: ours == spans": all(brain[k] == spans_brain[k]
                                                 for k in ("calls", "input", "cache_write", "cache_read", "output")),
-            "cost: ours == spans": abs(spans_lookup["cost"] + spans_brain["cost"]
+            "verifier calls: ours == spans": usage["verifier_tokens"]["calls"] == len(verifier_spans),
+            "cost: ours == spans": abs(spans_lookup["cost"] + spans_brain["cost"] + span_tokens(verifier_spans)["cost"]
                                    - usage["estimated_cost_usd"]["total"]) < 2e-5,
             "every lookup span is under look or rung a/b": set(parent[id(s)] for s in lookup_spans) <= LOOKUP_PARENTS,
             "one LLM span per model call (no trace(kind=LLM) wrappers)": not other_llm_kind
-            and len(llm) == lookup.get("calls", 0) + brain["calls"],
+            and len(llm) == lookup.get("calls", 0) + brain["calls"] + usage["verifier_tokens"]["calls"],
             "system prompt recorded as plain text on every LLM span": all(
                 (t := system_text(sp)) and not t.lstrip().startswith("[{") for sp in llm),
             "every brain turn after the first reads from the cache": all(
