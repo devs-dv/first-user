@@ -91,13 +91,14 @@ async def finish_run(run_id: str, result: dict, agent_version: str, brain_model:
         "trace_id": result.get("trace_id"),
         "first_impression": result.get("first_impression"),
         "entry": result.get("entry"),
+        "findings": result.get("findings"),
         "finished_at": _now(),
     })
 
 
 # Columns added after the first schema. If the database does not have one yet (supabase/schema.sql
 # not re-run), runs are saved without it and a warning is printed once, rather than failing.
-OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry")
+OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry", "findings")
 _missing_columns: set[str] = set()
 
 
@@ -165,6 +166,7 @@ async def fail_run(
             "trace_id": result.get("trace_id"),
             "first_impression": result.get("first_impression"),
             "entry": result.get("entry"),
+            "findings": result.get("findings"),
         })
     await _update_run(run_id, update)
 

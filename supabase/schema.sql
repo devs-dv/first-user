@@ -207,3 +207,77 @@ create index if not exists runs_eval_version_idx on public.runs (eval_version) w
 
 -- neatlogs trace id of each run (the worker's first_visit span), for linking a run to its trace.
 alter table public.runs add column if not exists trace_id text;
+
+-- ---------------------------------------------------------------------------
+-- How the visitor gets in, and report findings (2026-10-11). Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- The form's "How should the visitor get in?" choice: public (look at what is public, the default),
+-- link (a demo or guest link in start_url), account (a test login in run_secrets) or signup (the
+-- visitor makes up its own account). Null on runs from before this change and from the command line.
+alter table public.runs add column if not exists access_mode text
+  check (access_mode in ('public', 'link', 'account', 'signup'));
+
+-- Up to five ranked findings written after the visit (worker/report_writer.py), each with evidence,
+-- steps to reproduce and a fix prompt. Null until the report writer has run.
+alter table public.runs add column if not exists findings jsonb;
+
+-- enqueue_web_run now takes the access mode. Drop the 8-argument version so one overload exists.
+drop function if exists public.enqueue_web_run(text, text, text, integer, integer, text, text, text);
+
+create or replace function public.enqueue_web_run(
+  p_url text,
+  p_goal text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer,
+  p_start_url text default null,
+  p_test_email text default null,
+  p_test_password text default null,
+  p_access_mode text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+  with_login boolean := p_test_email is not null and p_test_password is not null;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs
+  where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object(
+      'error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer
+    );
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, start_url, has_test_login, access_mode)
+  values (p_url, p_goal, 'web', p_ip_hash, p_start_url, with_login, p_access_mode)
+  returning id into new_id;
+
+  if with_login then
+    insert into public.run_secrets (run_id, test_email, test_password)
+    values (new_id, p_test_email, p_test_password);
+  end if;
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text)
+  to service_role;

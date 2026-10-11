@@ -337,7 +337,13 @@ def comparison(results: list[dict]) -> str:
     return NL.join(lines) + NL
 
 
+# An explicit root span for the whole eval run. Without one, the first traced call (the judge) finds no
+# active parent and neatlogs invents a "first-user-evals" WORKFLOW root, which it exports with status
+# UNSET even though every span under it succeeded; the dashboard shows that as an error. A span made by
+# @neatlogs.span ends OK, or ERROR if the run raises. All judge calls also land in this one trace.
+@neatlogs.span(kind="WORKFLOW", name="first-user-evals", capture_input=False)
 async def main(version: str, only: list[str] | None, timeout_minutes: float, compare_to: list[str]) -> None:
+    trace_safety.set_input(version=version, only=only or [], timeout_minutes=timeout_minutes, compare_to=compare_to)
     cases = load_cases(only)
     client = await db.client()
     with_label = await has_eval_version_column(client)

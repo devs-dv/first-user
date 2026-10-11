@@ -77,6 +77,9 @@ class RunContext:
     credentials: Any = None
     # The start link the visit began at, when the founder gave one.
     start_url: str | None = None
+    # How the founder let the visitor in: "public", "link", "account" or "signup" (worker_run.access_mode_for).
+    # Only "signup" lets the visitor create an account.
+    access_mode: str = "signup"
     # How the visit got in, and what it met on the way; read at the end of the run (browse.py).
     entry: dict = field(default_factory=lambda: {
         "test_login": "not_provided",
@@ -84,6 +87,9 @@ class RunContext:
         "third_party_options": [],
         "created_account_email": None,
         "login_wall_seen": False,
+        # A login that was written on the page itself, typed with do(): "shown_on_page" when the typed
+        # password was found in the page's text, "typed" when a password was typed that was not.
+        "page_login": "not_used",
     })
     # The first-impression review, once written (first_impression.py).
     first_impression: dict | None = None
@@ -93,6 +99,9 @@ class RunContext:
     record: list[dict] = field(default_factory=list)
     # A screenshot from the latest look(), base64 PNG, sent to the brain with that result.
     pending_image: str | None = None
+    # Screenshot URL and page URL of each recorded step, by step number, for the report's evidence.
+    step_shots: dict[int, str] = field(default_factory=dict)
+    step_urls: dict[int, str] = field(default_factory=dict)
 
     @property
     def run_dir(self) -> Path:
@@ -467,13 +476,36 @@ async def _wait_until_loaded(page) -> None:
     await page.wait_for_timeout(1000)
 
 
+def _typed_text(instruction: str, action: dict | None) -> str | None:
+    """The text a typing action put (or was told to put) into a field, if it can be told."""
+    if action and action["method"] in ("fill", "type") and action["arguments"]:
+        return action["arguments"][0]
+    if match := _QUOTED.search(instruction):
+        return match.group(1)
+    return None
+
+
+async def _note_page_login(ctx, page, typed: str | None) -> None:
+    """A password was typed with do(): was it a login written on the page itself, for visitors?
+
+    "shown_on_page" when the typed text is in the page's visible text (a demo login), else "typed".
+    The text is the agent's own, from what it read on the page; the test login is never typed with do().
+    """
+    if ctx.entry["page_login"] == "shown_on_page":
+        return
+    shown = False
+    if typed and len(typed) >= 3:
+        try:
+            shown = bool(await page.evaluate(
+                "document.body ? document.body.innerText.includes(" + json.dumps(typed) + ") : false"))
+        except Exception:
+            shown = False
+    ctx.entry["page_login"] = "shown_on_page" if shown else "typed"
+
+
 async def _read_back(page, instruction: str, action: dict | None) -> dict | None:
     """The typed-into field's label and actual value, and whether it contains the typed text."""
-    expected = None
-    if action and action["method"] in ("fill", "type") and action["arguments"]:
-        expected = action["arguments"][0]
-    elif match := _QUOTED.search(instruction):
-        expected = match.group(1)
+    expected = _typed_text(instruction, action)
     try:
         return await page.evaluate(_READ_FIELD_JS.replace("%s", json.dumps(
             {"selector": action["selector"] if action else None, "expected": expected})))
@@ -544,6 +576,8 @@ async def do(instruction: str) -> dict:
 
     url = await page.url()
     field = await _read_back(page, instruction, action) if typing else None
+    if typing and field and str(field.get("value", "")).startswith("(hidden,"):
+        await _note_page_login(ctx, page, _typed_text(instruction, action))
     screenshot_url = await _screenshot(ctx, page)
 
     # Every do() result has the same keys in the same order, with fixed values, so traces

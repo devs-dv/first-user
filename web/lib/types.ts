@@ -13,6 +13,9 @@ export type Outcome =
 
 export type Clarity = "yes" | "partly" | "no";
 
+// How the founder chose to let the visitor in (the form's "How should the visitor get in?").
+export type AccessMode = "public" | "link" | "account" | "signup";
+
 // What a newcomer sees on the landing page without logging in (written by the worker).
 export type FirstImpression = {
   what_it_does: { clear: Clarity; summary: string };
@@ -22,9 +25,25 @@ export type FirstImpression = {
   suggestions: string[];
 };
 
+// What happened after the visitor submitted a login or sign-up form (worker/login_diagnosis.py).
+export type LoginDiagnosis = {
+  stage: "sign_in" | "sign_up";
+  result: "signed_in" | "rejected" | "needs_verification" | "no_effect";
+  challenge: "email_verification" | "captcha" | "two_factor" | null;
+  page_message: string | null;
+  http_statuses: string[];
+  step: number | null;
+  url: string | null;
+  detail?: string;
+};
+
 // Which way in the visit used. Never holds a credential: the test login's values are not stored here.
 export type Entry = {
   start_link: string | null;
+  access_mode?: AccessMode;
+  // A login written on the page itself (a demo login for visitors), typed with the page's own values.
+  page_login?: "not_used" | "shown_on_page" | "typed";
+  diagnosis?: LoginDiagnosis | null;
   test_login: "not_provided" | "provided_not_used" | "used" | "failed";
   self_signup: "not_used" | "used" | "blocked_verification" | "blocked_third_party" | "failed";
   third_party_options: string[];
@@ -32,13 +51,33 @@ export type Entry = {
   blocked_at_login: boolean;
 };
 
+// One ranked problem from the report writer (worker/report_writer.py). Every one points at a real step.
+export type Finding = {
+  title: string;
+  severity: "high" | "medium" | "low";
+  kind: "site_problem" | "unclear_wording" | "hidden_error";
+  expected: string;
+  happened: string;
+  evidence: {
+    step: number;
+    url: string | null;
+    screenshot_url: string | null;
+    page_errors: string[];
+    quote: string | null;
+  };
+  reproduce: string[];
+  fix_prompt: string;
+};
+
 export type Run = {
   id: string;
   url: string;
   start_url: string | null;
   has_test_login: boolean;
+  access_mode: AccessMode | null;
   first_impression: FirstImpression | null;
   entry: Entry | null;
+  findings: Finding[] | null;
   goal: string;
   status: RunStatus;
   outcome: Outcome | null;
@@ -77,6 +116,9 @@ export type ApiError = { error: string; message: string };
 // Never includes the test login: it lives in run_secrets, which the web app never reads.
 // One string literal, so supabase-js can infer the row type from it.
 export const RUN_COLUMNS =
-  "id, url, start_url, has_test_login, first_impression, entry, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+// The same without the columns added on 2026-10-11 (access_mode, findings), for a database whose schema
+// has not been updated yet: the run page still loads, without them.
+export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "").replace(" findings,", "");
 export const STEP_COLUMNS = "idx, tool, thought, input, result, url, screenshot_path, created_at";
 export const FRICTION_COLUMNS = "id, step_idx, kind, severity, expected, happened";

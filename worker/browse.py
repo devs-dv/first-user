@@ -13,6 +13,7 @@ from config import (
     BRAIN_EFFORT, BRAIN_MODEL, MAX_RUN_COST_USD, MAX_RUN_TOKENS, MAX_STEPS, MAX_TOKENS_PER_TURN, WRAP_UP_STEPS,
 )
 from tools import TOOL_FUNCTIONS, TOOL_SCHEMAS, RunContext, current_run, current_url, publish_image
+from report_writer import write_findings
 from verifier import verify
 
 # Older look results are replaced with stubs, which edits history; drop the affected
@@ -58,12 +59,35 @@ LOGIN_WORDS = re.compile(
 
 STUB = "[Older look result removed; a newer look result appears later in this conversation.]"
 
+# What the founder chose on the form, told to the visitor in the first message (the system prompt stays
+# the same for every run, so it can be cached). A login written on the page itself is always allowed.
+ACCESS_NOTES = {
+    "public": (
+        "The founder chose no login: look only at what anyone can see. Do not sign in and do not sign up; "
+        "sign_in and sign_up will refuse. If the goal needs a login, call finish with outcome blocked and say "
+        "that the page needs a login and none was given."
+    ),
+    "link": (
+        "The founder gave you a demo or guest link as your starting point, and no account. Do not sign up; "
+        "sign_up will refuse. If the page needs a login you do not have, call finish with outcome blocked."
+    ),
+    "account": (
+        "The founder gave you a throwaway test account. When you reach its login form, call sign_in. Do not "
+        "sign up; sign_up will refuse."
+    ),
+    "signup": (
+        "The founder lets you create a throwaway account if you need one: when the page has an "
+        "email-and-password sign-up form, call sign_up."
+    ),
+}
+
 
 # capture_input=False: `ctx` holds the browser, the recorder and the egress guard, which neatlogs
 # would walk attribute by attribute. The input that matters is recorded explicitly.
 @neatlogs.span(kind="AGENT", name="persona_run", capture_input=False)
 async def run_persona(ctx: RunContext) -> dict:
-    trace_safety.set_input(url=ctx.url, goal=ctx.goal, run_id=ctx.run_id, start_url=ctx.start_url)
+    trace_safety.set_input(url=ctx.url, goal=ctx.goal, run_id=ctx.run_id, start_url=ctx.start_url,
+                           access_mode=ctx.access_mode)
     client = neatlogs.wrap(AsyncAnthropic())
     token = current_run.set(ctx)
     opened = (
@@ -75,7 +99,10 @@ async def run_persona(ctx: RunContext) -> dict:
         "role": "user",
         "content": [{
             "type": "text",
-            "text": f"Your goal: {ctx.goal}\n\n{opened} Start by looking at the page.",
+            "text": (
+                f"Your goal: {ctx.goal}\n\n{opened} {ACCESS_NOTES.get(ctx.access_mode, ACCESS_NOTES['signup'])} "
+                "Start by looking at the page."
+            ),
             "cache_control": CACHE,
         }],
     }]
@@ -163,6 +190,8 @@ async def run_persona(ctx: RunContext) -> dict:
         "stopped_by": "max_steps",
         "reason": f"Stopped after {MAX_STEPS} steps without calling finish.",
     }
+    # The report's findings, written from the factual record. None when they could not be written.
+    findings = None if finished["outcome"] == "error" else await write_findings(ctx, finished, verification)
     # Fixed keys and values (listed in hackathon.md) so traces can be
     # searched with exact strings such as "outcome": "gave_up" or "agent_issue_count": 0.
     # Everything in the result passes through scrub(): a test login must not reach a stored result.
@@ -179,6 +208,7 @@ async def run_persona(ctx: RunContext) -> dict:
         "agent_issues": ctx.agent_issues,
         "entry": _entry_summary(ctx, finished),
         "first_impression": ctx.first_impression,
+        "findings": findings,
         **({"egress_blocks": finished["egress_blocks"]} if "egress_blocks" in finished else {}),
         "usage": ctx.usage.summary(),
     })
@@ -192,11 +222,14 @@ def _entry_summary(ctx: RunContext, finished: dict) -> dict:
     ) and finished.get("stopped_by") != "egress_guard"
     return {
         "start_link": ctx.start_url,
+        "access_mode": ctx.access_mode,
+        "page_login": entry["page_login"],
         "test_login": entry["test_login"],
         "self_signup": entry["self_signup"],
         "third_party_options": list(entry["third_party_options"]),
         "created_account_email": entry["created_account_email"],
         "blocked_at_login": blocked_at_login,
+        "diagnosis": entry.get("diagnosis"),
     }
 
 
@@ -266,7 +299,8 @@ def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict 
     """
     if tool in ("note_friction", "finish"):
         return
-    entry: dict = {"step": step, "tool": tool}
+    # The step number is the recorded step's index (what the report page shows), not the model turn.
+    entry: dict = {"step": ctx.tool_calls, "tool": tool}
     if tool == "do":
         entry["instruction"] = args.get("instruction", "")
     elif tool == "scroll":
@@ -288,6 +322,10 @@ def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict 
         if result.get("field"):
             entry["field_after"] = f"{result['field']['label']}: {result['field']['value']!r}"
         entry["url_after"] = result.get("url")
+        if tool in ("sign_in", "sign_up"):
+            entry["login_result"] = result.get("reason")
+            if result.get("page_message"):
+                entry["login_message"] = result["page_message"]
     ctx.record.append(entry)
 
 
@@ -386,9 +424,18 @@ async def _record(ctx: RunContext, tool: str, thought: str, args: dict, result: 
 
     A failed write is logged and skipped so a database hiccup does not end the visit.
     """
+    idx = ctx.tool_calls
+    # What the report needs to point back at this step, whether or not a recorder is attached.
+    if result.get("screenshot_url"):
+        ctx.step_shots[idx] = result["screenshot_url"]
+    if result.get("url"):
+        ctx.step_urls[idx] = result["url"]
+    for friction in ctx.frictions[frictions_before:]:
+        friction["step"] = idx
+    for issue in ctx.agent_issues[issues_before:]:
+        issue["step"] = idx
     if ctx.recorder is None:
         return
-    idx = ctx.tool_calls
     try:
         url = result.get("url") or await current_url()
         await ctx.recorder.step(idx, tool, thought, args, result, url, result.get("screenshot_url"))

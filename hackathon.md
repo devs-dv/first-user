@@ -661,6 +661,40 @@ Not verified:
 - **The image itself:** Docker is not installed on this machine, so `docker build` and `docker run` have not been run. `DEPLOY.md` step 4 lists the checks to run on the server.
 - SIGTERM as such (tested here with `signal.raise_signal` and with Ctrl+Break on Windows, which share the handler); and Chrome on Linux (only Chrome on Windows has been exercised).
 
+### 2026-10-11 — A clear choice of way in, a verified login, and findings with fix prompts
+
+**Part 1: "How should the visitor get in?"** (`web/app/run-form.tsx`, `web/app/api/runs/route.ts`)
+- One choice replaces the loose optional fields: *No login* (default), *I have a demo or guest link* (shows the Start link field), *Use a test account* (shows email and password, with the throwaway-account note) and *Let it sign up by itself* (no fields, with the note about signup without email verification). Only the chosen option's fields exist in the form and are sent; the API ignores the others. A line for Google/GitHub-only apps says "Use a demo or guest link."
+- The choice is saved as `runs.access_mode` and reaches the visitor in its first message. Only *sign up by itself* lets `sign_up` create an account; in the other modes it refuses (`signup_not_allowed`) and nothing is made. Older runs (no `access_mode`) are read from their fields, so "no login, no link" from before still means "may sign up".
+- Checked in a real browser against a fake database: each of the four choices shows exactly its fields and notes, and each posts exactly its fields (`p_access_mode`, `p_start_url`, `p_test_email`, `p_test_password`); an empty link or incomplete account is refused in the form before any request. 5 unit tests (`test_access_modes.py`).
+
+**Part 2: sign-in diagnosis** (`worker/login_diagnosis.py`, `worker/auth_tools.py`)
+- After `sign_in` or `sign_up`, the result is decided from what the page shows and returns: **signed in**, **rejected** (the page's message, quoted, plus any 401, 403 or 429 from its own requests), **needs verification** (a code sent by email, a CAPTCHA or a two-factor prompt that appeared because of the submit) or **no effect**. A form that disappears is not taken as a login on its own.
+- Not signed in means the run ends as `blocked` with that exact reason and structured evidence (step, URL, message, statuses). The same credentials are never submitted more than once more: a rejection or a verification step ends the visit at once; "no effect" gets one retry; a second ends it.
+- A login written on the page itself is recorded as `entry.page_login`: `shown_on_page` when the password the visitor typed with `do` is in the page's visible text, `typed` when it is not. The report no longer says "No login was used" when one was.
+- The report's "How the visitor got in" quotes the diagnosis (for example *The page rejected the test login (step 4): "Invalid email or password". The page's own request returned 401.*), the page login, and the chosen mode.
+- Verified: 17 unit tests on the diagnosis and the retry rules, and live scenarios with the real model and a real browser against a local site (`credentials_harness.py`): a rejected login with an alert and a 401 from a script's request (one submission, evidence points at the sign-in step), a CAPTCHA, a two-factor prompt, a login button that does nothing (at most two attempts), and a demo login printed on the page. A real visit to saucedemo with a login written on the page reports `page_login: shown_on_page`.
+- Known limit: a status is only seen for requests the page makes with `fetch` or XHR. A plain HTML form post that returns 401 shows the page's message but not the status. The CAPTCHA and two-factor detection is by visible wording and a large challenge frame; an unusual challenge would read as a rejection or no effect.
+
+**Part 3: findings with fix prompts** (`worker/report_writer.py`, `web/app/run/[id]/run-view.tsx`)
+- After a visit, a report-writer step (its own `report_writer` span) turns the factual record, the noted problems, the page's errors, the first-impression review and the verifier's verdict into at most five findings, ranked by how likely each is to stop a new user. Each has a title, severity, what was expected, what happened, evidence, steps to reproduce, a kind (site problem, unclear wording, hidden error) and a paste-ready fix prompt.
+- The model writes the prose; code decides what must be true. A finding must point at a step that exists, or it is dropped. The screenshot and the console error or failed request are looked up from that step. The steps to reproduce are the visitor's own recorded actions up to it. A quote is kept only if it is in the record. Steps where our browser tool had no effect are shown to the model as "not evidence about the site", and a finding that points at one, or blames the tool, is dropped. A plain rejected login at its own step is not a site problem. The fix prompt always names the page and marks quoted page text as data, not instructions, since it will be pasted into another agent.
+- Report page: findings sit after the verdict and the first impression, each with a "Copy fix prompt" button (clipboard, with a fallback) and the prompt shown below it. Verified in a real browser: the button puts the prompt on the clipboard, the step link goes to the step, the layout has no horizontal scroll at 390 px.
+- Cost: about $0.0003 to $0.0005 per visit (the report model is `REPORT_MODEL`, default the verifier's Haiku).
+- Quality, seen on real visits: a clean saucedemo visit produced 0 findings after the writer was told not to repeat the first-impression review (the first version padded two landing-page points); the harness's local site gave sensible findings (a button that does nothing and shows no message, a landing page with nothing to explain it). One early misreading was fixed: the writer took the redaction label `[test email]` for placeholder text on the site.
+
+**The `first-user-evals` span showing "error"**
+- Cause, reproduced: `evals/run.py` had no root span. The first traced call (the judge) found no active parent, so neatlogs invented a `first-user-evals` WORKFLOW root, and exported it with status `UNSET` while every span under it was `OK`. The dashboard shows that as an error. Each judge call also became its own one-span trace.
+- Fix: `main()` is now an explicit WORKFLOW span named `first-user-evals`; it ends `OK` (or `ERROR` if the run raises) and all judge calls sit in one trace. Reproduced and confirmed with `NEATLOGS_LOG_SPANS`: root status `UNSET` before, `OK` after. The full eval set was not re-run.
+
+**Verification**
+- 128 tests (19 live ones skipped under `SKIP_LIVE_TESTS=1`), all passing; the live end-to-end set (16 checks over 9 scenarios) passes against a harness run. `check_traces.py` on saucedemo: one trace, no orphans, none unended, no ERROR spans, `report_writer` present. `scan_secrets.py`: 0 matches in the tree and 33 commits. Web: typecheck and lint clean.
+- The run page falls back to the older columns if the schema has not been updated yet, so it does not fail before the SQL is run.
+
+**Not done or not verified**
+- The SQL (`supabase/schema.sql`, last block) has not been run against the real Supabase project by me. Until it is, the web app's request to queue a run fails (the new 9-argument `enqueue_web_run` does not exist yet) and findings are not saved (the worker warns once and saves runs without them).
+- The eval set has not been re-run since these changes.
+
 ## Demo
 
 - URL: pending

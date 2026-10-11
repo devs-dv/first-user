@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import type { Clarity, Entry, FirstImpression, Friction, Outcome, Run, RunDetails, Step } from "@/lib/types";
+import type {
+  Clarity,
+  Entry,
+  FirstImpression,
+  Finding,
+  Friction,
+  LoginDiagnosis,
+  Outcome,
+  Run,
+  RunDetails,
+  Step,
+} from "@/lib/types";
 
 const POLL_MS = 2000;
 
@@ -173,6 +184,7 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
         </dl>
         <CopyLinkButton />
       </section>
+      <Findings findings={run.findings} />
       <Frictions frictions={frictions} />
       <Timeline steps={steps} />
     </>
@@ -257,16 +269,54 @@ function FirstImpressionCard({ review }: { review: FirstImpression }) {
   );
 }
 
+const MODE_LINES: Record<string, string> = {
+  public: "You chose no login, so the visitor looked at what is public.",
+  link: "You gave a demo or guest link.",
+  account: "You gave a test account.",
+  signup: "You let the visitor sign up by itself.",
+};
+const CHALLENGE_WORDS: Record<string, string> = {
+  email_verification: "a code or link sent by email",
+  captcha: "a CAPTCHA",
+  two_factor: "a two-factor code",
+};
+
+// What the page said and returned when the visitor submitted a login or sign-up, as a sentence.
+function diagnosisLine(d: LoginDiagnosis): string | null {
+  const form = d.stage === "sign_in" ? "test login" : "sign-up";
+  const step = d.step !== null ? ` (step ${d.step})` : "";
+  const status = d.http_statuses.length ? ` The page's own request returned ${d.http_statuses.join(" and ")}.` : "";
+  switch (d.result) {
+    case "rejected":
+      return d.page_message
+        ? `The page rejected the ${form}${step}: \u201c${d.page_message}\u201d.${status}`
+        : `The page rejected the ${form}${step} and gave no message.${status}`;
+    case "needs_verification":
+      return `The visit stopped at the ${form}${step}: it needs ${
+        CHALLENGE_WORDS[d.challenge ?? ""] ?? "a verification step"
+      }, which the visitor cannot do.`;
+    case "no_effect":
+      return `Submitting the ${form}${step} had no effect: the page did not change and showed no message.`;
+    default:
+      return null;
+  }
+}
+
 function wayInLines(run: Run): string[] {
   const entry: Entry | null = run.entry;
   const lines: string[] = [];
+  const mode = entry?.access_mode ?? run.access_mode;
+  if (mode && MODE_LINES[mode]) lines.push(MODE_LINES[mode]);
   lines.push(
     run.start_url
       ? `Started at the start link you gave (${displayUrl(run.start_url)}).`
       : "Started at your app's address.",
   );
+  const diagnosis = entry?.diagnosis ?? null;
   if (entry?.test_login === "used") lines.push("Signed in with your test account.");
-  else if (entry?.test_login === "failed") lines.push("Tried your test account, but the sign-in did not work.");
+  else if (entry?.test_login === "failed" && diagnosis?.stage === "sign_in") {
+    lines.push(diagnosisLine(diagnosis) ?? "Tried your test account, but the sign-in did not work.");
+  } else if (entry?.test_login === "failed") lines.push("Tried your test account, but the sign-in did not work.");
   else if (entry?.test_login === "provided_not_used" || (!entry && run.has_test_login)) {
     lines.push("A test account was provided, but the visitor did not need it.");
   }
@@ -276,17 +326,29 @@ function wayInLines(run: Run): string[] {
         ? `Created a test account (${entry.created_account_email}) to get in. You may want to delete it.`
         : "Created a test account to get in.",
     );
-  } else if (entry?.self_signup === "blocked_verification") {
-    lines.push("Tried to sign up, but the app needs email verification, which the visitor can't do.");
   } else if (entry?.self_signup === "blocked_third_party") {
     const options = entry.third_party_options.length ? ` (${entry.third_party_options.join(", ")})` : "";
     lines.push(`Only third-party sign-in was offered${options}. The visitor never uses those.`);
-  } else if (entry?.self_signup === "failed") {
-    lines.push("Tried to sign up with a made-up test account, but the form did not accept it.");
+  } else if (entry?.self_signup === "blocked_verification" || entry?.self_signup === "failed") {
+    const sentence = diagnosis?.stage === "sign_up" ? diagnosisLine(diagnosis) : null;
+    lines.push(
+      sentence ??
+        (entry.self_signup === "blocked_verification"
+          ? "Tried to sign up, but the app needs email verification, which the visitor can't do."
+          : "Tried to sign up with a made-up test account, but the form did not accept it."),
+    );
   }
-  if (!run.start_url && !run.has_test_login && (!entry || entry.self_signup === "not_used")) {
-    lines.push("No login was used: the visitor saw only what is public.");
+  // A login written on the page itself is a way in too, and never "no login".
+  if (entry?.page_login === "shown_on_page") {
+    lines.push("Typed a login that was written on the page itself, a demo login for visitors. It was not one you gave.");
+  } else if (entry?.page_login === "typed") {
+    lines.push("Typed a password into a login form. It was not one you gave.");
   }
+  const usedAnything =
+    !!run.start_url ||
+    run.has_test_login ||
+    (!!entry && (entry.self_signup !== "not_used" || (entry.page_login ?? "not_used") !== "not_used"));
+  if (!usedAnything) lines.push("No login was used: the visitor saw only what is public.");
   return lines;
 }
 
@@ -309,7 +371,7 @@ function LoginWallHelp({ run }: { run: Run }) {
   return (
     <section className="space-y-3 rounded-xl border border-warning/30 bg-warning-soft p-5" aria-labelledby="deeper">
       <h2 id="deeper" className="text-lg font-semibold">
-        Your app was blocked at a login. Three ways to go deeper
+        Your app was blocked at a login. Ways to go deeper
       </h2>
       <ol className="list-decimal space-y-3 pl-5">
         <li>
@@ -406,6 +468,159 @@ function Frictions({ frictions }: { frictions: Friction[] }) {
         )}
       </div>
     </section>
+  );
+}
+
+const FINDING_KIND: Record<Finding["kind"], string> = {
+  site_problem: "Site problem",
+  unclear_wording: "Unclear wording",
+  hidden_error: "Hidden error",
+};
+
+// The report's ranked problems, most likely to stop a new user first, each with a prompt to paste
+// into a coding agent. Every one points at a step of the visit.
+function Findings({ findings }: { findings: Finding[] | null }) {
+  if (findings === null) return null; // from before the report writer, or it could not be written
+  return (
+    <section className="space-y-4" aria-labelledby="findings">
+      <div>
+        <h2 id="findings" className="text-xl font-semibold tracking-tight">
+          What to fix first
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Ranked by how likely each is to stop a new user. Each one points at a step below.
+        </p>
+      </div>
+      {findings.length === 0 ? (
+        <p className="rounded-xl border border-line bg-surface p-4 text-muted">
+          Nothing in this visit stood out as a problem with your site.
+        </p>
+      ) : (
+        <ol className="space-y-4">
+          {findings.map((finding, index) => (
+            <FindingCard key={index} finding={finding} rank={index + 1} />
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function FindingCard({ finding, rank }: { finding: Finding; rank: number }) {
+  const evidence = finding.evidence;
+  return (
+    <li className="space-y-4 rounded-xl border border-line bg-surface p-4 sm:p-5">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-subtle tabular-nums">{rank}.</span>
+          <span className={`rounded-full px-2.5 py-0.5 font-medium ${SEVERITY_TONE[finding.severity]}`}>
+            {finding.severity}
+          </span>
+          <span className="rounded-full border border-line px-2.5 py-0.5 text-muted">{FINDING_KIND[finding.kind]}</span>
+        </div>
+        <h3 className="text-lg font-semibold leading-snug">{finding.title}</h3>
+      </div>
+      <dl className="space-y-2">
+        <div>
+          <dt className="text-sm text-subtle">What the visitor expected</dt>
+          <dd>{finding.expected}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-subtle">What happened</dt>
+          <dd>{finding.happened}</dd>
+        </div>
+      </dl>
+      <div className="space-y-2 text-sm">
+        <p className="font-medium">Evidence</p>
+        <ul className="list-disc space-y-1 pl-5 text-muted">
+          <li>
+            <a href={`#step-${evidence.step}`} className="text-accent hover:underline">
+              Step {evidence.step}
+            </a>
+            {evidence.url && <span> on {displayUrl(evidence.url)}</span>}
+          </li>
+          {evidence.quote && <li>The page said: &ldquo;{evidence.quote}&rdquo;</li>}
+          {evidence.page_errors.map((error, index) => (
+            <li key={index}>
+              The page reported: <code className="break-all">{error}</code>
+            </li>
+          ))}
+        </ul>
+        {isHttpUrl(evidence.screenshot_url) && (
+          <a href={evidence.screenshot_url} target="_blank" rel="noopener noreferrer" className="block max-w-md">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={evidence.screenshot_url}
+              alt={`The page at step ${evidence.step}`}
+              loading="lazy"
+              className="w-full rounded-lg border border-line"
+            />
+          </a>
+        )}
+      </div>
+      <div className="space-y-2 text-sm">
+        <p className="font-medium">Steps to reproduce</p>
+        <ol className="list-decimal space-y-1 pl-5 text-muted">
+          {finding.reproduce.map((line, index) => (
+            <li key={index}>{line}</li>
+          ))}
+        </ol>
+      </div>
+      <FixPrompt prompt={finding.fix_prompt} />
+    </li>
+  );
+}
+
+// The clipboard API needs a secure, focused page; a hidden textarea and execCommand cover the rest.
+async function copyText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    try {
+      const box = document.createElement("textarea");
+      box.value = value;
+      box.setAttribute("readonly", "");
+      box.style.position = "fixed";
+      box.style.opacity = "0";
+      document.body.appendChild(box);
+      box.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(box);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function FixPrompt({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
+  async function copy() {
+    setCopied((await copyText(prompt)) ? "copied" : "failed");
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={copy}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 dark:text-background"
+        >
+          Copy fix prompt
+        </button>
+        <span aria-live="polite" className="text-sm text-muted">
+          {copied === "copied" && "Copied. Paste it into your coding agent."}
+          {copied === "failed" && "Couldn't copy. Select the prompt below and copy it."}
+        </span>
+      </div>
+      <details className="text-sm">
+        <summary className="cursor-pointer text-muted">Show the prompt</summary>
+        <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg border border-line bg-background p-3 font-mono text-[13px] leading-relaxed">
+          {prompt}
+        </pre>
+      </details>
+    </div>
   );
 }
 

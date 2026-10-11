@@ -150,6 +150,7 @@ The two cases still failing are on one practice site whose own scripts do not lo
 
 - Plan: [`cfo-ai-business-plan.md`](cfo-ai-business-plan.md)
 
+- Live plan: https://cfo.ai/s/AOaTCh1FguibmvmV
 ---
 
 ## 9. Real usage

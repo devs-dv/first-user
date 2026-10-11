@@ -23,15 +23,17 @@ async def first_visit(
     start_url: str | None = None,
     credentials=None,
     test_login_unavailable: bool = False,
+    access_mode: str = "signup",
 ) -> dict:
     """Everything a visit does, background work included, finishes inside this root span.
 
     `start_url` is a page past the login the founder gave; the visit begins there. `credentials`
     is their throwaway test login (credentials.TestCredentials); it is only typed into the page
     being tested. `test_login_unavailable` means a login was provided but could not be loaded.
+    `access_mode` is how the founder let the visitor in: "public", "link", "account" or "signup".
     """
     # Only plain values are recorded as the span's input: `credentials` and `recorder` are objects.
-    trace_safety.set_input(url=url, goal=goal, run_id=run_id, start_url=start_url,
+    trace_safety.set_input(url=url, goal=goal, run_id=run_id, start_url=start_url, access_mode=access_mode,
                            test_login=bool(credentials) or test_login_unavailable)
     if credentials is not None:
         # From here, the values are redacted in every span and scrubbed from every tool result.
@@ -42,7 +44,7 @@ async def first_visit(
         await page_watch.install(page)
         ctx = RunContext(
             url=url, goal=goal, run_id=run_id, stagehand=stagehand, page=page, recorder=recorder, egress=guard,
-            credentials=credentials, start_url=start_url,
+            credentials=credentials, start_url=start_url, access_mode=access_mode,
         )
         if credentials is not None:
             ctx.entry["test_login"] = "provided_not_used"

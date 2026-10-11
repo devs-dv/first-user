@@ -27,7 +27,7 @@ Paste each link after the colon. Leave a line as it is if you don't have it yet.
 - Checkpoint for the verifier, link:
 
 ## cfo.ai
-- Plan link, if shareable:
+- Plan link: https://cfo.ai/s/AOaTCh1FguibmvmV
 
 ## Posts
 ### Sat 10 Oct

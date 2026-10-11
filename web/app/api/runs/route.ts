@@ -7,6 +7,8 @@ const MAX_GOAL_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 200;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ACCESS_MODES = ["public", "link", "account", "signup"] as const;
+type AccessMode = (typeof ACCESS_MODES)[number];
 const MAX_QUEUED = 20;
 const MAX_RUNS_PER_HOUR = 5;
 
@@ -21,7 +23,10 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission, startUrl, testEmail, testPassword } = (body ?? {}) as Record<string, unknown>;
+  const { url, goal, permission, access, startUrl, testEmail, testPassword } = (body ?? {}) as Record<
+    string,
+    unknown
+  >;
 
   if (permission !== true) {
     return fail(400, "permission_required", "Confirm that this is your app or that you have permission to test it.");
@@ -40,10 +45,23 @@ export async function POST(request: Request) {
   const target = await checkTargetUrl(url);
   if (!target.ok) return fail(400, "invalid_url", target.message);
 
-  // Optional: a start link past the login, with the same address checks as the main address.
+  // How the visitor gets in. A request without it (an older client) is read from its fields, as before.
+  let mode: AccessMode;
+  if (access === undefined || access === null || access === "") {
+    mode = testEmail || testPassword ? "account" : startUrl ? "link" : "signup";
+  } else if (typeof access === "string" && (ACCESS_MODES as readonly string[]).includes(access)) {
+    mode = access as AccessMode;
+  } else {
+    return fail(400, "invalid_access", "Choose how the visitor should get in.");
+  }
+
+  // A start link past the login, with the same address checks as the main address. Only the
+  // fields of the chosen option are used; the others are ignored.
   let start: string | null = null;
-  if (startUrl !== undefined && startUrl !== null && startUrl !== "") {
-    if (typeof startUrl !== "string") return fail(400, "invalid_start_url", "The start link must be an address.");
+  if (mode === "link") {
+    if (typeof startUrl !== "string" || startUrl.trim() === "") {
+      return fail(400, "invalid_start_url", "Enter the demo or guest link, or choose another option.");
+    }
     const checked = await checkTargetUrl(startUrl);
     if (!checked.ok) return fail(400, "invalid_start_url", checked.message);
     start = checked.url;
@@ -51,20 +69,15 @@ export async function POST(request: Request) {
 
   // Optional: a throwaway test login. Both or neither. The values are only passed to the database
   // function below; they are never logged, returned or stored on the run itself.
-  const hasEmail = typeof testEmail === "string" && testEmail.trim() !== "";
-  const hasPassword = typeof testPassword === "string" && testPassword !== "";
-  if (
-    (testEmail !== undefined && testEmail !== null && typeof testEmail !== "string") ||
-    (testPassword !== undefined && testPassword !== null && typeof testPassword !== "string")
-  ) {
-    return fail(400, "invalid_credentials", "The test login must be text.");
-  }
-  if (hasEmail !== hasPassword) {
-    return fail(400, "invalid_credentials", "Enter both a test email and a test password, or leave both empty.");
-  }
   let email: string | null = null;
   let password: string | null = null;
-  if (hasEmail && hasPassword) {
+  if (mode === "account") {
+    if (typeof testEmail !== "string" || typeof testPassword !== "string") {
+      return fail(400, "invalid_credentials", "Enter a test email and a test password.");
+    }
+    if (testEmail.trim() === "" || testPassword === "") {
+      return fail(400, "invalid_credentials", "Enter both a test email and a test password, or choose another option.");
+    }
     email = (testEmail as string).trim();
     password = testPassword as string;
     if (email.length > MAX_EMAIL_LENGTH || !EMAIL.test(email)) {
@@ -88,6 +101,7 @@ export async function POST(request: Request) {
     p_start_url: start,
     p_test_email: email,
     p_test_password: password,
+    p_access_mode: mode,
   });
   if (error) {
     // The message names the failure, never the arguments.

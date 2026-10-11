@@ -16,6 +16,7 @@ import json
 import neatlogs
 
 import credentials as credentials_module
+import login_diagnosis
 import page_watch
 import trace_safety
 from config import ACT_TIMEOUT_MS
@@ -114,10 +115,23 @@ _SCAN_JS = r"""((mode) => {
   const verification = /(verify your (e-?mail|account)|check your (e-?mail|inbox)|confirm(ation)? (e-?mail|link)|we(?:'ve| have) (?:just )?sent (?:you )?(?:an? )?(?:e-?mail|link|code)|verification (?:code|link|e-?mail)|enter the (?:6-digit )?code)/i
     .test(pageText.slice(0, 5000));
 
+  // Steps the visitor cannot do. A CAPTCHA frame must be big enough to be a challenge (the invisible
+  // reCAPTCHA badge is not one); the text patterns are the ones a challenge page uses.
+  const bigFrame = [...document.querySelectorAll('iframe')].some((f) => {
+    const r = f.getBoundingClientRect();
+    return visible(f) && r.width > 150 && r.height > 100 &&
+      /(recaptcha|hcaptcha|turnstile|captcha|challenge)/i.test((f.src || '') + ' ' + (f.title || ''));
+  });
+  const head = pageText.slice(0, 5000);
+  const captcha = bigFrame || /(i'?m not a robot|verify (that )?you(?:'re| are)( a)? human|complete the (captcha|security check)|select all (images|squares)|press (and|&) hold|are you a robot)/i.test(head);
+  const twoFactor = !!document.querySelector('input[autocomplete="one-time-code"]') ||
+    /(two-?factor|\b2fa\b|2-step verification|two-step verification|authenticator app|one-time (pass)?code|security code|enter the (6|six)[- ]digit (code|number)|authentication code)/i.test(head);
+  const challenge = captcha ? 'captcha' : twoFactor ? 'two_factor' : verification ? 'email_verification' : '';
+
   return JSON.stringify({
     has_password: !!pw, has_identifier: !!identifier, signupish, tagged, submit_text: submitText,
     third_party_options: options.slice(0, 6), page_message: alertEl.slice(0, 200),
-    asks_for_verification: verification, form_title: headings.slice(0, 80),
+    asks_for_verification: verification, challenge, form_title: headings.slice(0, 80),
   });
 })(%s)"""
 
@@ -221,6 +235,75 @@ def _result(ctx, page_url: str, *, tool: str, success: bool, changed: bool, reas
     return trace_safety.scrub(result)
 
 
+MAX_ATTEMPTS = 2  # one try and one retry of the same credentials, and only after "no effect"
+
+
+def _already_tried(ctx, stage: str, tool: str, url: str):
+    """A refusal, if this form was already tried and a second go cannot help; else None.
+
+    Never the same credentials more than once more: a rejection or a verification step will not
+    change by typing the same thing again, and a second "no effect" is final.
+    """
+    previous = ctx.entry.get("diagnosis")
+    attempts = ctx.entry.setdefault("auth_attempts", {}).get(stage, 0)
+    final = previous and previous["stage"] == stage and previous["result"] in ("rejected", "needs_verification")
+    if not final and attempts < MAX_ATTEMPTS:
+        return None
+    return _result(
+        ctx, url, success=False, changed=False, tool=tool, reason="already_tried",
+        message="This form was already tried and did not work: " + login_diagnosis.describe(previous or {
+            "stage": stage, "result": "no_effect"}) + " The same details are not tried again. Call finish with "
+        "outcome blocked and give that reason.",
+    )
+
+
+def _conclude(ctx, *, stage: str, tool: str, diagnosis: dict, url: str, fields: list[str], errors: list[str],
+              shot, changed: bool, signed_in_message: str, created_email: str | None = None):
+    """Record the diagnosis and turn it into the tool's result. When the visitor is not in, the run
+    ends as blocked with the exact reason and evidence (after one retry allowed for "no effect")."""
+    entry = ctx.entry
+    attempts = entry.setdefault("auth_attempts", {})
+    attempts[stage] = attempts.get(stage, 0) + 1
+    diagnosis = trace_safety.scrub(diagnosis)
+    entry["diagnosis"] = diagnosis
+    outcome = diagnosis["result"]
+    state_key = "test_login" if stage == "sign_in" else "self_signup"
+
+    if outcome == "signed_in":
+        entry[state_key] = "used"
+        entry["login_wall_seen"] = False
+        extra = {"created_account_email": created_email} if created_email else {}
+        return _result(
+            ctx, url, success=True, changed=True, tool=tool, reason="signed_in" if stage == "sign_in" else "signed_up",
+            fields_filled=fields, login_form_still_visible=False, page_errors=errors, screenshot=shot,
+            message=signed_in_message, **extra,
+        )
+
+    reason = trace_safety.scrub(login_diagnosis.describe(diagnosis))
+    detail = dict(
+        fields_filled=fields, login_form_still_visible=diagnosis["form_still_visible"], page_errors=errors,
+        page_message=diagnosis.get("page_message"), http_statuses=diagnosis.get("http_statuses"),
+        challenge=diagnosis.get("challenge"), screenshot=shot,
+    )
+    if outcome == "no_effect" and attempts[stage] < MAX_ATTEMPTS:
+        entry[state_key] = "failed"
+        return _result(
+            ctx, url, success=False, changed=changed, tool=tool, reason="no_effect", **detail,
+            message=reason + " One more try with the same details is allowed, after you look at the page. "
+            "If that also has no effect the visit ends as blocked.",
+        )
+
+    entry[state_key] = "blocked_verification" if (stage == "sign_up" and outcome == "needs_verification") else "failed"
+    ctx.finished = {
+        "outcome": "blocked", "stopped_by": f"{stage}_{outcome}", "reason": reason,
+        "evidence": login_diagnosis.evidence(diagnosis),
+    }
+    return _result(
+        ctx, url, success=False, changed=changed, tool=tool, reason=outcome, **detail,
+        message=f"{reason} The visit is ending as blocked with that reason.",
+    )
+
+
 @neatlogs.span(kind="TOOL", tool_name="sign_in")
 @metered
 async def sign_in() -> dict:
@@ -230,6 +313,8 @@ async def sign_in() -> dict:
     creds = ctx.credentials
     scan = await _scan(page, "signin")
     url = await page.url()
+    if creds is not None and (refusal := _already_tried(ctx, "sign_in", "sign_in", url)) is not None:
+        return refusal
 
     if creds is None:
         _note_login_wall(ctx, scan)
@@ -282,38 +367,31 @@ async def sign_in() -> dict:
         )
     typed = [name for name, outcome in how.items() if outcome != "failed"]
     if "password" not in typed:
-        ctx.entry["test_login"] = "failed"
-        return _result(
-            ctx, await page.url(), success=False, changed=False, tool="sign_in", reason="could_not_fill",
-            fields_filled=typed,
-            message="The test login could not be entered into the form. Describe what you see, then continue "
-            "without being signed in or call finish with outcome blocked.",
+        diagnosis = login_diagnosis.diagnose(
+            stage="sign_in", before=scan, after=scan, submitted=False, errors=[], before_url=url,
+            after_url=await page.url(), step=ctx.tool_calls,
+            detail="the test login could not be entered into the form.",
+        )
+        return _conclude(
+            ctx, stage="sign_in", tool="sign_in", diagnosis=diagnosis, url=await page.url(), fields=typed,
+            errors=[], shot=None, changed=False, signed_in_message="",
         )
 
+    before_url = await page.url()
     after_fill = await page_fingerprint(page)
     submitted = await _submit(page, after_fill)
     after = await _scan(page, "signin")
-    still_visible = after["has_password"]
     errors = await page_watch.collect(page, since)
     shot = await _screenshot_redacted(ctx, page)
-    signed_in = submitted and not still_visible
-    ctx.entry["test_login"] = "used" if signed_in else "failed"
-    if signed_in:
-        ctx.entry["login_wall_seen"] = False
-        return _result(
-            ctx, await page.url(), success=True, changed=True, tool="sign_in", reason="signed_in",
-            fields_filled=typed, login_form_still_visible=False, page_errors=errors, screenshot=shot,
-            message="Signed in with the test account. Look at the page to see where you are.",
-        )
-    return _result(
-        ctx, await page.url(), success=False, changed=submitted, tool="sign_in",
-        reason="login_rejected" if still_visible else "no_effect",
-        fields_filled=typed, login_form_still_visible=still_visible, page_errors=errors,
-        page_message=after["page_message"], screenshot=shot,
-        message="The sign-in did not work: the login form is still showing"
-        + (f" and the page says: {after['page_message']}" if after["page_message"] else "")
-        + ". Do not try other passwords. Continue without being signed in, or call finish with outcome blocked "
-        "and say the test login was rejected.",
+    after_url = await page.url()
+    diagnosis = login_diagnosis.diagnose(
+        stage="sign_in", before=scan, after=after, submitted=submitted, errors=errors,
+        before_url=before_url, after_url=after_url, step=ctx.tool_calls,
+    )
+    return _conclude(
+        ctx, stage="sign_in", tool="sign_in", diagnosis=diagnosis, url=after_url, fields=typed, errors=errors,
+        shot=shot, changed=submitted,
+        signed_in_message="Signed in with the test account. Look at the page to see where you are.",
     )
 
 
@@ -326,6 +404,15 @@ async def sign_up() -> dict:
     scan = await _scan(page, "signup")
     url = await page.url()
     _note_login_wall(ctx, scan)
+
+    if ctx.access_mode != "signup":
+        # The founder chose another way in; the visitor does not create accounts on its own.
+        return _result(
+            ctx, url, success=False, changed=False, tool="sign_up", reason="signup_not_allowed",
+            third_party_options=scan["third_party_options"],
+            message="The founder did not let this visit sign up by itself, so no account was made. Carry on with "
+            "what is public, or call finish with outcome blocked and say the page needs a login and none was given.",
+        )
 
     usable = scan["has_password"] and scan["has_identifier"] and scan["signupish"]
     if not usable:
@@ -351,6 +438,9 @@ async def sign_up() -> dict:
             message="There is no email-and-password sign-up form on this page. Open the page that has it (a "
             "'Sign up' or 'Create account' link) with do, then call sign_up again.",
         )
+
+    if (refusal := _already_tried(ctx, "sign_up", "sign_up", url)) is not None:
+        return refusal
 
     identity = credentials_module.generate_identity()
     identity.credentials.register(include_email=False)  # the generated email is shown to the founder on purpose
@@ -381,53 +471,33 @@ async def sign_up() -> dict:
         except Exception:
             pass
 
+    fields = [name for name, outcome in how.items() if outcome != "failed"]
     if how.get("email") == "failed" or how.get("password") == "failed":
-        ctx.entry["self_signup"] = "failed"
-        return _result(
-            ctx, await page.url(), success=False, changed=False, tool="sign_up", reason="could_not_fill",
-            fields_filled=[name for name, outcome in how.items() if outcome != "failed"],
-            message="The sign-up form could not be filled in. Describe what you see, then continue or call "
-            "finish with outcome blocked.",
+        diagnosis = login_diagnosis.diagnose(
+            stage="sign_up", before=scan, after=scan, submitted=False, errors=[], before_url=url,
+            after_url=await page.url(), step=ctx.tool_calls, detail="the sign-up form could not be filled in.",
+        )
+        return _conclude(
+            ctx, stage="sign_up", tool="sign_up", diagnosis=diagnosis, url=await page.url(), fields=fields,
+            errors=[], shot=None, changed=False, signed_in_message="",
         )
 
+    before_url = await page.url()
     after_fill = await page_fingerprint(page)
     submitted = await _submit(page, after_fill)
     after = await _scan(page, "signup")
     errors = await page_watch.collect(page, since)
     shot = await _screenshot_redacted(ctx, page)
-    fields = [name for name, outcome in how.items() if outcome != "failed"]
+    after_url = await page.url()
     ctx.entry["created_account_email"] = identity.email
-
-    if after["asks_for_verification"] and not after["has_password"]:
-        ctx.entry["self_signup"] = "blocked_verification"
-        ctx.finished = {
-            "outcome": "blocked", "stopped_by": "email_verification",
-            "reason": "Signing up needs the new account's email to be verified (a link or a code sent by email), "
-            "which the visitor cannot do. A test account was created and left unverified.",
-        }
-        return _result(
-            ctx, await page.url(), success=False, changed=submitted, tool="sign_up",
-            reason="needs_email_verification", fields_filled=fields, screenshot=shot,
-            message="The app needs the email to be verified. The run is ending as blocked with that reason.",
-        )
-    if submitted and not after["has_password"]:
-        ctx.entry["self_signup"] = "used"
-        ctx.entry["login_wall_seen"] = False
-        return _result(
-            ctx, await page.url(), success=True, changed=True, tool="sign_up", reason="signed_up",
-            created_account_email=identity.email, fields_filled=fields, page_errors=errors,
-            screenshot=shot,
-            message="A test account was created. Look at the page to see where you are.",
-        )
-    ctx.entry["self_signup"] = "failed"
-    return _result(
-        ctx, await page.url(), success=False, changed=submitted, tool="sign_up", reason="signup_rejected",
-        fields_filled=fields, page_errors=errors, page_message=after["page_message"],
-        screenshot=shot,
-        message="The sign-up did not go through: the form is still showing"
-        + (f" and the page says: {after['page_message']}" if after["page_message"] else "")
-        + ". Do not retry with other details. Continue without an account, or call finish with outcome blocked "
-        "and say what the sign-up form asked for.",
+    diagnosis = login_diagnosis.diagnose(
+        stage="sign_up", before=scan, after=after, submitted=submitted, errors=errors,
+        before_url=before_url, after_url=after_url, step=ctx.tool_calls,
+    )
+    return _conclude(
+        ctx, stage="sign_up", tool="sign_up", diagnosis=diagnosis, url=after_url, fields=fields, errors=errors,
+        shot=shot, changed=submitted, created_email=identity.email,
+        signed_in_message="A test account was created. Look at the page to see where you are.",
     )
 
 

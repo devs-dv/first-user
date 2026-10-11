@@ -24,6 +24,25 @@ def _clean_run_files(run_id: str) -> None:
         shutil.rmtree(RUNS_DIR / run_id, ignore_errors=True)
 
 
+ACCESS_MODES = ("public", "link", "account", "signup")
+
+
+def access_mode_for(run: dict) -> str:
+    """How the founder let the visitor in.
+
+    Runs from the web form carry it. Runs queued before that (and from the command line) are read
+    from what they have: a test login, a start link, or neither, which meant "may sign up".
+    """
+    mode = run.get("access_mode")
+    if mode in ACCESS_MODES:
+        return mode
+    if run.get("has_test_login"):
+        return "account"
+    if run.get("start_url"):
+        return "link"
+    return "signup"
+
+
 async def _take_credentials(run: dict):
     """The run's test login, read and deleted from the database, or (None, unavailable)."""
     if not run.get("has_test_login"):
@@ -44,14 +63,16 @@ async def _take_credentials(run: dict):
 async def execute(run: dict, agent_version: str) -> None:
     run_id = run["id"]
     start_url = run.get("start_url")
+    access_mode = access_mode_for(run)
     print(f"Claimed run {run_id}: {run['url']}" + (f" (start link {start_url})" if start_url else "")
-          + f" (brain {BRAIN_MODEL}, agent {agent_version})", flush=True)
+          + f" (access {access_mode}, brain {BRAIN_MODEL}, agent {agent_version})", flush=True)
     credentials, unavailable = await _take_credentials(run)
     try:
         with neatlogs.identify(session_id=f"run_{run_id}"):
             result = await first_visit(
                 run["url"], run["goal"], run_id, recorder=db.RunRecorder(run_id),
                 start_url=start_url, credentials=credentials, test_login_unavailable=unavailable,
+                access_mode=access_mode,
             )
     except Exception as error:
         # Error text and tracebacks pass through scrub(): an exception can echo what was typed.

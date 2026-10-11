@@ -38,6 +38,8 @@ PAGE_READY_TIMEOUT_MS = int(os.environ.get("PAGE_READY_TIMEOUT_MS", "75000"))
 
 # Independent check of an "achieved" verdict: sees only the goal and the final page.
 VERIFIER_MODEL = os.environ.get("VERIFIER_MODEL", "claude-haiku-5-5")
+# Writes the report's findings after the visit (report_writer.py); one call per visit.
+REPORT_MODEL = os.environ.get("REPORT_MODEL", VERIFIER_MODEL)
 
 ACT_TIMEOUT_MS = int(os.environ.get("ACT_TIMEOUT_MS", "30000"))
 

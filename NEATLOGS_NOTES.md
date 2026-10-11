@@ -113,3 +113,23 @@ Answers from the neatlogs team, and what we did with each:
 
 
 - 2026-10-11 14:03: "Trace processing failed" on about half of my runs was a processing issue on the neatlogs side. The team reprocessed the records after I shared the project ID and three session IDs. Local checks (one trace id, no orphan spans, all spans ended) had shown my traces were structurally valid.
+
+
+1. PII redaction is over-eager. It replaced ordinary words:
+
+'Finish' became <NRP>. It read the button name as a nationality (“Finnish”).
+status done became status <PERSON>.
+js_error became <ORGANIZATION>.
+
+feedback for the neatlogs team, and a nice specific example:
+
+- 2026-10-11: PII redaction replaced non-personal words in span text: the button label 'Finish' became <NRP>, "done" became <PERSON>, "js_error" became <ORGANIZATION>. Makes eval traces harder to read.
+
+2. The workflow shows “error” though the judge succeeded. The first-user-evals row is marked error and says “ended with error”, while its output is fine. That’s most likely the eval script’s outer step closing badly at exit. I’ll add it to tomorrow’s list for Claude Code. If the judge trace for saucedemo_locked_out shows no error mark, use that one for the screenshot instead. If they all show it, keep this one.
+
+## 2026-10-11: the `first-user-evals` workflow span showed "error"
+- **Reproduced:** a judge call (`@neatlogs.span(kind="EVALUATOR")` plus a wrapped Anthropic call) with no root span above it. neatlogs opens an auto-root named after `init(workflow_name=...)`. Exported with `NEATLOGS_LOG_SPANS`: root `first-user-evals` status **UNSET**, `false_praise_judge` OK, `anthropic.messages.create` OK.
+- **Why it matters:** the auto-created root never gets an OK status (it ends when its first child ends), so a successful run's root is UNSET, which the dashboard shows as an error. Each judge call also became its own trace.
+- **Fix:** `evals/run.py` `main()` is an explicit `@neatlogs.span(kind="WORKFLOW", name="first-user-evals")`. With it the root exports with status OK, and all judge calls share one trace.
+- **General rule:** any script that makes traced or wrapped-client calls outside `first_visit` should open its own WORKFLOW root, or its auto-created root will read as an error.
+- **Local span log:** `NEATLOGS_LOG_SPANS` writes nothing when `mask` is set (see above), so this check ran without the mask.

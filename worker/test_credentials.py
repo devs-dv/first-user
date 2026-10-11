@@ -253,7 +253,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         seen = {}
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False):
+                              test_login_unavailable=False, access_mode="signup"):
             seen.update(email=credentials.email, password=credentials.password, start_url=start_url,
                         database_holds_login=bool(fake.secrets))
             return {"outcome": "achieved", "steps": 1, "reason": "ok"}
@@ -290,7 +290,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         fake = FakeDb()
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False):
+                              test_login_unavailable=False, access_mode="signup"):
             self.assertIsNone(credentials)
             self.assertFalse(test_login_unavailable)
             return {"outcome": "gave_up", "steps": 2, "reason": "r"}
@@ -304,7 +304,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         seen = {}
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False):
+                              test_login_unavailable=False, access_mode="signup"):
             seen.update(credentials=credentials, unavailable=test_login_unavailable)
             return {"outcome": "blocked", "steps": 1, "reason": "login"}
 
@@ -378,6 +378,11 @@ class EndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         report = Path(tempfile.gettempdir()) / "first-user-credentials-report.json"
+        existing = os.environ.get("CREDENTIALS_REPORT")  # a report from a harness run made earlier, to re-check
+        if existing and Path(existing).exists():
+            cls.output = ""
+            cls.reports = {r["scenario"]: r for r in json.loads(Path(existing).read_text(encoding="utf-8"))}
+            return
         report.unlink(missing_ok=True)
         process = subprocess.run(
             [sys.executable, "-X", "utf8", str(HERE / "credentials_harness.py"), str(report)],
@@ -390,8 +395,7 @@ class EndToEnd(unittest.TestCase):
 
     def secrets_in(self, scenario: str) -> list[str]:
         report = self.reports[scenario]
-        values = [PASSWORD] if scenario == "test_login" else []
-        values += [EMAIL] if scenario == "test_login" else []
+        values = list(report.get("secrets", []))
         # The password the app received during a self sign-up was generated at run time.
         values += [s["password"] for s in report["site_received"]["signups"] if s.get("password")]
         return values
@@ -462,10 +466,62 @@ class EndToEnd(unittest.TestCase):
     def test_email_verification_ends_the_run_as_blocked(self):
         result = self.final_result("needs_verification")
         self.assertEqual(result["outcome"], "blocked")
-        self.assertEqual(result["stopped_by"], "email_verification")
+        self.assertEqual(result["stopped_by"], "sign_up_needs_verification")
         self.assertEqual(result["entry"]["self_signup"], "blocked_verification")
+        self.assertEqual(result["entry"]["diagnosis"]["result"], "needs_verification")
+        self.assertEqual(result["entry"]["diagnosis"]["challenge"], "email_verification")
         self.assertTrue(result["entry"]["blocked_at_login"])
-        self.assertIn("verified", result["reason"])
+        self.assertIn("sent by email", result["reason"])
+
+    # --- the sign-in diagnosis: signed in, rejected, needs verification or no effect
+
+    def sign_in_steps(self, scenario: str) -> list[dict]:
+        return [w for w in self.reports[scenario]["db_writes"] if w["kind"] == "step" and w["tool"] == "sign_in"]
+
+    def test_a_rejected_login_is_quoted_with_the_status_and_not_retried(self):
+        report = self.reports["wrong_password"]
+        result = self.final_result("wrong_password")
+        diagnosis = result["entry"]["diagnosis"]
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["stopped_by"], "sign_in_rejected")
+        self.assertEqual(diagnosis["result"], "rejected")
+        self.assertEqual(diagnosis["page_message"], "Invalid email or password")
+        self.assertIn("401", diagnosis["http_statuses"])
+        self.assertIn("Invalid email or password", result["reason"])
+        self.assertIn("401", result["reason"])
+        # The same credentials were sent once, and the evidence points at the step that did it.
+        self.assertEqual(len(report["site_received"]["logins"]), 1)
+        self.assertEqual(len(self.sign_in_steps("wrong_password")), 1)
+        self.assertEqual(diagnosis["step"], self.sign_in_steps("wrong_password")[0]["idx"])
+        self.assertTrue(result["entry"]["blocked_at_login"])
+
+    def test_a_captcha_after_the_login_is_needs_verification(self):
+        result = self.final_result("captcha")
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["stopped_by"], "sign_in_needs_verification")
+        self.assertEqual(result["entry"]["diagnosis"]["challenge"], "captcha")
+        self.assertIn("CAPTCHA", result["reason"])
+        self.assertEqual(len(self.sign_in_steps("captcha")), 1)
+
+    def test_a_two_factor_prompt_after_the_login_is_needs_verification(self):
+        result = self.final_result("two_factor")
+        self.assertEqual(result["stopped_by"], "sign_in_needs_verification")
+        self.assertEqual(result["entry"]["diagnosis"]["challenge"], "two_factor")
+        self.assertIn("two-factor", result["reason"])
+        self.assertEqual(len(self.sign_in_steps("two_factor")), 1)
+
+    def test_a_login_with_no_effect_is_tried_once_more_and_then_blocked(self):
+        result = self.final_result("no_effect")
+        self.assertEqual(result["outcome"], "blocked")
+        self.assertEqual(result["stopped_by"], "sign_in_no_effect")
+        self.assertEqual(result["entry"]["diagnosis"]["result"], "no_effect")
+        self.assertLessEqual(len(self.sign_in_steps("no_effect")), 2, "the same credentials, never more than twice")
+
+    def test_a_login_printed_on_the_page_is_reported_as_such(self):
+        result = self.final_result("page_login")
+        self.assertEqual(result["entry"]["page_login"], "shown_on_page")
+        self.assertEqual(result["entry"]["test_login"], "not_provided")
+        self.assertEqual(result["entry"]["access_mode"], "link")
 
     def test_third_party_only_ends_blocked_and_names_the_options(self):
         report = self.reports["third_party_only"]
@@ -476,6 +532,25 @@ class EndToEnd(unittest.TestCase):
         self.assertIn("GitHub", result["reason"])
         self.assertEqual(report["site_received"]["logins"], [])
         self.assertEqual(report["site_received"]["signups"], [])
+
+    def test_every_finding_points_at_a_step_that_exists(self):
+        for scenario, report in self.reports.items():
+            result = self.final_result(scenario)
+            steps = {w["idx"] for w in report["db_writes"] if w["kind"] == "step"}
+            findings = result.get("findings")
+            self.assertIsNotNone(findings, f"{scenario}: the report writer produced no list")
+            self.assertLessEqual(len(findings), 5, scenario)
+            for finding in findings:
+                self.assertIn(finding["evidence"]["step"], steps, f"{scenario}: {finding['title']}")
+                self.assertIn(finding["kind"], ("site_problem", "unclear_wording", "hidden_error"))
+                self.assertIn(finding["severity"], ("high", "medium", "low"))
+                self.assertTrue(finding["fix_prompt"] and finding["reproduce"] and finding["happened"])
+
+    def test_the_report_writer_ran_as_its_own_span(self):
+        # Spans are exported in batches, so one can land in the next scenario's slice: count them all.
+        names = [json.loads(span).get("name") for report in self.reports.values()
+                 for span in report["exported_spans"]]
+        self.assertGreaterEqual(names.count("report_writer"), len(self.reports))
 
     def test_every_run_has_a_first_impression(self):
         for scenario, report in self.reports.items():

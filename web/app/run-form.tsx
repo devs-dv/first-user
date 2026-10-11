@@ -5,6 +5,15 @@ import { useState, type FormEvent } from "react";
 
 import type { ApiError } from "@/lib/types";
 
+type Access = "public" | "link" | "account" | "signup";
+
+const ACCESS_OPTIONS: { value: Access; label: string; help: string }[] = [
+  { value: "public", label: "No login", help: "Look at what is public. This is the default." },
+  { value: "link", label: "I have a demo or guest link", help: "The visit begins at a page that is already past the login." },
+  { value: "account", label: "Use a test account", help: "Sign in with a throwaway email and password you give." },
+  { value: "signup", label: "Let it sign up by itself", help: "The visitor makes up a test account on your signup form." },
+];
+
 type FormError = {
   field: "url" | "startUrl" | "credentials" | "permission" | "form";
   title?: string;
@@ -21,6 +30,7 @@ export function RunForm() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<FormError | null>(null);
+  const [access, setAccess] = useState<Access>("public");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,19 +38,23 @@ export function RunForm() {
     const url = String(form.get("url") ?? "").trim();
     const goal = String(form.get("goal") ?? "").trim();
     const permission = form.get("permission") === "on";
-    const startUrl = String(form.get("startUrl") ?? "").trim();
-    const testEmail = String(form.get("testEmail") ?? "").trim();
-    const testPassword = String(form.get("testPassword") ?? "");
+    // Only the fields of the chosen option exist in the form, so nothing else is read or sent.
+    const startUrl = access === "link" ? String(form.get("startUrl") ?? "").trim() : "";
+    const testEmail = access === "account" ? String(form.get("testEmail") ?? "").trim() : "";
+    const testPassword = access === "account" ? String(form.get("testPassword") ?? "") : "";
 
     if (!url) return setError({ field: "url", message: "Enter your app's address." });
     if (!permission) {
       return setError({ field: "permission", message: "Please confirm you're allowed to test this app." });
     }
 
-    if (Boolean(testEmail) !== Boolean(testPassword)) {
+    if (access === "link" && !startUrl) {
+      return setError({ field: "startUrl", message: "Enter the demo or guest link, or choose another option." });
+    }
+    if (access === "account" && (!testEmail || !testPassword)) {
       return setError({
         field: "credentials",
-        message: "Enter both a test email and a test password, or leave both empty.",
+        message: "Enter both a test email and a test password, or choose another option.",
       });
     }
 
@@ -54,6 +68,7 @@ export function RunForm() {
           url,
           goal,
           permission,
+          access,
           startUrl: startUrl || undefined,
           testEmail: testEmail || undefined,
           testPassword: testPassword || undefined,
@@ -133,17 +148,38 @@ export function RunForm() {
         </p>
       </div>
 
-      <details className="rounded-xl border border-line bg-surface p-4" open={error?.field === "startUrl" || error?.field === "credentials"}>
-        <summary className="cursor-pointer font-medium">
-          Is your app behind a login? <span className="font-normal text-subtle">(optional)</span>
-        </summary>
-        <div className="mt-4 space-y-6">
-          <p className="text-sm text-muted">
-            Without anything here, the visitor sees what any newcomer sees and may try to sign up with a made-up test
-            account. For a deeper visit, give it a way in:
-          </p>
+      <fieldset className="space-y-3" aria-describedby="access-hint">
+        <legend className="font-medium">How should the visitor get in?</legend>
+        <p id="access-hint" className="text-sm text-subtle">
+          Apps that only offer Google or GitHub login: use a demo or guest link.
+        </p>
+        <div className="space-y-2">
+          {ACCESS_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-4 " +
+                (access === option.value ? "border-accent bg-surface" : "border-line bg-surface hover:border-accent/60")
+              }
+            >
+              <input
+                type="radio"
+                name="access"
+                value={option.value}
+                checked={access === option.value}
+                onChange={() => setAccess(option.value)}
+                className="mt-1 size-5 shrink-0 accent-accent"
+              />
+              <span>
+                <span className="block font-medium">{option.label}</span>
+                <span className="mt-0.5 block text-sm text-muted">{option.help}</span>
+              </span>
+            </label>
+          ))}
+        </div>
 
-          <div>
+        {access === "link" && (
+          <div className="rounded-xl border border-line bg-surface p-4">
             <label htmlFor="startUrl" className="font-medium">
               Start link
             </label>
@@ -162,13 +198,12 @@ export function RunForm() {
             </p>
             {error?.field === "startUrl" && <p className="mt-2 text-sm text-danger">{error.message}</p>}
           </div>
+        )}
 
-          <fieldset className="space-y-4">
-            <legend className="font-medium">Test login</legend>
+        {access === "account" && (
+          <div className="space-y-4 rounded-xl border border-line bg-surface p-4">
             <p className="rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm">
-              Use a <strong>throwaway test account</strong> with no real data, never a real person&apos;s login. We keep
-              it only until a browser picks up your run, then delete it. The AI visitor never sees it, and it is never
-              written to the report.
+              Use a throwaway account. Kept only for this run, never shown to the AI, deleted when the run ends.
             </p>
             <div>
               <label htmlFor="testEmail" className="text-sm font-medium">
@@ -198,9 +233,15 @@ export function RunForm() {
               />
             </div>
             {error?.field === "credentials" && <p className="text-sm text-danger">{error.message}</p>}
-          </fieldset>
-        </div>
-      </details>
+          </div>
+        )}
+
+        {access === "signup" && (
+          <p className="rounded-xl border border-line bg-surface p-4 text-sm text-muted">
+            Works for email-and-password signup without email verification.
+          </p>
+        )}
+      </fieldset>
 
       <div>
         <label className="flex items-start gap-3">
