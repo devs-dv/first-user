@@ -1,0 +1,166 @@
+<pasted_content id="c7d7">
+Build the eval harness in evals/. The worker is already running in another terminal and will process queued runs.
+
+1. evals/sites.json with these 10 cases. Before finalising, open each URL to confirm it loads, and for the "broken" cases confirm the known issue yourself with plain browser actions. Replace any dead site with a similar one, and mark any issue you could not confirm as unverified.
+   Achievable:
+   - saucedemo.com: log in as standard_user, add a product to the cart, reach checkout
+   - the-internet.herokuapp.com/login: log in with the credentials shown on the page and reach the secure area
+   - the-internet.herokuapp.com/dynamic_loading/1: start the loading and read the text that appears
+   - the-internet.herokuapp.com/add_remove_elements/: add three elements, then remove one
+   - todomvc.com/examples/react/dist/: add three to-do items and mark one complete
+   - uitestingplayground.com/click: click the button and confirm it changes colour
+   - practicesoftwaretesting.com: find a hammer, add it to the cart, open the cart
+   Broken (the agent should NOT report success, and its result should name the problem):
+   - saucedemo.com as locked_out_user: log in and add a product (known issue: this user is locked out)
+   - saucedemo.com as problem_user: add products and complete checkout (known issue: parts of the flow do not work for this user)
+   - saucedemo.com as error_user: complete a purchase (known issue: errors during the flow)
+2. evals/run.py --version v0: queues each case as a run with source 'eval' and that version label, waits for the worker to finish them, then writes evals/results/v0.json and a markdown summary table.
+3. Metrics: completion rate on achievable cases; false-praise rate on broken cases (outcome achieved, or the result never mentions the known issue; use one cheap model call per broken case to judge that, and print the raw text so I can check by hand); runs stopped by budget or step limit; count of agent_issue frictions; median steps; total cost.
+4. Flush and shut down neatlogs at the end of the script.
+
+Then run it once as v0 and show me the table. Do not change the agent to improve the numbers. This is the baseline.
+</pasted_content id="c7d7">
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>runs.eval_version does not exist yet (run the last lines of supabase/schema.sql); the version label is kept in the results file only.
+queued saucedemo_standard: run 9ae0e945-6f9c-4b44-bdb5-7694d4f69e41
+queued herokuapp_login: run 486e6ba4-1f68-4d8f-9ae8-5a215dd43faf
+queued herokuapp_dynamic_loading: run 81a2cf7c-472c-431b-999e-9b0d4f354f47
+queued herokuapp_add_remove: run c1caae7a-3458-4ca3-997e-83527f0d057d
+queued todomvc_react: run ab9d9bd4-5d35-468e-90d0-911cc61f90a9
+queued uitesting_click: run 6895e867-2503-4b7b-b3c3-315fa5fcc614
+queued practice_hammer: run 4da77850-f140-423b-9952-d0c69b4b73c8
+queued saucedemo_locked_out: run 549fe9c8-b62f-40e4-b1aa-528fa78088b5
+queued saucedemo_problem_user: run 31e35c99-c266-4932-986e-def789f9644d
+queued saucedemo_error_user: run 4d97c8ee-04f0-4ff1-b23e-b043aaf465f6
+[09:07:05] saucedemo_standard: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:08:07] saucedemo_standard: done achieved
+[09:08:07] herokuapp_login: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:08:28] herokuapp_login: failed
+[09:08:28] herokuapp_dynamic_loading: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:08:49] herokuapp_dynamic_loading: failed
+[09:08:49] herokuapp_add_remove: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:09:30] herokuapp_add_remove: done achieved
+[09:09:30] todomvc_react: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:11:12] todomvc_react: done gave_up
+[09:11:12] uitesting_click: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:12:03] uitesting_click: done blocked
+[09:12:03] practice_hammer: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:13:16] practice_hammer: done achieved
+[09:13:16] saucedemo_locked_out: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:13:46] saucedemo_locked_out: done blocked
+[09:13:46] saucedemo_problem_user: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:14:48] saucedemo_problem_user: done max_steps
+[09:14:48] saucedemo_error_user: running</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>[09:16:31] saucedemo_error_user: done max_steps</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>Known issue: Parts of the flow do not work for this user: only some 'Add to cart' buttons work, every product shows the same image, and at checkout typing the last name changes the first-name field instead, so checkout stops with 'Error: Last Name is required'.</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event>Known issue: Errors during the flow: only some 'Add to cart' buttons work, the last-name field does not accept input, and 'Finish' on the last checkout step does nothing, so the purchase never completes.</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>boqnydp1a</task-id>
+<summary>Monitor event: "v0 eval run progress"</summary>
+<event># Eval v0
+- **herokuapp_login**: RPCError: waitForMainLoadState(domcontentloaded) timed out after 14997ms
+- **herokuapp_dynamic_loading**: RPCError: waitForMainLoadState(domcontentloaded) timed out after 14992ms</event>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b22fe43kw</task-id>
+<tool-use-id>toolu_01HPpcEqJSPVJtSs5m9Tz3Zs</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b22fe43kw.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the v0 eval in the background" completed (exit code 0)</summary>
+</task-notification>
