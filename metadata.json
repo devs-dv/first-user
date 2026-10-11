@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4MQTZ7TNPPC2GNY7D8F8DV8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 26,
+  "files_touched": [
+    "evals/results/v1.json",
+    "evals/results/v1.log",
+    "evals/results/v1.md",
+    "evals/results/v2.json",
+    "evals/results/v2.md",
+    "evals/run.py",
+    "hackathon.md",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/types.ts",
+    "worker/browse.py",
+    "worker/check_costs.py",
+    "worker/config.py",
+    "worker/costs.py",
+    "worker/page_watch.py",
+    "worker/tools.py",
+    "worker/verifier.py",
+    "worker/visit.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 996,
+    "cache_creation_tokens": 1241830,
+    "cache_read_tokens": 131297373,
+    "output_tokens": 442450,
+    "api_call_count": 462
+  }
+}
