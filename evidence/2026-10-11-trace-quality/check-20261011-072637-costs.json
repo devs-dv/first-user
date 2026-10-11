@@ -1,0 +1,131 @@
+{
+  "run_id": "check-20261011-072637",
+  "outcome": "achieved",
+  "reason": "I logged in as standard_user and added the Sauce Labs Backpack to the cart. The cart badge shows 1 item and the backpack shows a Remove button.",
+  "steps": 8,
+  "cost_usd": {
+    "brain": 0.00131,
+    "lookup": 0.00427,
+    "total": 0.00558
+  },
+  "lookup": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 11,
+      "input": 211,
+      "cache_write": 22983,
+      "cache_read": 1998,
+      "output": 2705
+    },
+    "spans": {
+      "calls": 11,
+      "input": 211,
+      "cache_write": 22983,
+      "cache_read": 1998,
+      "output": 2705,
+      "cost": 0.00427
+    },
+    "stagehand_metrics": {
+      "prompt": 25192,
+      "completion": 2705,
+      "cached_input": 1998
+    }
+  },
+  "brain": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 8,
+      "input": 18,
+      "cache_write": 5970,
+      "cache_read": 17313,
+      "output": 782
+    },
+    "spans": {
+      "calls": 8,
+      "input": 18,
+      "cache_write": 5970,
+      "cache_read": 17313,
+      "output": 782,
+      "cost": 0.00131
+    }
+  },
+  "lookup_span_parents": {
+    "look": 6,
+    "do.rung_a_act": 4,
+    "do.rung_b_observe_act": 1
+  },
+  "brain_turns": [
+    {
+      "cache_write": 2110,
+      "cache_read": 0,
+      "uncached_input": 4,
+      "output": 60
+    },
+    {
+      "cache_write": 262,
+      "cache_read": 2110,
+      "uncached_input": 2,
+      "output": 102
+    },
+    {
+      "cache_write": 180,
+      "cache_read": 2372,
+      "uncached_input": 2,
+      "output": 99
+    },
+    {
+      "cache_write": 177,
+      "cache_read": 2552,
+      "uncached_input": 2,
+      "output": 85
+    },
+    {
+      "cache_write": 168,
+      "cache_read": 2729,
+      "uncached_input": 2,
+      "output": 69
+    },
+    {
+      "cache_write": 1220,
+      "cache_read": 2110,
+      "uncached_input": 2,
+      "output": 117
+    },
+    {
+      "cache_write": 277,
+      "cache_read": 3330,
+      "uncached_input": 2,
+      "output": 70
+    },
+    {
+      "cache_write": 1576,
+      "cache_read": 2110,
+      "uncached_input": 2,
+      "output": 180
+    }
+  ],
+  "checks": {
+    "lookup calls: ours == spans": true,
+    "lookup tokens: ours == spans": true,
+    "lookup input: ours == stagehand prompt": true,
+    "lookup output: ours == stagehand completion": true,
+    "lookup cache reads: ours == stagehand cached": true,
+    "brain tokens: ours == spans": true,
+    "cost: ours == spans": true,
+    "every lookup span is under look or rung a/b": true,
+    "one LLM span per model call (no trace(kind=LLM) wrappers)": true,
+    "system prompt recorded as plain text on every LLM span": true,
+    "every brain turn after the first reads from the cache": true,
+    "every do span output has screenshot_url only when a recorder is set": true,
+    "the brain model never sees screenshot_url": true
+  },
+  "screenshots": {
+    "do_spans": 4,
+    "with_screenshot_url": 0,
+    "recorded_steps_with_url": null
+  }
+}

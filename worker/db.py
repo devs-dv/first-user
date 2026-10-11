@@ -145,8 +145,11 @@ class RunRecorder:
     def __repr__(self) -> str:
         return f"RunRecorder(run_id={self.run_id!r})"
 
-    async def step(self, idx, tool, thought, input, result, url, screenshot: Path | None) -> None:
-        screenshot_url = await upload_screenshot(self.run_id, screenshot) if screenshot else None
+    async def upload_screenshot(self, path: Path) -> str:
+        """Upload one step's screenshot; do() calls this so the URL can go into its span output."""
+        return await upload_screenshot(self.run_id, path)
+
+    async def step(self, idx, tool, thought, input, result, url, screenshot_url: str | None) -> None:
         await add_step(self.run_id, idx, tool, thought, input, result, url, screenshot_url)
 
     async def friction(self, step_idx, kind, severity, expected, happened) -> None:

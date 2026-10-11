@@ -55,11 +55,15 @@ def _free_port() -> int:
 
 
 async def close_browser(browser, stagehand, guard):
-    """Close Stagehand before the browser, as the Stagehand docs require, then the guard."""
+    """Close Stagehand before the browser, as the Stagehand docs require, then the guard
+    and the lookup model's client."""
     try:
         await stagehand.close()
     finally:
         try:
             await browser.close()
         finally:
-            await guard.close()
+            try:
+                await guard.close()
+            finally:
+                await lookup_model.close()

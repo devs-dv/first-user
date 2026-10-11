@@ -37,6 +37,18 @@ def _anthropic():
     return _client
 
 
+async def close() -> None:
+    """Close the client's connections while the event loop is still running.
+
+    Left open, they are garbage-collected after the loop closes, which can crash
+    Python 3.11 on Windows at exit (an access violation in a proactor transport).
+    """
+    global _client
+    if _client is not None:
+        client, _client = _client, None
+        await client.close()
+
+
 def lookups_nest_here(function):
     """Make Stagehand model calls made while `function` runs nest under its span.
 
@@ -82,22 +94,25 @@ async def _generate(params) -> LLMStructuredGenerateResult:
         "input_schema": input_schema,
     }
 
+    messages = [
+        {"role": message.role.value, "content": _content(message.content)} for message in params.messages
+    ]
+    # One cache breakpoint, on the tool. `system` stays a plain string so neatlogs shows it as
+    # text, so it cannot carry a breakpoint. The user message holds the page, which changes
+    # on almost every call, so a breakpoint there wrote the whole prompt to the cache at 1.25x
+    # and was rarely read back (measured 2026-10-11).
+    tool["cache_control"] = CACHE
     request = {
         "model": LOOKUP_CALLBACK_MODEL,
         "max_tokens": LOOKUP_MAX_TOKENS,
-        "messages": [
-            {"role": message.role.value, "content": _content(message.content)} for message in params.messages
-        ],
+        "messages": messages,
         "tools": [tool],
         # Forcing the one tool makes the answer arrive as tool input that follows the schema.
         "tool_choice": {"type": "tool", "name": tool_name},
     }
     # Stagehand's temperature is dropped: Claude Haiku 5.5 rejects non-default sampling parameters.
     if params.system_prompt:
-        request["system"] = [
-            {"type": "text", "text": params.system_prompt, "cache_control": {"type": "ephemeral"}}
-        ]
-
+        request["system"] = params.system_prompt
     response = await _anthropic().messages.create(**request)
     _account(response)
 
@@ -123,6 +138,9 @@ async def _generate(params) -> LLMStructuredGenerateResult:
             "cached_input_tokens": cache_read,
         },
     })
+
+
+CACHE = {"type": "ephemeral"}
 
 
 def _content(content) -> list[dict]:

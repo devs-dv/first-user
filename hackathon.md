@@ -231,6 +231,113 @@ Tests that ran:
 Not yet fixed:
 - The occasional `PermissionError` when Stagehand deletes Chrome's temporary profile on Windows.
 
+### 2026-10-11 — Trace quality: screenshots, prompt templates, detection strings
+
+Completed:
+- **Screenshots in traces.** `do()` uploads its screenshot through the run's recorder (`RunRecorder.upload_screenshot`) and puts the public URL in its output as `screenshot_url`, so neatlogs can show a preview on the tool span.
+  - With no database (`run_once.py`, `check_costs.py`), the field is left out.
+  - A failed upload is logged and the field is omitted; the action itself still counts.
+  - The URL is removed from what the brain model sees. The same URL goes to the `steps` row, so the screenshot is uploaded only once.
+- **Prompt templates.** Following the [neatlogs prompt-templates docs](https://docs.neatlogs.com/sdk/prompt-templates), every model call is wrapped in `neatlogs.trace(kind="LLM")` with a `SystemPromptTemplate` and a `UserPromptTemplate`.
+  - Agent loop (`visitor_turn`): the static system prompt, and the first message with `{{goal}}` and `{{url}}`.
+  - Lookup callback (`stagehand_<format>`): Stagehand's system prompt as sent, and `{{stagehand_request}}`, which holds Stagehand's instruction plus the page.
+  - The system prompt is still sent as a cached block.
+- `worker/repro_system_prompt.py` makes two tiny calls. Locally, A (`repro_A_system_as_string`) records the system message as plain text, and B (`repro_B_system_as_cached_blocks`) records it as a JSON list of blocks.
+- **Fixed result shapes for detections** (below). `do()` always returns the same keys in the same order. The run result adds `stopped_by`, `friction_count` and `agent_issue_count`, and each friction and agent issue carries a `kind`. A tool exception now reaches the model as `{"kind": "tool_error", "error": ...}`. The custom `do.rung` / `do.via` span attributes are gone, because the same values are now in the output.
+- **Shutdown crash fixed.** `check_costs.py` crashed at exit (access violation while garbage-collecting an asyncio transport, found with `-X faulthandler`). The brain and lookup Anthropic clients are now closed before the event loop ends.
+
+Detection strings. Span outputs are `json.dumps` text: a space after each colon, lowercase `true`/`false`, and non-ASCII escaped. Tool results are in `neatlogs.tool.output`; the run result is in `neatlogs.agent.output` (`persona_run`) and `neatlogs.workflow.output` (`first_visit`).
+
+| Match | Where | Meaning |
+|---|---|---|
+| `"changed": false` | `do` | No recovery rung changed the page |
+| `"kind": "agent_issue"` | `do`, run result | Our browser tool failed, not the site |
+| `"reason": "no_effect"` | `do` | A rung reported success but the page did not change |
+| `"reason": "failed"` | `do` | Every rung errored or reported failure |
+| `"reason": "worked_after_retry"` | `do` | Worked on rung b or c |
+| `"rung": "b"` / `"rung": "c"` | `do` | Which retry worked (`"rung": "none"` when none did) |
+| `"via": "locator.send_click_event"` | `do` | Only a DOM click event worked |
+| `"unchanged": true` | `look` | The page had not changed since the last look |
+| `"outcome": "achieved"` / `"gave_up"` / `"blocked"` / `"max_steps"` / `"error"` | run result | How the visit ended |
+| `"stopped_by": "budget"` | run result | Stopped by the budget guardrail |
+| `"stopped_by": "egress_guard"` | run result | Stopped by the egress guard |
+| `"stopped_by": "max_steps"` | run result | Ran out of steps |
+| `"stopped_by": "api_error"` / `"refusal"` / `"max_tokens"` | run result | A model call failed |
+| `"stopped_by": "finish"` | run result | The agent called finish |
+| `"agent_issue_count": [1-9]` (regex) | run result | At least one agent issue |
+| `"friction_count": [1-9]` (regex) | run result | At least one site friction |
+| `"severity": "high"` | `note_friction` input, run result | A blocking site problem |
+| `"ok": false` | `budget_check` (GUARDRAIL) | The budget was exceeded |
+| `"private": true` | `egress_check` (GUARDRAIL) | A private address was refused |
+
+Tests that ran (cheap saucedemo visits, Haiku brain, `check_costs.py`):
+- `check-20261011-071223` (no recorder) and `check-20261011-071322` (`--stub-recorder`, placeholder `https://stub.invalid/...` URLs; nothing was written to Supabase): both `achieved` in 9 steps, $0.0044 each, all 14 checks passed, exit code 0.
+  - Cost: our accounting, Stagehand's `metrics()` and the LLM spans agree.
+  - Nesting: every LLM call sits directly under exactly one `trace(kind="LLM")` span, and token counts appear only on the provider span.
+  - Screenshots: with the stub, all 4 `do` outputs had `screenshot_url`; without it, none did. The brain model's inputs never contained it.
+- Two earlier runs that day (`070720`, `071004`) ended in that exit crash before the client fix. The checks in `071004` passed.
+- `python -m unittest test_egress`: 7 tests pass.
+- `repro_system_prompt.py` ran: neatlogs 1.4.26, anthropic 1.13.0.
+
+Evidence: `evidence/2026-10-11-trace-quality/`.
+
+Found, not fixed:
+- In neatlogs 1.4.26 the template text reaches 0 of 20 spans; only the template variables are recorded. The SDK adds template text only to spans whose kind or name marks them as LLM when they start, and the Anthropic wrapper's `anthropic.messages.create` span does not match. Details and a question for the neatlogs team are in `NEATLOGS_NOTES.md`.
+- Each model call now exports as two `llm` spans: the internal `trace()` span and the provider span. Whether the dashboard merges them is not confirmed.
+- The real Supabase upload path has not run. Only the stub has.
+- In this run the agent recorded "the first Add to cart click had no effect" as low-severity site friction, although the retry message comes from our own ladder. The `do` message may need rewording so retries are not reported as site problems.
+
+### 2026-10-11 — Plain-string system prompts, retry wording, first real queue run
+
+Completed:
+- **System prompt as a plain string.** The agent loop and the lookup callback now send `system` as a plain string, so neatlogs records it as text. The cache breakpoints moved off `system`: one on the last tool definition, and one on the first user message. The prefix order is tools, then system, then messages, so the system prompt stays inside a cached prefix. The agent loop also keeps its automatic breakpoint on the conversation tail.
+- **Template wrapper removed.** The `neatlogs.trace(kind="LLM")` template wrapper is gone from both places. On neatlogs 1.4.26 it added a second LLM span per call and still did not record template text. The finding stays in `NEATLOGS_NOTES.md`.
+- **Retry wording.** After a retry, `do()` now says: "The action worked. Our browser tool needed a retry to operate the element: that was a problem with our tool, not with the website. A real visitor would not have noticed it, so do not record it with note_friction and do not mention it as a problem with the site."
+- **`check_costs.py`** now checks three more things: one LLM span per model call, the system prompt recorded as plain text, and a cache read on every agent turn after the first.
+
+Tests that ran:
+- Cost before and after, same saucedemo goal, Haiku brain:
+
+| Run | Steps | Brain | Lookups | Total | Lookup cache write / read |
+|---|---|---|---|---|---|
+| Before: `check-20261011-071223` (cached system block) | 9 | $0.00123 | $0.00319 | $0.00442 | 0 / 8,085 |
+| After: `check-20261011-072637` (plain-string system, new breakpoints) | 8 | $0.00131 | $0.00427 | $0.00558 | 22,983 / 1,998 |
+
+  - **Agent loop:** caching still works. Every turn after the first read 2,110–3,330 tokens from the cache, and the cost per turn is about the same as before.
+  - **Lookups:** 34% more expensive. Their first user message holds the page, which changes on almost every call. The breakpoint there writes about 2,000 tokens to the cache at 1.25× the input price each time, and the cache is rarely read back. Before, the breakpoint sat after Stagehand's system prompt, which repeats across calls.
+  - **Option, not measured:** dropping the user-message breakpoint for lookups alone should land between the two runs (about $0.0039 by estimate), but the lookup system prompt would then not be cached.
+  - **All checks:** 13 of 13 passed.
+- **First real visit through the queue,** with `main.py` (Haiku brain) and `enqueue.py`, against the real Supabase project:
+  - Run `e889c99a-b837-41b3-8775-a9fe97bb5ab5`: `achieved` in 8 steps, $0.00389, 0 frictions, 0 agent issues. The worker stopped cleanly on Ctrl+Break (exit code 0).
+  - The four `do` steps each have `screenshot_url` in their result, equal to the `screenshot_path` column. Each is a public Storage URL that returns 200 `image/png` with no credentials. The last screenshot shows the backpack in the cart.
+  - The "Add to cart" step again worked only on rung (c). With the new wording the agent did not record it as friction (0 frictions, compared with 1 low-severity friction in the earlier run).
+  - The run's `agent_version` is `cea6d04`, the last commit; the changes from this session are not committed yet.
+- `python -m unittest test_egress`: 7 tests pass.
+
+Evidence: `evidence/2026-10-11-trace-quality/check-20261011-072637-costs.json`.
+
+Not yet verified:
+- How the plain-string system prompt and the single LLM spans look in the neatlogs dashboard.
+- The web app's run page for this real run.
+
+### 2026-10-11 — Lookup cache breakpoint on the tool only
+
+Completed:
+- The lookup callback no longer puts a cache breakpoint on the first user message. Only the tool definition carries one. The agent loop is unchanged: breakpoints on the last tool and the first user message, plus the automatic one on the conversation tail.
+
+Tests that ran (same saucedemo goal, Haiku brain, `check_costs.py`):
+
+| Lookup caching | Run | Steps | Brain | Lookups | Total | Lookup cache write / read |
+|---|---|---|---|---|---|---|
+| Cached system block (before) | `check-20261011-071223` | 9 | $0.00123 | $0.00319 | $0.00442 | 0 / 8,085 |
+| Tool + first user message | `check-20261011-072637` | 8 | $0.00131 | $0.00427 | $0.00558 | 22,983 / 1,998 |
+| Tool only (now) | `check-20261011-080803` | 8 | $0.00132 | $0.00374 | $0.00506 | 1,263 / 1,998 |
+
+- `achieved` in 8 steps, all 13 checks passed, exit code 0, and no friction was recorded for the rung (c) retry.
+- Lookups now cost about 17% more than with the cached system block ($0.00374 against $0.00319), because Stagehand's system prompt is no longer cached. That is the price of showing it as plain text in neatlogs.
+
+Evidence: `evidence/2026-10-11-trace-quality/check-20261011-080803-costs.json`.
+
 ## Demo
 
 - URL: pending
@@ -241,7 +348,7 @@ Not yet fixed:
 - The agent has been tested on one demo site (saucedemo) with one easy goal. Both brains found no friction there, so the friction report is untested on a site that has real problems.
 - Stagehand lookups are still about 70% of a Haiku-brain run's cost ($0.0033 of $0.0047), down from about 94% on Haiku 4.5.
 - With Sonnet at low effort, the `thought` field is often a fragment ("Open the cart.") rather than the first-person sentence the prompt asks for. Haiku followed the instruction.
-- Nothing has run against a real Supabase project yet, including the schema and the web-to-worker flow.
+- The worker side of the queue has run once against the real Supabase project (2026-10-11). The web app has not yet been tested against it.
 - The rate limit trusts `X-Forwarded-For`. That is only safe behind a proxy that sets it, such as Vercel.
 - Screenshots are in a public bucket, so anyone with a screenshot's URL can open it. A private bucket with signed URLs is safer before real users.
 - Any refused request ends the run, including a stray third-party resource on a private address, such as a leftover `localhost` dev script. That is safe but strict.
@@ -264,7 +371,7 @@ Confirmed from https://neatlogs.com/hackathon (read 2026-10-10):
 
 Status of each item:
 - neatlogs: every agent run is traced (`WORKFLOW` → `AGENT` → LLM, TOOL and `GUARDRAIL` spans), and Stagehand's lookups are LLM spans under the tool that caused them. Dashboard not yet confirmed. Before-and-after numbers for the click fix are in the build log; matching trace links are pending.
-- Entire: checkpoints on `ab7458b`, `ac3b598`, `51e480b`, `6a08b29` and `29543ae` (web app, egress guard and report fixes). The traced-lookup change is uncommitted.
+- Entire: checkpoints on `ab7458b`, `ac3b598`, `51e480b`, `6a08b29`, `29543ae` (web app, egress guard and report fixes) and `cea6d04` (traced lookups and the clean egress shutdown). The trace-quality changes are uncommitted.
 - cfo.ai: pending (not signed up).
 - Business plan: pending. Measured cost per saucedemo run is $0.0047 with the Haiku brain and traced Haiku 5.5 lookups; it was $0.017–0.029 with Haiku 4.5 lookups. The Sonnet brain ($0.034 on the old path) has not been re-measured.
 - Failure-recovery run: the recovery ladder recovered "Add to cart" in 5 of 5 measurement attempts. A full agent run that shows recovery is still pending.

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import neatlogs
-from opentelemetry import trace as otel_trace
 from pydantic import BaseModel, Field
 
 from config import ACT_TIMEOUT_MS
@@ -52,7 +51,6 @@ class RunContext:
     # Optional sink for steps, frictions and screenshots (db.RunRecorder); None for local runs.
     recorder: Any = None
     tool_calls: int = 0
-    last_screenshot: Path | None = None
     # The browser's egress guard (egress.EgressGuard); a refused request ends the run.
     egress: Any = None
 
@@ -157,6 +155,7 @@ async def look() -> dict:
     result = {
         "url": await page.url(),
         "title": await page.title(),
+        "unchanged": False,
         "summary": clip(content.summary, MAX_SUMMARY_CHARS),
         "interactive": [clip(item, MAX_ITEM_CHARS) for item in content.interactive[:MAX_INTERACTIVE]],
     }
@@ -240,40 +239,75 @@ async def do(instruction: str) -> dict:
             break
 
     page = await _active_page()
+    url = await page.url()
+    screenshot_url = await _screenshot(ctx, page)
+
+    # Every do() result has the same keys in the same order, with fixed values, so traces
+    # can be searched with exact strings such as "changed": false or "kind": "agent_issue".
+    if worked:
+        result = {
+            "success": True,
+            "changed": True,
+            "rung": worked,
+            "via": VIA[worked] if worked != "c" else rungs[-1].get("via", "locator"),
+            "reason": "worked_first_try" if worked == "a" else "worked_after_retry",
+            "kind": "action",
+            "url": url,
+            "message": "The action worked." if worked == "a" else RETRY_MESSAGE,
+        }
+    else:
+        reported_any = any(r.get("reported_success") for r in rungs)
+        reason = "no_effect" if reported_any else "failed"
+        ctx.agent_issues.append(
+            {"kind": "agent_issue", "instruction": instruction, "reason": reason, "url": url, "rungs": rungs}
+        )
+        result = {
+            "success": False,
+            "changed": False,
+            "rung": "none",
+            "via": "none",
+            "reason": reason,
+            "kind": "agent_issue",
+            "url": url,
+            "message": (
+                "Your action had NO EFFECT: after three different tries, the URL, visible text and form fields "
+                "are exactly the same as before. The browser tool may have failed to operate that element; "
+                "this was recorded as an agent issue, so do not record it as site friction on its own. "
+                "Try a differently worded instruction or another way to reach your goal."
+            ),
+        }
+    if screenshot_url:
+        result["screenshot_url"] = screenshot_url
+    return result
+
+
+RETRY_MESSAGE = (
+    "The action worked. Our browser tool needed a retry to operate the element: that was a problem "
+    "with our tool, not with the website. A real visitor would not have noticed it, so do not record "
+    "it with note_friction and do not mention it as a problem with the site."
+)
+
+# How each rung operates the element; rung c reports which locator call worked.
+VIA = {"a": "act", "b": "observe_act"}
+
+
+async def _screenshot(ctx: RunContext, page) -> str | None:
+    """Save a screenshot of the page and, when a database is configured, upload it.
+
+    Returns the public URL, which neatlogs shows as an image preview on the tool span,
+    or None for local runs and failed uploads.
+    """
     ctx.screenshots += 1
     ctx.run_dir.mkdir(parents=True, exist_ok=True)
-    ctx.last_screenshot = ctx.run_dir / f"step_{ctx.screenshots}.png"
-    await page.screenshot(path=ctx.last_screenshot)
-    url = await page.url()
-    span = otel_trace.get_current_span()
-    span.set_attribute("do.rung", worked or "none")
-    if worked == "c":
-        span.set_attribute("do.via", rungs[-1].get("via") or "")
-
-    if worked:
-        result = {"success": True, "changed": True, "rung": worked, "url": url}
-        if worked == "c":
-            result["via"] = rungs[-1].get("via")
-        if worked != "a":
-            result["note"] = "The first try had no effect; a retry worked."
-        return result
-
-    reported_any = any(r.get("reported_success") for r in rungs)
-    reason = "no_effect" if reported_any else "failed"
-    ctx.agent_issues.append({"instruction": instruction, "reason": reason, "url": url, "rungs": rungs})
-    return {
-        "success": False,
-        "changed": False,
-        "reason": reason,
-        "rung": None,
-        "url": url,
-        "message": (
-            "Your action had NO EFFECT: after three different tries, the URL, visible text and form fields "
-            "are exactly the same as before. The browser tool may have failed to operate that element; "
-            "this was recorded as an agent issue, so do not record it as site friction on its own. "
-            "Try a differently worded instruction or another way to reach your goal."
-        ),
-    }
+    path = ctx.run_dir / f"step_{ctx.screenshots}.png"
+    await page.screenshot(path=path)
+    if ctx.recorder is None:
+        return None
+    try:
+        return await ctx.recorder.upload_screenshot(path)
+    except Exception as error:
+        print(f"[step {ctx.tool_calls}]   !! could not upload screenshot: {type(error).__name__}: {error}", flush=True)
+        return None
 
 
 @neatlogs.span(kind="TOOL", tool_name="scroll")
@@ -305,6 +339,7 @@ async def note_friction(severity: str, expected: str, happened: str) -> dict:
     ctx = current_run.get()
     page = await _active_page()
     friction = {
+        "kind": "site",
         "severity": severity,
         "expected": expected,
         "happened": happened,
@@ -318,7 +353,7 @@ async def note_friction(severity: str, expected: str, happened: str) -> dict:
 @metered
 async def finish(outcome: str, reason: str) -> dict:
     ctx = current_run.get()
-    ctx.finished = {"outcome": outcome, "reason": reason}
+    ctx.finished = {"outcome": outcome, "stopped_by": "finish", "reason": reason}
     return {"finished": True}
 
 

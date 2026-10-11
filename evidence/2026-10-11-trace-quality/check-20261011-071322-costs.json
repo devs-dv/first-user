@@ -1,0 +1,94 @@
+{
+  "run_id": "check-20261011-071322",
+  "outcome": "achieved",
+  "reason": "I logged in with standard_user and added the Sauce Labs Backpack to the cart; the cart badge shows 1 and the backpack button now reads Remove.",
+  "steps": 9,
+  "cost_usd": {
+    "brain": 0.00122,
+    "lookup": 0.00323,
+    "total": 0.00445
+  },
+  "lookup": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 11,
+      "input": 17135,
+      "cache_write": 0,
+      "cache_read": 8085,
+      "output": 2876
+    },
+    "spans": {
+      "calls": 11,
+      "input": 17135,
+      "cache_write": 0,
+      "cache_read": 8085,
+      "output": 2876,
+      "cost": 0.00323
+    },
+    "stagehand_metrics": {
+      "prompt": 25220,
+      "completion": 2876,
+      "cached_input": 8085
+    }
+  },
+  "brain": {
+    "ours": {
+      "models": [
+        "claude-haiku-5-5"
+      ],
+      "calls": 9,
+      "input": 20,
+      "cache_write": 4046,
+      "cache_read": 23186,
+      "output": 962
+    },
+    "spans": {
+      "calls": 9,
+      "input": 20,
+      "cache_write": 4046,
+      "cache_read": 23186,
+      "output": 962,
+      "cost": 0.00122
+    }
+  },
+  "lookup_span_parents": {
+    "look": 6,
+    "do.rung_a_act": 4,
+    "do.rung_b_observe_act": 1
+  },
+  "template_span_names": {
+    "visitor_turn": 9,
+    "stagehand_extraction": 3,
+    "stagehand_metadata": 3,
+    "stagehand_act": 4,
+    "stagehand_observation": 1
+  },
+  "template_text_recorded_on": {
+    "llm_spans": 0,
+    "trace_spans": 0,
+    "of": 20
+  },
+  "checks": {
+    "lookup calls: ours == spans": true,
+    "lookup tokens: ours == spans": true,
+    "lookup input: ours == stagehand prompt": true,
+    "lookup output: ours == stagehand completion": true,
+    "lookup cache reads: ours == stagehand cached": true,
+    "brain tokens: ours == spans": true,
+    "cost: ours == spans": true,
+    "every lookup span is under look or rung a/b": true,
+    "every LLM call is directly under a trace(kind=LLM) span": true,
+    "each trace(kind=LLM) span holds exactly one LLM call": true,
+    "token counts only on the LLM call spans, not on the trace spans": true,
+    "user template variables on every trace span": true,
+    "every do span output has screenshot_url only when a recorder is set": true,
+    "the brain model never sees screenshot_url": true
+  },
+  "screenshots": {
+    "do_spans": 4,
+    "with_screenshot_url": 4,
+    "recorded_steps_with_url": 4
+  }
+}
