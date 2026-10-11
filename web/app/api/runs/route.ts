@@ -45,10 +45,11 @@ export async function POST(request: Request) {
   const target = await checkTargetUrl(url);
   if (!target.ok) return fail(400, "invalid_url", target.message);
 
-  // How the visitor gets in. A request without it (an older client) is read from its fields, as before.
+  // How the visitor gets in. A request without it (an older page still open in a browser) is read from
+  // its fields; with none, it is "No login", the form's default. Never "signup", which only a choice gives.
   let mode: AccessMode;
   if (access === undefined || access === null || access === "") {
-    mode = testEmail || testPassword ? "account" : startUrl ? "link" : "signup";
+    mode = testEmail || testPassword ? "account" : startUrl ? "link" : "public";
   } else if (typeof access === "string" && (ACCESS_MODES as readonly string[]).includes(access)) {
     mode = access as AccessMode;
   } else {

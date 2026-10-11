@@ -43,6 +43,11 @@ def access_mode_for(run: dict) -> str:
     return "signup"
 
 
+def access_mode_was_chosen(run: dict) -> bool:
+    """False only when "signup" is the fallback for a run that carried no choice and nothing to infer one from."""
+    return run.get("access_mode") in ACCESS_MODES or bool(run.get("has_test_login") or run.get("start_url"))
+
+
 async def _take_credentials(run: dict):
     """The run's test login, read and deleted from the database, or (None, unavailable)."""
     if not run.get("has_test_login"):
@@ -72,7 +77,7 @@ async def execute(run: dict, agent_version: str) -> None:
             result = await first_visit(
                 run["url"], run["goal"], run_id, recorder=db.RunRecorder(run_id),
                 start_url=start_url, credentials=credentials, test_login_unavailable=unavailable,
-                access_mode=access_mode,
+                access_mode=access_mode, access_mode_chosen=access_mode_was_chosen(run),
             )
     except Exception as error:
         # Error text and tracebacks pass through scrub(): an exception can echo what was typed.

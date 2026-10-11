@@ -43,6 +43,8 @@ export type Entry = {
   access_mode?: AccessMode;
   // A login written on the page itself (a demo login for visitors), typed with the page's own values.
   page_login?: "not_used" | "shown_on_page" | "typed";
+  // That login was accepted: the password field went away and the visit moved on. Absent on older runs.
+  page_login_worked?: boolean;
   diagnosis?: LoginDiagnosis | null;
   test_login: "not_provided" | "provided_not_used" | "used" | "failed";
   self_signup: "not_used" | "used" | "blocked_verification" | "blocked_third_party" | "failed";
@@ -67,6 +69,8 @@ export type Finding = {
   };
   reproduce: string[];
   fix_prompt: string;
+  // Steps of the problems the visitor noted that this finding covers, so they are not listed twice.
+  covers_steps?: number[];
 };
 
 export type Run = {

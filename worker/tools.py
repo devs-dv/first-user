@@ -78,8 +78,10 @@ class RunContext:
     # The start link the visit began at, when the founder gave one.
     start_url: str | None = None
     # How the founder let the visitor in: "public", "link", "account" or "signup" (worker_run.access_mode_for).
-    # Only "signup" lets the visitor create an account.
+    # Only "signup" lets the visitor create an account. access_mode_chosen is False when the run carried no
+    # choice and "signup" is only the fallback, so the report does not claim the founder picked it.
     access_mode: str = "signup"
+    access_mode_chosen: bool = True
     # How the visit got in, and what it met on the way; read at the end of the run (browse.py).
     entry: dict = field(default_factory=lambda: {
         "test_login": "not_provided",
@@ -90,6 +92,9 @@ class RunContext:
         # A login that was written on the page itself, typed with do(): "shown_on_page" when the typed
         # password was found in the page's text, "typed" when a password was typed that was not.
         "page_login": "not_used",
+        # The login written on the page was accepted: the password field was there before the action and
+        # is gone after it, on another page. Set by do().
+        "page_login_worked": False,
     })
     # The first-impression review, once written (first_impression.py).
     first_impression: dict | None = None
@@ -485,6 +490,19 @@ def _typed_text(instruction: str, action: dict | None) -> str | None:
     return None
 
 
+_PASSWORD_VISIBLE_JS = r"""[...document.querySelectorAll('input[type=password]')].some((el) => {
+  const r = el.getBoundingClientRect(); const st = getComputedStyle(el);
+  return r.width > 1 && r.height > 1 && st.visibility !== 'hidden' && st.display !== 'none';
+})"""
+
+
+async def _password_visible(page) -> bool:
+    try:
+        return bool(await page.evaluate(_PASSWORD_VISIBLE_JS))
+    except Exception:
+        return False
+
+
 async def _note_page_login(ctx, page, typed: str | None) -> None:
     """A password was typed with do(): was it a login written on the page itself, for visitors?
 
@@ -552,6 +570,9 @@ async def do(instruction: str) -> dict:
 
     with_focus = not typing
     retried_after_wait = False
+    # Once a login written on the page has been typed, watch for the action that gets past it.
+    watching_login = ctx.entry["page_login"] != "not_used" and not ctx.entry["page_login_worked"]
+    login_before = (await _password_visible(page), await page.url()) if watching_login else None
     while True:
         page = await _active_page()
         before = await page_fingerprint(page, with_focus)
@@ -575,6 +596,10 @@ async def do(instruction: str) -> dict:
         retried_after_wait = True
 
     url = await page.url()
+    if (login_before and worked and login_before[0] and url != login_before[1]
+            and not await _password_visible(page)):
+        ctx.entry["page_login_worked"] = True
+        ctx.entry["login_wall_seen"] = False
     field = await _read_back(page, instruction, action) if typing else None
     if typing and field and str(field.get("value", "")).startswith("(hidden,"):
         await _note_page_login(ctx, page, _typed_text(instruction, action))

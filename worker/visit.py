@@ -24,6 +24,7 @@ async def first_visit(
     credentials=None,
     test_login_unavailable: bool = False,
     access_mode: str = "signup",
+    access_mode_chosen: bool = True,
 ) -> dict:
     """Everything a visit does, background work included, finishes inside this root span.
 
@@ -45,6 +46,7 @@ async def first_visit(
         ctx = RunContext(
             url=url, goal=goal, run_id=run_id, stagehand=stagehand, page=page, recorder=recorder, egress=guard,
             credentials=credentials, start_url=start_url, access_mode=access_mode,
+            access_mode_chosen=access_mode_chosen,
         )
         if credentials is not None:
             ctx.entry["test_login"] = "provided_not_used"

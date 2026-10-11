@@ -214,21 +214,41 @@ async def run_persona(ctx: RunContext) -> dict:
     })
 
 
+def blocked_at_login(entry: dict, finished: dict) -> bool:
+    """Was the run stopped at a login or sign-up step? Not when the visitor got in and was blocked later.
+
+    "Got in" is a test login that worked, an account the visitor created, or a login written on the page
+    that was accepted. A reason that merely mentions a password or an account does not make a block a login block.
+    """
+    if finished["outcome"] != "blocked" or finished.get("stopped_by") == "egress_guard":
+        return False
+    got_in = (entry["test_login"] == "used" or entry["self_signup"] == "used"
+              or bool(entry.get("page_login_worked")))
+    if got_in:
+        return False
+    diagnosis = entry.get("diagnosis") or {}
+    failed_at_login = (
+        entry["test_login"] == "failed"
+        or entry["self_signup"] in ("failed", "blocked_verification", "blocked_third_party")
+        or diagnosis.get("result") in ("rejected", "needs_verification", "no_effect")
+    )
+    return bool(failed_at_login or entry["login_wall_seen"] or LOGIN_WORDS.search(finished.get("reason", "")))
+
+
 def _entry_summary(ctx: RunContext, finished: dict) -> dict:
     """Which way in the visit used. Holds no credential; the generated account's email is public by design."""
     entry = ctx.entry
-    blocked_at_login = finished["outcome"] == "blocked" and bool(
-        entry["login_wall_seen"] or LOGIN_WORDS.search(finished.get("reason", ""))
-    ) and finished.get("stopped_by") != "egress_guard"
     return {
         "start_link": ctx.start_url,
-        "access_mode": ctx.access_mode,
+        # Only what the founder chose (or what their fields imply): never the fallback.
+        "access_mode": ctx.access_mode if ctx.access_mode_chosen else None,
         "page_login": entry["page_login"],
+        "page_login_worked": bool(entry.get("page_login_worked")),
         "test_login": entry["test_login"],
         "self_signup": entry["self_signup"],
         "third_party_options": list(entry["third_party_options"]),
         "created_account_email": entry["created_account_email"],
-        "blocked_at_login": blocked_at_login,
+        "blocked_at_login": blocked_at_login(entry, finished),
         "diagnosis": entry.get("diagnosis"),
     }
 

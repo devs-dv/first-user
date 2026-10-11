@@ -695,6 +695,34 @@ Not verified:
 - The SQL (`supabase/schema.sql`, last block) has not been run against the real Supabase project by me. Until it is, the web app's request to queue a run fails (the new 9-argument `enqueue_web_run` does not exist yet) and findings are not saved (the worker warns once and saves runs without them).
 - The eval set has not been re-run since these changes.
 
+### 2026-10-12 — Four report fixes, from run 91e44505 (saucedemo, problem_user)
+
+What the stored run showed (read from its row): `access_mode` was saved as `signup`, `entry.blocked_at_login` was true although `page_login` was `shown_on_page`, its finding had kind `hidden_error` with `page_errors` empty, and its one noted problem (step 13) was listed again under "Problems with the site".
+
+1. **Login help shown after a successful login.**
+   - Cause: `blocked_at_login` was true whenever a blocked run's reason matched a list of words, and the reason said "with the password shown on the page".
+   - Worker: `do()` now notices when a login written on the page was accepted (the password field was there before the action, is gone after it, and the URL changed) and sets `entry.page_login_worked`. `blocked_at_login` is false when the visitor got in (test login used, account created, or page login worked); it is true only for a block at a login or sign-up step (a failed or unverified login, a visible login wall, or a reason about a login when nothing got the visitor in).
+   - Web: `showLoginWallHelp` also hides the block when the entry says the visitor got in. For runs saved before the flag existed, a page login followed by steps on another page counts as having got in, which is what fixes the stored run on its report page.
+2. **"You let the visitor sign up by itself" was never chosen.**
+   - The form's state and what it posts were right: the default is "No login" and sends `access: "public"` (checked in a browser, and again through the API).
+   - The cause was the server's fallback. A request with no `access` (a page still open from before the form changed) with no fields was read as `signup`. It is now `public`; a start link still gives `link`, a test login `account`; a bad value is a 400. The worker no longer reports a mode the founder did not choose: a run that carried none and nothing to infer one from has `entry.access_mode: null` and the report prints no mode line.
+   - The stored run's `signup` cannot be told apart from a real choice, so its label stays as saved.
+3. **"Hidden error" without a console error or failed request.** A finding keeps kind `hidden_error` only if the page's errors at its step (or the step before) are non-empty; otherwise code sets `site_problem`, whatever the model wrote. The prompt says the same.
+4. **Repeats.**
+   - Noted problems: a finding records which of the visitor's noted problems it covers (`covers_steps`): the step the model names if it is a noted problem, plus any noted within two steps after the finding's step whose words are mostly in the finding. "Problems with the site" lists only those not covered, and says "Everything the visitor noted is in the findings above" when none are left. Findings saved before this match by step.
+   - Steps to reproduce: the closing line is now `Observe: <symptom>` and is dropped when it starts with, or soon contains, an action word (type, click, enter, check, ...) or when most of its words are already in the steps above. Identical consecutive steps are merged. On a real re-run of the same goal the closing lines were symptoms only ("Observe: First Name shows 'User' and Last Name is empty.").
+5. **Step limit.** `MAX_STEPS` default 15 to 20. The budget guardrail (`MAX_RUN_TOKENS` 400000 and `MAX_RUN_COST_USD` 0.30, checked before every step) is unchanged and ends a run as `gave_up` whatever the step count. The wrap-up notice still comes two steps before the limit. Note that the old runs' "ran out of steps" counted model turns, including the note and the finish.
+
+**Tests**
+- Worker: 139 tests pass (19 live skipped under `SKIP_LIVE_TESTS=1`). New: kind rule for hidden_error, restating closing lines, repeated steps, covered problems, the chosen-mode label, `blocked_at_login` cases (signed in then blocked at checkout, real login blocks, other outcomes), the step limit and budget guard.
+- Web: `npm test` runs `lib/report-logic.test.ts` (7 tests: login help for the stored run's shape and for real login blocks, covered problems with and without `covers_steps`); typecheck and lint are clean.
+- Live: the harness's page-login scenario now also asserts `page_login_worked` and `blocked_at_login: false` (passes). A real saucedemo re-run of the same goal (20 steps, ended blocked at checkout): `page_login_worked: true`, `blocked_at_login: false`, both findings `site_problem`, each covering its noted problem, no restating closing step.
+
+**Not done**
+- The stored run 91e44505 itself is not rewritten; its page changes through the web rules above (login help, repeats) but its `access_mode` label and its `hidden_error` kind stay as saved until it is run again.
+- The eval set has not been re-run.
+- Two findings can still describe the same symptom at different steps (the re-run produced a pair for First/Last Name); the writer is told to merge, and nothing in code does.
+
 ## Demo
 
 - URL: pending

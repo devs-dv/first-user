@@ -253,7 +253,8 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         seen = {}
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False, access_mode="signup"):
+                              test_login_unavailable=False, access_mode="signup",
+                              access_mode_chosen=True):
             seen.update(email=credentials.email, password=credentials.password, start_url=start_url,
                         database_holds_login=bool(fake.secrets))
             return {"outcome": "achieved", "steps": 1, "reason": "ok"}
@@ -290,7 +291,8 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         fake = FakeDb()
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False, access_mode="signup"):
+                              test_login_unavailable=False, access_mode="signup",
+                              access_mode_chosen=True):
             self.assertIsNone(credentials)
             self.assertFalse(test_login_unavailable)
             return {"outcome": "gave_up", "steps": 2, "reason": "r"}
@@ -304,7 +306,8 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         seen = {}
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
-                              test_login_unavailable=False, access_mode="signup"):
+                              test_login_unavailable=False, access_mode="signup",
+                              access_mode_chosen=True):
             seen.update(credentials=credentials, unavailable=test_login_unavailable)
             return {"outcome": "blocked", "steps": 1, "reason": "login"}
 
@@ -520,6 +523,8 @@ class EndToEnd(unittest.TestCase):
     def test_a_login_printed_on_the_page_is_reported_as_such(self):
         result = self.final_result("page_login")
         self.assertEqual(result["entry"]["page_login"], "shown_on_page")
+        self.assertTrue(result["entry"]["page_login_worked"], "the login was accepted: the form went away")
+        self.assertFalse(result["entry"]["blocked_at_login"])
         self.assertEqual(result["entry"]["test_login"], "not_provided")
         self.assertEqual(result["entry"]["access_mode"], "link")
 

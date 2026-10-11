@@ -104,10 +104,66 @@ class Rules(unittest.TestCase):
             "Open https://shop.test/.",
             "Click the Shop button.",
             "Click the Add to cart button for the blue mug.",
-            "The cart still shows 0 items.",
+            "Observe: The cart still shows 0 items.",
         ])
         # Actions after the step, and our tool's no-effect click, are not in it.
         self.assertNotIn("Click the cart icon.", result["reproduce"])
+
+    def test_hidden_error_needs_a_console_error_or_failed_request_as_evidence(self):
+        # Step 3 has a failed request in the record: the kind stands.
+        [with_error] = self.build([finding(kind="hidden_error", step=3)])
+        self.assertEqual(with_error["kind"], "hidden_error")
+        self.assertTrue(with_error["evidence"]["page_errors"])
+        # Step 5 has none: it is a site problem, whatever the model said.
+        [without] = self.build([finding(kind="hidden_error", step=5)])
+        self.assertEqual(without["kind"], "site_problem")
+        self.assertEqual(without["evidence"]["page_errors"], [])
+        # Other kinds are left alone.
+        [wording] = self.build([finding(kind="unclear_wording", step=5)])
+        self.assertEqual(wording["kind"], "unclear_wording")
+
+    def test_the_closing_line_is_dropped_when_it_restates_the_steps(self):
+        for restating in (
+            "On products.html, type a value into First Name and another into Last Name, then check each field.",
+            "Click the Add to cart button for the blue mug again.",
+            "Then check whether the cart updates.",
+            "Open the shop and click the Shop button, then add the blue mug.",
+        ):
+            [result] = self.build([finding(step=3, then_observe=restating)])
+            self.assertFalse([line for line in result["reproduce"] if line.startswith("Observe:")], restating)
+            self.assertEqual(len(result["reproduce"]), 3, restating)
+        [kept] = self.build([finding(step=3, then_observe="The cart badge still reads 0.")])
+        self.assertEqual(kept["reproduce"][-1], "Observe: The cart badge still reads 0.")
+        [none] = self.build([finding(step=3, then_observe="")])
+        self.assertEqual(len(none["reproduce"]), 3)
+
+    def test_the_same_instruction_twice_in_a_row_is_one_step(self):
+        ctx = make_ctx()
+        ctx.record = [
+            {"step": 1, "tool": "do", "instruction": "click the Shop button", "page_changed": True},
+            {"step": 2, "tool": "do", "instruction": "click the Shop button", "page_changed": True},
+            {"step": 3, "tool": "do", "instruction": "click Add to cart", "page_changed": True},
+        ]
+        self.assertEqual(report_writer._reproduce(ctx, 3, ""),
+                         ["Open https://shop.test/.", "Click the Shop button.", "Click Add to cart."])
+
+    def test_a_noted_problem_a_finding_covers_is_marked_so_the_page_can_hide_it(self):
+        ctx = make_ctx()
+        # The visitor's note is at step 6, right after the finding's step 5, and says the same thing.
+        ctx.frictions = [{"kind": "site", "severity": "high", "step": 6,
+                          "expected": "the mug is added to the cart", "happened": "the cart stays at 0 items"}]
+        [by_words] = self.build([finding(step=5, title="Cart stays at 0 items after adding the mug",
+                                         happened="The cart stays at 0 items.", noted_problem_step=0)], ctx)
+        self.assertEqual(by_words["covers_steps"], [6])
+        [by_step] = self.build([finding(step=2, title="Something else entirely", happened="A different thing.",
+                                        expected="Another thing.", noted_problem_step=6)], ctx)
+        self.assertEqual(by_step["covers_steps"], [6])
+        [unrelated] = self.build([finding(step=1, title="Landing page is vague", happened="No audience named.",
+                                          expected="A clear audience.", noted_problem_step=0)], ctx)
+        self.assertEqual(unrelated["covers_steps"], [])
+        # A note the model names that is not a noted problem covers nothing.
+        [bogus] = self.build([finding(step=1, noted_problem_step=77)], ctx)
+        self.assertEqual(bogus["covers_steps"], [])
 
     def test_a_quote_that_is_not_in_the_record_is_dropped_but_the_finding_stays(self):
         [kept] = self.build([finding(evidence_quote="request: 500 /api/cart")])

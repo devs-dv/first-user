@@ -15,6 +15,7 @@ import type {
   RunDetails,
   Step,
 } from "@/lib/types";
+import { frictionsNotInFindings, showLoginWallHelp } from "@/lib/report-logic";
 
 const POLL_MS = 2000;
 
@@ -175,7 +176,7 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
           {run.reason && <p className="mt-2 text-foreground">{run.reason}</p>}
         </div>
         <WayIn run={run} />
-        {run.outcome === "blocked" && run.entry?.blocked_at_login && <LoginWallHelp run={run} />}
+        {showLoginWallHelp(run, steps) && <LoginWallHelp run={run} />}
         <p className="text-sm text-muted">This is a simulated user. Treat findings as leads to check.</p>
         <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
           <Fact label="Steps" value={String(steps.length)} />
@@ -185,7 +186,7 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
         <CopyLinkButton />
       </section>
       <Findings findings={run.findings} />
-      <Frictions frictions={frictions} />
+      <Frictions frictions={frictions} findings={run.findings} />
       <Timeline steps={steps} />
     </>
   );
@@ -435,15 +436,22 @@ function CopyLinkButton() {
   );
 }
 
-function Frictions({ frictions }: { frictions: Friction[] }) {
-  const site = frictions.filter((f) => f.kind === "site");
+function Frictions({ frictions, findings = null }: { frictions: Friction[]; findings?: Finding[] | null }) {
+  // What became a finding is shown there, not again here.
+  const noted = frictions.filter((f) => f.kind === "site");
+  const site = frictionsNotInFindings(noted, findings);
+  const inFindings = noted.length - site.length;
   const ours = frictions.filter((f) => f.kind === "agent_issue");
   return (
     <section className="space-y-8">
       <div className="space-y-3">
         <h2 className="text-xl font-semibold tracking-tight">Problems with the site</h2>
         {site.length === 0 ? (
-          <p className="text-muted">The visitor didn&apos;t note any problems.</p>
+          <p className="text-muted">
+            {inFindings > 0
+              ? "Everything the visitor noted is in the findings above."
+              : "The visitor didn\u2019t note any problems."}
+          </p>
         ) : (
           <ul className="space-y-3">
             {site.map((friction) => (

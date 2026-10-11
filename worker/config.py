@@ -28,7 +28,9 @@ LOOKUP_MAX_TOKENS = int(os.environ.get("LOOKUP_MAX_TOKENS", "4096"))
 # Stagehand 4.2.0 validates model names against a fixed list; the newest Haiku it accepts is 4.5.
 LOOKUP_MODEL = os.environ.get("LOOKUP_MODEL", "anthropic/claude-haiku-4-5")
 
-MAX_STEPS = int(os.environ.get("MAX_STEPS", "15"))
+# A generous ceiling on the visitor's turns. The real limit is the budget below (MAX_RUN_TOKENS and
+# MAX_RUN_COST_USD), which ends a run as "gave_up" whatever the step count.
+MAX_STEPS = int(os.environ.get("MAX_STEPS", "20"))
 # With this many steps left, the agent is told to conclude and call finish.
 WRAP_UP_STEPS = int(os.environ.get("WRAP_UP_STEPS", "2"))
 
