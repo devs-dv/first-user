@@ -1,0 +1,30 @@
+<pasted_content id="c7d7">
+Three trace-quality improvements, based on answers from the neatlogs team.
+
+1. Screenshots in traces: neatlogs shows a small image preview when a tool span's output contains an image URL. Make do() upload its screenshot first and include the public URL in the tool span's output as screenshot_url. When no database is configured, leave the field out.
+
+2. Readable prompts: LLM spans show "System Prompt template:" with no content when system is sent as cached content blocks.
+   (a) Create worker/repro_system_prompt.py that makes two tiny calls, A with system as a plain string and B with cached content blocks, named so I can tell them apart, and prints the neatlogs and anthropic versions.
+   (b) In the agent loop and in the lookup callback, follow https://docs.neatlogs.com/sdk/prompt-templates and wrap the model call in neatlogs.trace(kind="LLM") with SystemPromptTemplate and UserPromptTemplate, so the prompt text and variables are captured. Keep caching on and avoid duplicate LLM spans.
+
+3. Regex-friendly failures: make tool outputs and the run result serialise with stable keys and values, such as "changed": false, "rung": "c", "kind": "agent_issue" and "outcome": "gave_up". Give me the exact strings so I can create detections in the dashboard.
+
+Run one cheap saucedemo visit to verify, then update hackathon.md and NEATLOGS_NOTES.md.
+</pasted_content id="c7d7">
+
+---
+
+<pasted_content id="c7d7">
+Make prompts readable in neatlogs a different way, and tidy two things.
+
+1. In the agent loop and the lookup callback, send `system` as a plain string. Move the cache breakpoints off the system block: put one on the tool definitions and one on the first user message, so the system prompt is still inside a cached prefix. Verify that cache reads still happen on later turns and report the cost of one run before and after.
+2. Remove the neatlogs.trace(kind="LLM") template wrapper, since on neatlogs 1.4.26 it adds a second LLM span per call without recording the template text. Keep the finding in NEATLOGS_NOTES.md.
+3. Reword the result do() returns after a retry so the agent does not log our own retry as a problem with the site. Say plainly that the retry was our browser tool's issue and must not be recorded as friction.
+4. Run one real visit through the queue (enqueue.py and main.py, with the database) and confirm screenshot_url holds a real public URL.
+
+Update hackathon.md and NEATLOGS_NOTES.md.
+</pasted_content id="c7d7">
+
+---
+
+Yes, remove the user-message cache breakpoint for lookups only, and measure the cost of one run to confirm. Also, in future don't parse worker/.env to check settings; check the process environment after it has been loaded instead.
