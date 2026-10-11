@@ -1,0 +1,23 @@
+# Keep secrets, local state and tooling out of the image (and out of the build context).
+.env
+.env.*
+.venv
+venv
+.git
+runs
+__pycache__
+*.pyc
+*.egg-info
+*.log
+# Test and measurement scripts are not needed to run the worker.
+test_*.py
+credentials_harness.py
+calibrate_verifier.py
+check_costs.py
+check_traces.py
+measure_clicks.py
+repro_system_prompt.py
+make_chrome_seccomp.py
+chrome-seccomp.json
+scan_secrets.py
+hello.py

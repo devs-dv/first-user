@@ -4,15 +4,24 @@ Kept apart from main.py (which initialises neatlogs and owns the signal handlers
 imported) so that the whole path can be tested with a stand-in database.
 """
 
+import shutil
 import traceback
 
 import neatlogs
 
 import db
 import trace_safety
-from config import BRAIN_MODEL
+from config import BRAIN_MODEL, CLEAN_RUN_FILES
 from credentials import TestCredentials
+from tools import RUNS_DIR
 from visit import first_visit
+
+
+def _clean_run_files(run_id: str) -> None:
+    """Delete the run's local screenshots (CLEAN_RUN_FILES): they were uploaded, and a server's disk
+    would otherwise fill up. Left alone by default, for debugging on a laptop."""
+    if CLEAN_RUN_FILES:
+        shutil.rmtree(RUNS_DIR / run_id, ignore_errors=True)
 
 
 async def _take_credentials(run: dict):
@@ -54,6 +63,7 @@ async def execute(run: dict, agent_version: str) -> None:
     finally:
         # take_run_secrets already deleted it; this is the safety net, success or failure.
         await db.delete_run_secrets(run_id)
+        _clean_run_files(run_id)
 
     if result["outcome"] == "error":
         await db.fail_run(run_id, result["reason"], agent_version, BRAIN_MODEL, result=result)

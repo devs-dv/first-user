@@ -1,10 +1,12 @@
 """Browser tools the visitor agent can call, plus their Anthropic tool schemas."""
 
+import asyncio
 import base64
 import functools
 import hashlib
 import json
 import re
+import time
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,7 +39,19 @@ def clip(text: str, limit: int) -> str:
         cut = cut[:space]
     return cut.rstrip(" ,;:-") + "\u2026"
 SCROLL_PIXELS = 700
-SETTLE_CHECKS_MS = (400, 400, 800)
+# How long to watch for a page's reaction after an attempt, and how often to look. A client-side
+# navigation or a request can finish a second or two after the click, so a short fixed wait
+# misread slow changes as "no effect" (and the ladder then clicked again).
+SETTLE_WINDOW_S = 2.0
+SETTLE_POLL_S = 0.15
+# Once a change is seen, wait until the page holds still this long (at most STABLE_MAX_S), so the
+# screenshot and the next look see the page that was navigated to, not a transition.
+STABLE_FOR_S = 0.3
+STABLE_MAX_S = 1.5
+# Before climbing to the next rung, wait this long and look once more.
+RECHECK_WAIT_S = 1.5
+# Before an attempt is recorded as an agent issue, watch this long one last time.
+FINAL_CHECK_WINDOW_S = 3.0
 
 
 @dataclass
@@ -132,14 +146,42 @@ async def page_fingerprint(page, with_focus: bool = False) -> str:
     return f"{url}#{hashlib.sha256(str(state).encode()).hexdigest()[:16]}"
 
 
-async def _changed_since(before: str, with_focus: bool = False) -> bool:
-    """Wait briefly for the page to react, then compare fingerprints."""
-    for wait_ms in SETTLE_CHECKS_MS:
-        page = await _active_page()
-        await page.wait_for_timeout(wait_ms)
-        if await page_fingerprint(await _active_page(), with_focus) != before:
+async def _page_state(with_focus: bool) -> tuple[str, str] | None:
+    """(url, fingerprint) of the active page, or None while it is navigating and cannot be read."""
+    try:
+        fingerprint = await page_fingerprint(await _active_page(), with_focus)
+    except Exception:
+        return None
+    return fingerprint.rsplit("#", 1)[0], fingerprint
+
+
+async def _changed_since(before: str, with_focus: bool = False, window: float = SETTLE_WINDOW_S) -> bool:
+    """Watch the page for up to `window` seconds, and say whether it changed from `before`.
+
+    A change is a different URL (client-side navigations included) or a different fingerprint
+    (visible text, form values, classes). It returns as soon as one is seen, after waiting for the
+    page to hold still. `window=0` is a single comparison.
+    """
+    before_url = before.rsplit("#", 1)[0]
+    deadline = time.monotonic() + window
+    while True:
+        state = await _page_state(with_focus)
+        if state is not None and (state[0] != before_url or state[1] != before):
+            await _wait_until_still(with_focus, state[1])
             return True
-    return False
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(SETTLE_POLL_S)
+
+
+async def _wait_until_still(with_focus: bool, last: str) -> None:
+    deadline = time.monotonic() + STABLE_MAX_S
+    still_since = time.monotonic()
+    while time.monotonic() < deadline and time.monotonic() - still_since < STABLE_FOR_S:
+        await asyncio.sleep(SETTLE_POLL_S)
+        state = await _page_state(with_focus)
+        if state is not None and state[1] != last:
+            last, still_since = state[1], time.monotonic()
 
 
 def metered(function):
@@ -404,6 +446,12 @@ async def _ladder(instruction: str, before: str, with_focus: bool) -> tuple[str 
         except Exception as error:
             outcome = {"reported_success": False, "error": f"{type(error).__name__}: {error}"[:300]}
         outcome["changed"] = await _changed_since(before, with_focus)
+        if not outcome["changed"]:
+            # One more look before climbing: never click again on a page that has already moved.
+            await asyncio.sleep(RECHECK_WAIT_S)
+            outcome["changed"] = await _changed_since(before, with_focus, window=0)
+            if outcome["changed"]:
+                outcome["late"] = True
         rungs.append({"rung": name, **outcome})
         if outcome["changed"]:
             return name, rungs, action
@@ -477,6 +525,13 @@ async def do(instruction: str) -> dict:
         before = await page_fingerprint(page, with_focus)
         since = await page_watch.now(page)
         worked, rungs, action = await _ladder(instruction, before, with_focus)
+        settled_late = False
+        if worked is None and await _changed_since(before, with_focus, window=FINAL_CHECK_WINDOW_S):
+            # Nothing was seen during the ladder, but the page has moved since the action began:
+            # a slow change. The attempt worked, on the rung that was running; record no issue.
+            ran = [r["rung"] for r in rungs if "skipped" not in r]
+            worked = ran[-1] if ran else "a"
+            settled_late = True
         page = await _active_page()
         page_errors = await page_watch.collect(page, since)
         if worked or retried_after_wait or not any(_NOT_LOADED.search(e) for e in page_errors):
@@ -559,6 +614,8 @@ async def do(instruction: str) -> dict:
         }
     if retried_after_wait:
         result["retried_after_wait"] = True
+    if settled_late:
+        result["settled_late"] = True
     if typing:
         result["field"] = field
         if field and field.get("contains_typed_text") is False and not _SUBMITS.search(instruction):

@@ -1,15 +1,15 @@
 """Queue worker: claim queued runs from Supabase and execute them one at a time.
 
 Usage: python main.py
-Ctrl+C once: finish the current run, then exit. Ctrl+C twice: stop now (the run is
-left "running" and a later stale-run sweep marks it failed).
+SIGTERM (what `docker stop` sends), Ctrl+C or Ctrl+Break once: finish the current run, then exit.
+A second signal stops immediately (the run is left "running" and a later stale-run sweep marks it
+failed). While idle it logs a health line once a minute.
 """
 
 import asyncio
 import os
-import signal
 import subprocess
-import time
+import sys
 from pathlib import Path
 
 import neatlogs
@@ -19,9 +19,9 @@ import trace_safety
 
 load_dotenv(Path(__file__).parent / ".env")
 
-# This process owns SIGINT so it can finish the current run first; it shuts neatlogs down itself.
-# mask redacts secrets and keeps screenshots out of exported traces; the model still gets the
-# screenshots (trace_safety.py, trace_media.py).
+# This process owns the stop signals so it can finish the current run first; it shuts neatlogs down
+# itself. mask redacts secrets and keeps screenshots out of exported traces; the model still gets
+# the screenshots (trace_safety.py, trace_media.py).
 neatlogs.init(
     api_key=os.environ["NEATLOGS_API_KEY"],
     workflow_name="first-visit-test",
@@ -30,20 +30,15 @@ neatlogs.init(
 )
 
 import db  # noqa: E402
-from config import BRAIN_MODEL  # noqa: E402
+from config import BRAIN_MODEL, HEALTH_FILE, HEALTH_INTERVAL_SECONDS  # noqa: E402
+from worker_loop import Worker  # noqa: E402
 from worker_run import execute  # noqa: E402
-
-IDLE_SECONDS = 2
-STALE_MINUTES = 15
-STALE_SWEEP_SECONDS = 60
-# A test login still in the database this long after it was queued is deleted unread.
-SECRETS_MINUTES = 30
-DB_ERROR_BACKOFF_SECONDS = 10
-
-_stop_requested = False
 
 
 def _agent_version() -> str:
+    """The version label saved on each run: AGENT_VERSION (set when the image is built), else git."""
+    if os.environ.get("AGENT_VERSION"):
+        return os.environ["AGENT_VERSION"]
     try:
         return subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -56,52 +51,30 @@ def _agent_version() -> str:
 AGENT_VERSION = _agent_version()
 
 
-def _on_stop_signal(signum, frame) -> None:
-    global _stop_requested
-    if _stop_requested:
-        raise KeyboardInterrupt
-    _stop_requested = True
-    print("\nStopping after the current run. Press Ctrl+C again to stop now.", flush=True)
+def check_browser() -> bool:
+    """Start Chrome once before taking any work, so a broken setup is reported at once."""
+    if os.environ.get("SKIP_BROWSER_PREFLIGHT"):
+        return True
+    from browser import browser_preflight
 
-
-async def _sleep_unless_stopping(seconds: float) -> None:
-    deadline = time.monotonic() + seconds
-    while not _stop_requested and time.monotonic() < deadline:
-        await asyncio.sleep(0.2)
-
-
-async def worker_loop() -> None:
-    print(f"Worker started (agent {AGENT_VERSION}, brain {BRAIN_MODEL}). Waiting for queued runs.", flush=True)
-    last_sweep = float("-inf")
-    while not _stop_requested:
-        try:
-            if time.monotonic() - last_sweep >= STALE_SWEEP_SECONDS:
-                last_sweep = time.monotonic()
-                for stale in await db.fail_stale_runs(STALE_MINUTES):
-                    print(f"Marked stale run {stale['id']} as failed", flush=True)
-                await db.delete_old_run_secrets(SECRETS_MINUTES)
-            run = await db.claim_run()
-        except Exception as error:
-            print(f"Database error: {type(error).__name__}: {error}; retrying in {DB_ERROR_BACKOFF_SECONDS}s", flush=True)
-            await _sleep_unless_stopping(DB_ERROR_BACKOFF_SECONDS)
-            continue
-
-        if run is None:
-            await _sleep_unless_stopping(IDLE_SECONDS)
-            continue
-        try:
-            await execute(run, AGENT_VERSION)
-        except Exception as error:
-            # Saving the outcome failed; the stale-run sweep will mark the run failed later.
-            print(f"Could not save run {run['id']}: {type(error).__name__}: {error}", flush=True)
+    ok, message = asyncio.run(browser_preflight())
+    print(f"[preflight] {message}", flush=True)
+    return ok
 
 
 def main() -> None:
-    signal.signal(signal.SIGINT, _on_stop_signal)
-    if hasattr(signal, "SIGBREAK"):  # Windows Ctrl+Break
-        signal.signal(signal.SIGBREAK, _on_stop_signal)
+    if not check_browser():
+        print("[preflight] The worker will not start without a working browser. "
+              "(SKIP_BROWSER_PREFLIGHT=1 skips this check.)", flush=True)
+        neatlogs.shutdown()
+        sys.exit(3)
+    worker = Worker(
+        AGENT_VERSION, db=db, execute=execute, brain_model=BRAIN_MODEL,
+        health_interval=HEALTH_INTERVAL_SECONDS, health_file=HEALTH_FILE,
+    )
+    worker.install_signal_handlers()
     try:
-        asyncio.run(worker_loop())
+        asyncio.run(worker.run())
     except KeyboardInterrupt:
         print("Stopped immediately.", flush=True)
     finally:

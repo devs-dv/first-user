@@ -628,6 +628,39 @@ Not verified:
 - The eval set (v4) has not been re-run with these changes.
 - `PAGE_READY_TIMEOUT_MS` is now 75 s (was 45 s): herokuapp's pages take 36 s or more in Chrome and twice reached 45 s in a row.
 
+### 2026-10-11 — Slow page changes are not "no effect"; the worker packaged for a Linux server
+
+Part 1: a click whose navigation finished late was logged as an agent issue.
+- **Cause:** after each attempt, `do()` compared the page after a fixed 1.6 s (three checks), and the ladder then clicked again on a page that had already moved. On friction-fixer.shivamtaneja.com every rung read "no effect" while the next step's URL was already `/auth`.
+- **Fix** (`tools.py`):
+  - After each attempt the page is polled every 0.15 s for up to 2 s, exiting at the first change. A URL change counts as a change even when the page looks the same, and once a change is seen the page is given a moment to hold still.
+  - Before climbing to the next rung there is one more look, 1.5 s later, so nothing is clicked again on a page that has moved.
+  - Before an agent issue is recorded there is a final 3 s check. If the page has changed since the action began, the result is a success on the rung that was running (`settled_late: true`), and nothing is recorded.
+- **Tests** (`test_slow_change.py`, 9 tests, all pass): 7 unit tests with a stand-in page (a URL-only change, a change 1 s later, no change, a page that cannot be read mid-navigation, the recheck stopping the ladder, the final check recording nothing, and no change at all still being an agent issue), and 3 live tests with a real Chrome and the real model against a local page whose button navigates client-side after 1 s (DOM replaced, URL only) and after 2.5 s. Each is one click, `changed: true`, rung a, no agent issue.
+- **What the tests do not show:** the live scenarios also pass on the old logic, because Stagehand's `act` already waits a little after the click, and the observe call in rung b takes seconds. Between 3 s and 4.5 s old and new behave alike; at 6 s both click a second time. The new paths are demonstrated by the unit tests. The actual incident's timing is unknown, so whether it is fully fixed needs the real app.
+- **Regression checks:** `check_costs.py` on saucedemo (achieved, 8 steps) and todomvc (achieved, 14 steps), the 3-attempt click measurement (3/3, 12/12 steps changed the page), and the other suites all pass. A genuine no-effect click now takes about 15 s longer to give up on.
+
+Part 2: packaging.
+- `worker/Dockerfile`: `python:3.11-slim-bookworm`, Google Chrome stable from Google's apt repository (and fonts), a non-root user (uid 10001), the 97 pinned dependencies from `worker/requirements.lock.txt`, `CHROME_PATH` so Stagehand finds Chrome, a `HEALTHCHECK` on a heartbeat file, `STOPSIGNAL SIGTERM`. No secret is in the image: the env file is only passed at run time (`.dockerignore` also keeps `.env`, `.venv`, `runs` and the test scripts out).
+- **Settings** (`config.py`): `HEADLESS`, `VIEWPORT_WIDTH` / `VIEWPORT_HEIGHT` (1280x800), `DEVICE_SCALE_FACTOR` (1.0), `CHROME_SANDBOX` (default on), `CLEAN_RUN_FILES`, `AGENT_VERSION`. The viewport is also set explicitly after launch, so a headed window on a scaled laptop display has the same size.
+- **Measured locally:** in headless and in headed mode the page is 1280x800 at scale 1, a coordinate click at (620, 715) lands exactly there, and a screenshot is 1280x800.
+- **Chrome flags** (listed with reasons in `DEPLOY.md`): `--headless`, `--window-size`, `--force-device-scale-factor`, no `--no-sandbox` (see the security review below), `--disable-gpu`, `--disable-dev-shm-usage` (only if `/dev/shm` is under 512 MB), the proxy flags for the egress guard, and the WebRTC policy flag.
+- **Worker loop** (`worker_loop.py`, split out of `main.py`): one health line a minute while idle (state, idle time, runs since start, uptime, agent), a heartbeat file touched every 5 s, and graceful shutdown. SIGTERM, SIGINT or Ctrl+Break finishes and saves the run in progress, claims no further run, and exits 0. A second signal stops at once.
+- `DEPLOY.md`: clone, env file, build, check the image, the `docker run` command (`--env-file`, `--restart unless-stopped`, `--shm-size=1g`, `--init`, `--stop-timeout 600`, `--cap-drop ALL`, log rotation), logs, update, stop, and troubleshooting.
+- **Tests** (`test_server_mode.py`, 14 tests, all pass): health lines at the interval and none during a run, the heartbeat file, SIGTERM idle (exits promptly), SIGTERM during a run (finished and saved, no further claim), a second signal, the Chrome launch options, the health check script, run-file cleanup, and a static check that the Dockerfile has a non-root user, no secrets and an ignore file. All suites together: 76 tests, 12 live tests skipped under `SKIP_LIVE_TESTS=1`.
+- **End to end locally (Windows, server settings, the real queue):** the worker started with `HEADLESS=true CLEAN_RUN_FILES=true` (and, at that point, `CHROME_SANDBOX=false`), logged an idle health line, ran a queued saucedemo visit to `achieved` in 8 steps, removed the run's local files, and exited 0 within half a second of a stop signal.
+- **Prerequisites checked over HTTP:** the base image tag exists, Google's Chrome apt repository and signing key are reachable (amd64 and arm64), and every one of the 97 pinned packages has a Linux wheel for Python 3.11 (25 MB).
+
+Security review finding, fixed: the first image turned Chrome's sandbox off (`CHROME_SANDBOX=false`, so `--no-sandbox`). Chrome runs as the same user as the worker, which holds the API keys in its environment, so a renderer exploit from a hostile page could have read them from `/proc/<pid>/environ`. A non-root user and `--cap-drop ALL` do not prevent that.
+- The sandbox is now **on**. Docker's default seccomp profile only allows `clone` with namespace flags, `unshare`, `setns` and `chroot` to containers that hold `CAP_SYS_ADMIN`/`CAP_SYS_CHROOT`, so the run command passes `worker/chrome-seccomp.json`: Docker's current default profile (fetched from github.com/moby/profiles by `make_chrome_seccomp.py`) with exactly one allow rule appended for those four calls. `mount`, `ptrace`, `pivot_root` and the capabilities stay blocked.
+- **Preflight:** `main.py` starts Chrome once before taking work and logs `[preflight] browser ok ...`. If Chrome cannot start it prints the likely causes (missing seccomp option, a host that forbids unprivileged user namespaces, `CI` set, root) and exits 3. If Chrome would run without its sandbox (`CHROME_SANDBOX=false`, `CI`, root) the line carries `WARNING:`.
+- **Tests:** 7 more in `test_server_mode.py` (the Dockerfile does not disable the sandbox or set `CI`; the profile is the default plus the one rule and allows none of `mount`, `pivot_root`, `ptrace`, `bpf`, `init_module`; the generator refuses an allow-everything source; preflight ok / warns / reports a start failure with the fix). Everything: 83 tests, 12 live skipped; the scan finds no secrets. A real preflight on Windows with the sandbox on reports `browser ok`.
+- **Not verified:** that Chrome's sandbox actually starts inside the container with this profile (needs Docker on Linux), and whether the host's AppArmor/sysctl settings allow unprivileged user namespaces. If they do not, the preflight says so and the options are fixing the host, a separate browser container with no keys, or knowingly accepting `CHROME_SANDBOX=false`.
+
+Not verified:
+- **The image itself:** Docker is not installed on this machine, so `docker build` and `docker run` have not been run. `DEPLOY.md` step 4 lists the checks to run on the server.
+- SIGTERM as such (tested here with `signal.raise_signal` and with Ctrl+Break on Windows, which share the handler); and Chrome on Linux (only Chrome on Windows has been exercised).
+
 ## Demo
 
 - URL: pending
