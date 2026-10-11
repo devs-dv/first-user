@@ -51,7 +51,7 @@ WORKDIR /app
 
 # Dependencies first, so a code change does not reinstall them.
 COPY requirements.lock.txt .
-RUN pip install -r requirements.lock.txt
+RUN pip install --no-deps -r requirements.lock.txt
 
 COPY --chown=worker:worker *.py ./
 
