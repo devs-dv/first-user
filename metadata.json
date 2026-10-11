@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4P28EJSFTMM4M5QJ5HSBVNC",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "NEATLOGS_NOTES.md",
+    "evals/run.py",
+    "evidence/2026-10-11-final/8-cfo-ai-plan.png",
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/runs/[id]/route.ts",
+    "web/app/api/runs/route.ts",
+    "web/app/run-form.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/types.ts",
+    "worker/auth_tools.py",
+    "worker/browse.py",
+    "worker/config.py",
+    "worker/costs.py",
+    "worker/credentials_harness.py",
+    "worker/db.py",
+    "worker/login_diagnosis.py",
+    "worker/report_writer.py",
+    "worker/test_access_modes.py",
+    "worker/test_credentials.py",
+    "worker/test_login_diagnosis.py",
+    "worker/test_report_writer.py",
+    "worker/tools.py",
+    "worker/visit.py",
+    "worker/worker_run.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 214,
+    "cache_creation_tokens": 356213,
+    "cache_read_tokens": 30032175,
+    "output_tokens": 133437,
+    "api_call_count": 107
+  }
+}

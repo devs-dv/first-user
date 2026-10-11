@@ -1,0 +1,18 @@
+<pasted_content id="c7d7">
+Three parts. Do them in order and run the tests after each.
+
+PART 1: login choice on the form. Replace the loose optional fields with one clear choice, "How should the visitor get in?", as four options with a one-line explanation each:
+- No login: look at what is public (default)
+- I have a demo or guest link: shows the Start link field
+- Use a test account: shows Test email and Test password, with the note "Use a throwaway account. Kept only for this run, never shown to the AI, deleted when the run ends."
+- Let it sign up by itself: no fields, with the note "Works for email-and-password signup without email verification."
+Show only the fields for the chosen option. Add a line for apps with only Google or GitHub login: "Use a demo or guest link."
+
+PART 2: sign-in diagnosis. After sign_in or sign_up, verify the result before continuing, and never retry the same credentials more than once. Decide between: signed in, rejected (quote the page's error message and any 401 or 403), needs verification (email code, CAPTCHA or two-factor), or no effect. When not signed in, finish as blocked with that exact reason and evidence. In the report's "How the visitor got in" section, when the visitor used a login that was printed on the page itself, say so, and do not say "No login was used".
+
+PART 3: findings with fix prompts. After a visit ends, add a report-writer step, traced as its own span. From the factual record, the frictions, the page errors, the first-impression review and the verifier's verdict, write at most 5 findings, ranked by how likely each is to stop a new user. Each finding has: a title, a severity, what the visitor expected, what happened, the evidence (step number, screenshot, and the console error or failed request when there is one), the exact steps to reproduce it, a kind (site problem, unclear wording, or hidden error), and a fix prompt: a paste-ready instruction for a coding agent, specific to that page and element. Every finding must point to a step that exists; drop any without evidence. Our own browser-tool failures must never become site findings. On the report page, show findings near the top after the verdict and the first impression, each with a "Copy fix prompt" button.
+
+Also: the first-user-evals workflow span shows status error in neatlogs even when the judge succeeds. Find out why and fix it.
+
+Give me any SQL to run. Update hackathon.md. Do not read or print the env files.
+</pasted_content id="c7d7">
