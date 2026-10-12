@@ -1,0 +1,9 @@
+<pasted_content id="7326">
+Connect Understand and Test into one flow. Presentation and read-only API only: no worker changes, no new SQL unless unavoidable (test runs already store brief_run_id). Keep it within 20 minutes. Respect prefers-reduced-motion. Do not read or print any env file. Do not commit.
+
+1. Report → brief: when a test run has brief_run_id, show at the top of the report "From your brief of {site} ← Back to brief", and after the findings a "Test another journey" block listing the brief's suggested journeys not yet tested, each with "Test this journey".
+2. Brief → progress: on each suggested journey card, if a test run from this brief used that goal, show its status (Running, Got through, Stuck, and so on, using the verdict colours) and link to its report. Add a read-only API that lists runs where brief_run_id = the brief id (id, goal, status, verdict kind only).
+3. Returning visitor: on the home page, a small "Your recent runs" list of the last 10 briefs and reports started from this browser (site, type, status chip, time, link). Store only run ids, kinds, site names and times in localStorage, wrapped in try/catch; never goals with personal data, never logins. Include a "Clear" link. Hide the section when empty.
+4. Keep the test form draft (goal, success condition, way in, but never test login fields) in sessionStorage so a reload doesn't lose it.
+Check at 390 px and 1280 px using brief 8ca3896f-a3d8-475f-b810-5c9b6b98bb9e. Run web tests, typecheck, lint and build.
+</pasted_content id="7326">
