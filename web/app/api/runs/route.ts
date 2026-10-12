@@ -1,3 +1,5 @@
+import { briefExists, recordBrief } from "@/lib/brief-link";
+import { UUID } from "@/lib/brief-logic";
 import { supabase } from "@/lib/supabase";
 import { checkTargetUrl } from "@/lib/target-url";
 import { clientIp, hashIp } from "@/lib/visitor";
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission, access, startUrl, testEmail, testPassword, successCondition } = (body ??
+  const { url, goal, permission, access, startUrl, testEmail, testPassword, successCondition, briefId } = (body ??
     {}) as Record<string, unknown>;
 
   if (permission !== true) {
@@ -49,6 +51,10 @@ export async function POST(request: Request) {
   const success = (successCondition ?? "").replace(/\s+/g, " ").trim();
   if (success.length > MAX_SUCCESS_LENGTH) {
     return fail(400, "success_too_long", `Keep what success looks like under ${MAX_SUCCESS_LENGTH} characters.`);
+  }
+  // A test started from a product brief (Understand mode) says which brief it came from.
+  if (briefId !== undefined && briefId !== null && briefId !== "" && (typeof briefId !== "string" || !UUID.test(briefId))) {
+    return fail(400, "invalid_request", "That brief link is not valid.");
   }
 
   const target = await checkTargetUrl(url);
@@ -142,6 +148,9 @@ export async function POST(request: Request) {
   if (!result.id) {
     console.error("enqueue_web_run returned no id");
     return fail(500, "server_error", "Something went wrong on our side. Please try again in a minute.");
+  }
+  if (typeof briefId === "string" && briefId && (await briefExists(briefId))) {
+    await recordBrief(result.id, briefId);
   }
   return Response.json({ id: result.id }, { status: 201 });
 }

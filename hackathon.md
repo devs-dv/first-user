@@ -865,6 +865,37 @@ Status of each item:
 - Demo video: pending.
 - Nothing has been registered, deployed, or submitted by Claude.
 
+## Understand mode
+
+### 2026-10-12 — "Understand this website": a sourced product brief that feeds the test form
+
+Built on the `understand` branch, separate from the report and run-page work. Not committed.
+
+What it does:
+- A second run kind, `understand`, claimed from the same queue (`runs.kind`). `worker_run.execute` hands it to `understand_run.execute_understand`; a test run is unchanged.
+- `site_reader.py` reads the homepage and up to 8 same-site pages chosen by link text and path (pricing, product, features, about, docs, FAQ, customers, blog index), one of each kind first. Every request goes through the egress guard as an HTTP proxy, so private, loopback, link-local and metadata addresses are refused and every redirect hop is vetted. Limits: robots.txt (and Crawl-delay), 1 s between requests, 9 pages, 600 kB per page, 120 s in all. The browser opens only for a page with under 400 characters of text, at most 3 times.
+- `understand.py` writes the brief with one model call (`product_brief` span; `fetch_page` span per page; `understand_site` root). The model proposes and code decides: a claim needs a source URL that is a page read; "confirmed" needs a quote found in that page; a price is kept only if it is in the cited page; no pricing page and no verified price gives `not_published` with no tiers; the business model is always labelled inferred and needs quoted evidence; a journey must quote the call to action or claim it came from. Missing fields are `unknown`.
+- Web: the home form has "Test my website" / "Understand this website"; `/brief/[id]` shows the brief with every claim's source and status; each suggested journey is editable in place and "Test this journey" opens the test form with url, goal and success prefilled. The test run stores `brief_run_id`. The test form is prefilled from a journey, including the success condition (see the 2026-10-12 note below).
+- SQL: `supabase/schema.sql`, section "Understand mode" (`kind`, `brief`, `brief_run_id`, `enqueue_understand_run`). Must be run before the brief page works.
+
+Verification:
+- 35 new worker tests (`test_understand.py`): no pricing page gives `not_published` and no prices; private addresses (direct, metadata, loopback, a redirect, a link) are refused and never contacted; the page cap holds (9, and 3 when set); every claim has a source URL that was read; robots.txt, delay, byte and time caps; browser only when text is thin. One live test drives real Chrome through the guard.
+- 7 new web tests (`brief-logic.test.ts`). Whole suites: 187 worker tests (24 live skipped with SKIP_LIVE_TESTS=1), 15 web tests, typecheck, lint and `next build` clean, `scan_secrets.py` 0 matches.
+- Two real runs with the model, no queue: plausible.io (6 pages, 4 tiers verified against the homepage's text, 12 claims each with a source, 5 journeys, $0.003) and saucedemo.com (a script-drawn login page: one browser read, "unknown" for who it's for, `not_published`, 1 journey, $0.0006).
+
+Not done / known limits:
+- The brief page was type-checked and the home form's prefill was checked in the built app, but the brief page has not been looked at against a real database row; the SQL has not been run.
+- A running worker from before this change would claim an understand run and treat it as a test run. Run the new worker, or hold the queue, before using the form.
+- "Not published" means no pricing page was linked from the pages read, not that none exists.
+- Word-level quote matching: a model could quote real words in a misleading context. The page link is there to check.
+- No investor or accelerator assessment, competitor analysis or price analysis, by design.
+
+### 2026-10-12 — Success condition and the second pass on the brief page
+
+- **Success is its own value, not part of the goal; merged into the Report v2 field.** The brief's journeys carry `goal` and `success` separately. They reach the home page as `?goal=...&success=...&brief=...`, and the test form's **Report v2 "What does success look like?" input** (`successCondition`, stored as `runs.success_condition` through `enqueue_web_run`) is prefilled from `success`. The success text is never appended to the goal. This branch's own `success` textarea and body field were removed in the merge; `POST /api/runs` takes `successCondition` (main's) and `briefId` (the brief the test came from, stored as `brief_run_id`).
+- **Checked against a real row** (`8ca3896f-a3d8-475f-b810-5c9b6b98bb9e`, plausible.io; made and processed by a one-off script that inserted it as `running`, so no queue claim): at 1280 and 390 px the page has no horizontal scroll; journeys come first, are editable, and the link follows the edited text; claims show status and a source link; pricing, business model, unknowns and pages read display. Fixed from that pass: descriptions were cut mid-word (now cut at a word with an ellipsis), a changelog was read as the product page (changelog, releases and status paths are no longer chosen).
+- **Intermittent hollow briefs, found and fixed.** About half of the model's replies for this site left out `claims`, `pricing` or `suggested_journeys` (a reply that stopped early or hit `max_tokens` at 4000), which showed up as a brief with no claims and no goals. The reply is now checked for every required field and asked for again (up to 3 tries, then the run fails rather than saving a hollow brief); `max_tokens` is 8000 and the prompt asks for a compact answer. Goals that do not quote the pages get one more try with a stricter note.
+
 ## Report v2
 
 *2026-10-12. Own section so it merges cleanly with the work on the "understand" branch. The schema change is the last block of `supabase/schema.sql`, headed REPORT V2.*
@@ -954,3 +985,78 @@ Matching a retest finding to an old one is the same symptom on the same page, or
 - a test proves delivery: a child process asks for `https://ingest.neatlogs.com` explicitly and its spans arrive at the local sink.
 
 **Labels on real traces.** The root span of a visit carries metadata `environment`: `production` for runs the worker takes from the queue, `eval` for runs queued by `evals/run.py` (`source = "eval"`), and `eval` plus `eval_version` on the evals' own root span `first-user-evals`. Scripts run by hand (`run_once.py`, `check_costs.py`, `check_traces.py`) say `development` so `production` means real runs only. neatlogs' public `span()` takes no metadata argument, so it is set on the active span as the `metadata` attribute (`trace_safety.set_metadata`), merged as JSON.
+
+## Founder brief (2026-10-12): a second report from the stored product brief (behind a flag)
+
+A founder-facing read of the same public evidence, in the Understand mode. Not committed.
+
+- **What it is.** `worker/founder_brief.py` writes four sections (executive summary; the opportunity; product and business model; evidence and risks) and a readiness section of six separate dimensions: problem and customer clarity, product differentiation, evidence of demand, distribution, traction evidence, business model clarity. Each dimension has what the public evidence shows (with sources), what is unknown, and a question to be ready for. There is no score, rating, percentage or probability, and no accelerator or investor is named.
+- **Fixed note at the top, always:** "Built only from the public website. It cannot judge the team, real demand, revenue or retention." Set in code (`FOUNDER_NOTE`), shown by the page from its own constant.
+- **No new crawl.** It is written from the stored product brief only (its claims and quotes, prices, business-model evidence, calls to action, pages read). A test makes any fetch fail the build.
+- **The model proposes, code enforces.** Statements carry evidence ids; the source links and quotes come from the stored evidence, never from the model's words, and a statement with no valid id is "unknown". Stated traction can only be a claim the product brief confirmed with a page quote, is shown with that quote and is always labelled "Stated by the company, not verified". Alternatives are kept only if the cited evidence names them. Prices and the business model are copied from the product brief (business model labelled inferred). Risks and "why it may be different" are labelled "Our assessment" and cite the pages they rest on. Any sentence we write that contains a percentage, a score, a rating, a high/medium/low level, odds, an acceptance idea or a named accelerator or investor is dropped.
+- **On demand, traced.** `POST /api/briefs/[id]/founder` queues a run of kind `founder_brief` (`brief_run_id` = the product brief); the worker claims it (`worker_run.execute` dispatches to `founder_brief_run.py`), writes it under a `founder_brief` span and saves it in that run's `brief` column. The page polls `GET /api/briefs/[id]/founder`. Asked again, it reuses the existing one.
+- **Flag.** Off unless `NEXT_PUBLIC_FOUNDER_BRIEF` is on (`on`, `1`, `true`, `yes`); the API routes check it too. With it on, the brief page has a Product brief / Founder brief toggle.
+- **SQL.** `supabase/schema.sql`, section "Founder brief": `runs.kind` also allows `founder_brief`, and `enqueue_founder_brief_run`. It must be run before the toggle can ask for one.
+- **Found on the first real call.** The small model stopped after the first section when given the whole nested schema at once (3 of 3 tries). It is now asked in three smaller parts, each checked for completeness and retried; a real brief of plausible.io then came back whole in 3 calls for $0.003.
+
+Tests: `test_founder_brief.py` (no score, rating or percentage anywhere in the output other than the company's own quoted words and price list; stated traction always labelled and quoted from the stored claim; every statement and traction item cites a page that was read; the fixed note always present, even for a junk reply; no network; incomplete replies retried; the run's lifecycle) and `founder-logic.test.ts` (flag, fixed words).
+
+Limits to know:
+- The company's own words are shown verbatim, so a quote can contain a percentage ("99.99% uptime"); the no-percentage rule is about what we write. Quotes are labelled as the company's.
+- The word filter is a list of patterns, not a judge of meaning: a rating written in an unusual way could pass. The prompt forbids it too.
+- Page text is not stored with the brief, so traction can only come from claims the product brief already confirmed; a figure the brief did not capture is not in the founder brief.
+- The page was typechecked and built but not looked at with a real founder brief row until the SQL is run.
+
+## Feedback loop
+
+*2026-10-12. Backend and eval side only. The report page's buttons and "Check again" are the other session's; nothing in the report page, `run-form.tsx` or the report components was touched.*
+
+### Founder brief checked with real data (run `a0ea121f-56a7-4516-9f9e-1e5ce06b4943`)
+Made by a one-off script (inserted as `running`, so the queue could not claim it, then processed by id) from the plausible.io product brief `8ca3896f-a3d8-475f-b810-5c9b6b98bb9e`; $0.004 (one of its three parts came back short once and was asked again). With `NEXT_PUBLIC_FOUNDER_BRIEF=on`, the Founder brief tab at 1280 px and 390 px: no horizontal scroll, the fixed note, the five sections, all six readiness dimensions each with a "be ready to answer" question, the traction item labelled "Stated by the company, not verified" with its quote, and every source link opens (5 distinct pages, all 200, all `noopener`). One fix: the same page was linked twice in a row ("plausible.io, plausible.io"); sources are now one link per page, in the worker and in the page.
+
+### Feedback storage
+- **Table** `finding_feedback (run_id, finding_id, verdict, ip_hash, created_at)`, primary key `(run_id, finding_id, ip_hash)`: one vote per finding per visitor, and a later vote replaces the earlier one (`record_finding_feedback` upserts and re-dates it). `verdict` is `useful`, `not_a_problem` or `fixed`. The only data about a voter is the keyed IP hash the rate limit already uses. Service role only, RLS on. SQL: the last block of `supabase/schema.sql`, headed FEEDBACK.
+- **Finding ids.** Findings have no id of their own yet. The id of a finding is its own `id` string if it has one (`[A-Za-z0-9_.:-]`, up to 64), otherwise `f` + its position in the run's `findings` list: `f0` is the first. `web/lib/feedback-logic.ts` has `findingIds(findings)`; the report page should use it so the ids match the route's.
+
+### The request and response (for the report page)
+`POST /api/runs/{runId}/feedback`, `Content-Type: application/json`
+
+```json
+{ "findingId": "f0", "verdict": "useful" }
+```
+
+`verdict` is one of `"useful"`, `"not_a_problem"`, `"fixed"`. A visitor may vote again on the same finding; the new vote replaces the old one.
+
+Success, `200`:
+
+```json
+{ "ok": true, "findingId": "f0", "verdict": "useful" }
+```
+
+Errors, each `{ "error": "<code>", "message": "<text for the visitor>" }`:
+
+| status | `error` | when |
+|---|---|---|
+| 400 | `invalid_request` | the body is not JSON |
+| 400 | `invalid_finding` | `findingId` is missing or not a valid id |
+| 400 | `invalid_verdict` | `verdict` is not one of the three |
+| 404 | `not_found` | no such test run (or it is not a test run) |
+| 404 | `finding_not_found` | the run has no finding with that id |
+| 409 | `not_ready` | the run has not finished |
+| 500 | `server_error` | the database call failed |
+
+Responses are `Cache-Control: no-store`. The visitor's own earlier vote is not returned and there is no GET yet; keep the choice in the page's state (and `localStorage` if wanted).
+
+### neatlogs: recorded the vote only
+I looked through the installed neatlogs (1.4.26) for a supported way to attach feedback or a score to an existing trace. Its public API is `init`, `span`, `trace`, `identify`, `wrap`, `log` (a log line inside a *live* span), `inject_trace_context`, `flush`/`shutdown`, the prompt-management functions (`remove_tag` is for prompt versions) and `Client`; there is no feedback, score or annotation call, and a finished trace cannot be reopened for a new span. So **the vote is stored only**, in `finding_feedback`, and nothing was invented. The run's `trace_id` is already on the run, so a vote can be joined to its trace by `run_id` when neatlogs adds such a call.
+
+### Real-world eval cases
+- `python evals/from_run.py <run_id> --expect achieved|broken --note "..."` adds a case to `evals/real_world.json` (id `real_<first 8 of the run id>`): URL, goal, access mode, start link, success condition, expected outcome, note, source run id. `broken` also sets `known_issue` (the note) for the eval's judge. Running it again for the same run replaces the case.
+- **Nothing secret is copied.** The test login is never read (the script selects only the run's own columns, not `run_secrets`); a run that used one gets `needs_test_login: true`. A start link with a user name or a token-like query parameter is dropped and the case gets `needs_start_link: true`. An address, goal or note that looks like it holds a key is refused.
+- `python evals/run.py --version vN --cases real_world|all` (default `sites`) runs them too. A case that needs a login or a start link that was not stored is skipped with a printed reason. Access mode, start link and success condition are queued with the run.
+
+### Feedback report
+`python evals/feedback_report.py` prints the counts of useful, not a real problem and fixed, the false-positive rate (not a real problem divided by all votes), and how many findings voted fixed a later retest labelled Fixed. Retest data is main's `runs.retest` (written by `worker/retest.py`): `{"labels": [{"finding_index", "label", ...}], "new": [...], "original_run_id"}`, where `finding_index` is the position in the original run's findings and `label` is `fixed`, `still_present`, `not_reached` or `inconclusive`. A vote's finding id is built by the same rule as `findingIds()` in `web/lib/feedback-logic.ts` (the finding's own valid `id`, else `f<index>`), so a "fixed" vote on the original run is matched to the same finding's label in its latest retest. If the column does not exist yet, the line says "not available yet".
+
+### Tests
+`worker/test_feedback_loop.py` (19: case from a run, no secrets copied, the `--cases` flag, the report's numbers, the FEEDBACK SQL is last and `enqueue_web_run` is the single live 11-argument one with `p_retest_of` last, the SQL blocks are in order, the route's checks) and `web/lib/feedback-logic.test.ts` (4).

@@ -1,6 +1,7 @@
 """Run the eval set through the real queue and score the results.
 
 Usage: python evals/run.py --version v2 [--compare-to v0 v1] [--only ID ...] [--timeout-minutes 60]
+       [--cases sites|real_world|all]   (real_world.json is made with evals/from_run.py; default sites)
 
 Queues every case in evals/sites.json as a run with source 'eval' (and the version
 label in runs.eval_version when that column exists), waits for the worker, which
@@ -46,6 +47,7 @@ import trace_safety  # noqa: E402
 
 neatlogs.init(api_key=os.environ["NEATLOGS_API_KEY"], workflow_name="first-user-evals", mask=trace_safety.mask)
 
+import cases as case_files  # noqa: E402
 import db  # noqa: E402
 from costs import response_cost  # noqa: E402
 
@@ -75,9 +77,9 @@ JUDGE_TOOL = {
 }
 
 
-def load_cases(only: list[str] | None) -> list[dict]:
-    cases = json.loads((ROOT / "sites.json").read_text(encoding="utf-8"))["cases"]
-    return [case for case in cases if not only or case["id"] in only]
+def load_cases(only: list[str] | None, which: str = "sites") -> list[dict]:
+    """The cases of sites.json (default), real_world.json or both; see cases.py."""
+    return case_files.load_cases(only, which)
 
 
 async def has_eval_version_column(client) -> bool:
@@ -106,6 +108,11 @@ async def queue(client, cases: list[dict], version: str, with_label: bool) -> di
     run_ids = {}
     for case in cases:
         row = {"url": case["url"], "goal": case["goal"], "source": "eval"}
+        # Real-world cases can carry how the visitor gets in and what success looks like. Never a login:
+        # a case that needs one is not queued (see main).
+        for key in ("access_mode", "start_url", "success_condition"):
+            if case.get(key):
+                row[key] = case[key]
         if with_label:
             row["eval_version"] = version
         inserted = (await client.table("runs").insert(row).execute()).data[0]
@@ -374,10 +381,17 @@ def comparison(results: list[dict]) -> str:
 # UNSET even though every span under it succeeded; the dashboard shows that as an error. A span made by
 # @neatlogs.span ends OK, or ERROR if the run raises. All judge calls also land in this one trace.
 @neatlogs.span(kind="WORKFLOW", name="first-user-evals", capture_input=False)
-async def main(version: str, only: list[str] | None, timeout_minutes: float, compare_to: list[str]) -> None:
-    trace_safety.set_input(version=version, only=only or [], timeout_minutes=timeout_minutes, compare_to=compare_to)
+async def main(version: str, only: list[str] | None, timeout_minutes: float, compare_to: list[str],
+               which: str = "sites") -> None:
+    trace_safety.set_input(version=version, only=only or [], timeout_minutes=timeout_minutes, compare_to=compare_to,
+                           cases=which)
     trace_safety.set_metadata(environment="eval", eval_version=version)
-    cases = load_cases(only)
+    cases = load_cases(only, which)
+    for case in [c for c in cases if not case_files.runnable(c)[0]]:
+        print(f"skipping {case['id']}: {case_files.runnable(case)[1]}", flush=True)
+    cases = [case for case in cases if case_files.runnable(case)[0]]
+    if not cases:
+        raise SystemExit("No runnable cases.")
     client = await db.client()
     with_label = await has_eval_version_column(client)
     if not with_label:
@@ -436,11 +450,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Queue the eval cases, wait for the worker and score them.")
     parser.add_argument("--version", required=True)
     parser.add_argument("--only", nargs="*", help="case ids to run (default: all)")
+    parser.add_argument("--cases", choices=["sites", "real_world", "all"], default="sites",
+                        help="which case file: sites.json (default), real_world.json (from evals/from_run.py) or both")
     parser.add_argument("--timeout-minutes", type=float, default=60)
     parser.add_argument("--compare-to", nargs="*", default=[], help="earlier versions to show side by side, oldest first")
     args = parser.parse_args()
     try:
-        asyncio.run(main(args.version, args.only, args.timeout_minutes, args.compare_to))
+        asyncio.run(main(args.version, args.only, args.timeout_minutes, args.compare_to, args.cases))
     finally:
         neatlogs.flush()
         neatlogs.shutdown()

@@ -26,7 +26,10 @@ const TITLES: Record<string, string> = {
   server_error: "Something went wrong",
 };
 
-export function RunForm() {
+// What the form starts with: empty, or filled from a suggested journey on a product brief.
+export type RunFormInitial = { url: string; goal: string; success: string; brief: string };
+
+export function RunForm({ initial }: { initial?: RunFormInitial }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<FormError | null>(null);
@@ -68,6 +71,7 @@ export function RunForm() {
         body: JSON.stringify({
           url,
           goal,
+          briefId: initial?.brief || undefined,
           permission,
           successCondition: successCondition || undefined,
           access,
@@ -122,6 +126,7 @@ export function RunForm() {
           inputMode="url"
           autoComplete="url"
           placeholder="https://yourapp.com"
+          defaultValue={initial?.url}
           required
           aria-invalid={error?.field === "url"}
           aria-describedby={error?.field === "url" ? "url-error" : undefined}
@@ -144,6 +149,7 @@ export function RunForm() {
           rows={2}
           maxLength={500}
           placeholder="For example: sign up and create your first project"
+          defaultValue={initial?.goal}
           aria-describedby="goal-hint"
           className={inputClass}
         />
@@ -162,6 +168,7 @@ export function RunForm() {
           type="text"
           maxLength={300}
           placeholder="For example: a project appears in the dashboard"
+          defaultValue={initial?.success}
           aria-describedby="success-hint"
           className={inputClass}
         />

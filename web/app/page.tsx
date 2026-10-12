@@ -1,6 +1,10 @@
-import { RunForm } from "./run-form";
+import { Suspense } from "react";
 
-export default function Home() {
+import { parseHomeParams } from "@/lib/brief-logic";
+
+import { HomeForm } from "./home-form";
+
+export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <div className="space-y-10">
       <section className="space-y-4">
@@ -9,11 +13,16 @@ export default function Home() {
         </h1>
         <p className="text-lg text-muted">
           You get a step-by-step report with screenshots, the moments they were confused, and whether they reached
-          the goal.
+          the goal. Or start by understanding a site: a short, sourced brief with goals worth testing.
         </p>
       </section>
 
-      <RunForm />
+      <Suspense fallback={<p className="text-muted">Loading the form…</p>}>
+        {searchParams.then((raw) => {
+          const { mode, ...initial } = parseHomeParams(raw);
+          return <HomeForm mode={mode} initial={initial} />;
+        })}
+      </Suspense>
 
       <section className="space-y-2 rounded-xl border border-line bg-surface p-5 text-sm text-muted">
         <h2 className="font-medium text-foreground">What happens when you submit</h2>

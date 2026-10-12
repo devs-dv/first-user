@@ -390,6 +390,148 @@ revoke execute on function public.enqueue_web_run(text, text, text, integer, int
 grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text)
   to service_role;
 
+-- ---------------------------------------------------------------------------
+-- Understand mode (2026-10-12): "Understand this website" writes a sourced product brief. Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- A run is a 'test' (the visit, as before) or an 'understand' run (read a few pages, write a brief).
+-- The worker's claim_run() claims both; it reads kind to decide what to do.
+alter table public.runs add column if not exists kind text not null default 'test'
+  check (kind in ('test', 'understand'));
+
+-- The brief, as JSON, on the understand run itself. A site that could not be read gets
+-- {"status": "could_not_read", "message": "..."} here and status 'failed'.
+alter table public.runs add column if not exists brief jsonb;
+
+-- For a test run started from a brief: the understand run (the brief) it came from.
+alter table public.runs add column if not exists brief_run_id uuid
+  references public.runs (id) on delete set null;
+
+create index if not exists runs_brief_run_id_idx on public.runs (brief_run_id) where brief_run_id is not null;
+
+-- Queue an understand run from the web app, under the same two limits as test runs (the queue and the
+-- per-visitor hour), in one transaction. Returns {"id": ...} or {"error": ...}.
+create or replace function public.enqueue_understand_run(
+  p_url text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs
+  where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object(
+      'error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer
+    );
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, kind, access_mode)
+  values (p_url, 'Understand this website', 'web', p_ip_hash, 'understand', 'public')
+  returning id into new_id;
+
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_understand_run(text, text, integer, integer)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_understand_run(text, text, integer, integer) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Founder brief (2026-10-12): a second report from a stored product brief. Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- A founder brief is its own run of kind 'founder_brief': brief_run_id points at the product brief it was
+-- written from, and the finished report is saved in its `brief` column. The worker claims it like any run
+-- and fetches nothing: it writes from the stored product brief.
+alter table public.runs drop constraint if exists runs_kind_check;
+alter table public.runs add constraint runs_kind_check
+  check (kind in ('test', 'understand', 'founder_brief'));
+
+-- Ask for a founder brief of a finished product brief. If one is already queued, running or done for it,
+-- its id is returned (and no new run or limit is used). Otherwise the same queue and per-visitor limits
+-- as other runs apply. Returns {"id": ...}, or {"error": "no_brief" | "queue_full" | "rate_limited"}.
+create or replace function public.enqueue_founder_brief_run(
+  p_brief_id uuid,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  source_url text;
+  existing_id uuid;
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select url into source_url from public.runs
+  where id = p_brief_id and kind = 'understand' and status = 'done' and brief is not null;
+  if source_url is null then
+    return jsonb_build_object('error', 'no_brief');
+  end if;
+
+  select id into existing_id from public.runs
+  where brief_run_id = p_brief_id and kind = 'founder_brief' and status in ('queued', 'running', 'done')
+  order by created_at desc limit 1;
+  if existing_id is not null then
+    return jsonb_build_object('id', existing_id);
+  end if;
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs
+  where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object(
+      'error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer
+    );
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, kind, access_mode, brief_run_id)
+  values (source_url, 'Founder brief', 'web', p_ip_hash, 'founder_brief', 'public', p_brief_id)
+  returning id into new_id;
+
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_founder_brief_run(uuid, text, integer, integer)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_founder_brief_run(uuid, text, integer, integer) to service_role;
+
 -- ===========================================================================
 -- CHECK AGAIN (2026-10-12): re-run the same journey after a fix. Safe to re-run.
 -- Own block, last in the file.
@@ -467,3 +609,48 @@ revoke execute on function public.enqueue_web_run(text, text, text, integer, int
   from public, anon, authenticated;
 grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text, uuid)
   to service_role;
+
+-- ===========================================================================
+-- FEEDBACK (2026-10-12): did a finding help? One vote per finding per visitor. Safe to re-run.
+-- Own block, last in the file, so it merges cleanly with other changes to this file.
+-- ===========================================================================
+
+-- The only data kept about a voter is the keyed IP hash the rate limit already uses (never the address).
+create table if not exists public.finding_feedback (
+  run_id     uuid not null references public.runs (id) on delete cascade,
+  finding_id text not null check (char_length(finding_id) between 1 and 64),
+  verdict    text not null check (verdict in ('useful', 'not_a_problem', 'fixed')),
+  ip_hash    text not null,
+  created_at timestamptz not null default now(),
+  -- one vote per finding per visitor: a later vote replaces the earlier one
+  primary key (run_id, finding_id, ip_hash)
+);
+
+create index if not exists finding_feedback_verdict_idx on public.finding_feedback (verdict);
+
+-- Service role only, like the other tables.
+alter table public.finding_feedback enable row level security;
+revoke all on table public.finding_feedback from anon, authenticated;
+grant select, insert, update, delete on table public.finding_feedback to service_role;
+
+-- Record a vote, replacing this visitor's earlier vote on the same finding (and dating it now).
+create or replace function public.record_finding_feedback(
+  p_run_id uuid,
+  p_finding_id text,
+  p_verdict text,
+  p_ip_hash text
+)
+returns void
+language sql
+security invoker
+set search_path = ''
+as $$
+  insert into public.finding_feedback (run_id, finding_id, verdict, ip_hash)
+  values (p_run_id, p_finding_id, p_verdict, p_ip_hash)
+  on conflict (run_id, finding_id, ip_hash)
+  do update set verdict = excluded.verdict, created_at = now();
+$$;
+
+revoke execute on function public.record_finding_feedback(uuid, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.record_finding_feedback(uuid, text, text, text) to service_role;
