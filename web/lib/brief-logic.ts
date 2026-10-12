@@ -1,11 +1,19 @@
 // Small rules of the brief page and of starting a test from it, kept apart from the components so they
 // can be tested with Node alone (npm test). Types only are imported: no runtime dependencies.
 
-import type { Brief, BriefClaim, BriefFailure, ClaimStatus } from "./brief-types.ts";
+import type { Brief, BriefClaim, BriefFailure, ClaimStatus, HiddenTextNote } from "./brief-types.ts";
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_GOAL_LENGTH = 500;
 export const MAX_SUCCESS_LENGTH = 300;
+
+// The record of hidden text a brief carries, or null. Only its presence matters: the page shows its own fixed
+// notice (HIDDEN_TEXT_NOTICE), never wording from the data, and the record holds no page text.
+export function hiddenTextNote(value: unknown): HiddenTextNote | null {
+  const note = (value as { hidden_text?: HiddenTextNote | null } | null)?.hidden_text;
+  if (!note || typeof note !== "object" || !Array.isArray(note.found) || note.found.length === 0) return null;
+  return note;
+}
 
 export function isBrief(value: unknown): value is Brief {
   const brief = value as Brief | null;

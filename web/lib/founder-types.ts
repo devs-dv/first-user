@@ -1,5 +1,7 @@
 // Shapes of a founder brief (worker/founder_brief.py writes it; /api/briefs/[id]/founder returns it).
 
+import type { HiddenTextNote } from "./brief-types.ts";
+
 // Fixed: the worker writes the same text, and the page shows this one whatever the data says.
 export const FOUNDER_NOTE =
   "Built only from the public website. It cannot judge the team, real demand, revenue or retention.";
@@ -30,6 +32,7 @@ export type FounderBrief = {
   note: string;
   url: string;
   source_brief_id: string | null;
+  hidden_text?: HiddenTextNote | null;
   executive_summary: Record<"building" | "for_whom" | "problem" | "solution" | "business_model", FounderStatement>;
   opportunity: {
     problem: FounderStatement;

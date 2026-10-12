@@ -29,6 +29,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 import httpx
 import neatlogs
 
+import hidden_text
 import trace_safety
 from egress import EgressGuard
 
@@ -76,6 +77,105 @@ NOT_HTML_PATH = re.compile(
 _SKIPPED = {"script", "style", "noscript", "template", "svg", "head", "iframe", "canvas"}
 _BLOCKS = {"p", "div", "br", "li", "ul", "ol", "tr", "table", "section", "article", "header", "footer", "main",
            "nav", "aside", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "form", "dt", "dd", "hr"}
+_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+MAX_HIDDEN_CHARS = 1500  # of one hidden block kept in memory for matching; never put in a brief
+
+# Text a person cannot see (or that is for assistive technology only) is not read: the model that writes the
+# brief must see what a visitor sees. See hidden_text.py for the same rules applied to a live page.
+#   definite   dropped whatever it says: display:none, visibility:hidden, the hidden attribute, aria-hidden,
+#              opacity near 0, font-size near 0, off-screen offsets, clipped to a pixel, HTML comments
+#   ambiguous  same colour as the background: dropped only if it reads like an instruction to an AI, because
+#              the background may be set by a stylesheet this reader never fetched
+# Only hidden text that reads like an instruction is *recorded* (page address and how it was hidden).
+
+_NAMED_COLOURS = {"white": (255, 255, 255), "black": (0, 0, 0)}
+
+
+def _colour(value: str | None) -> tuple[int, int, int] | None:
+    """A CSS colour as (r, g, b), or None when it is transparent or not understood."""
+    v = (value or "").strip().lower().replace("!important", "").strip()
+    if v in _NAMED_COLOURS:
+        return _NAMED_COLOURS[v]
+    match = re.fullmatch(r"#([0-9a-f])([0-9a-f])([0-9a-f])", v)
+    if match:
+        return tuple(int(c * 2, 16) for c in match.groups())
+    match = re.fullmatch(r"#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})?", v)
+    if match:
+        if match.group(4) is not None and int(match.group(4), 16) < 26:
+            return None
+        return tuple(int(c, 16) for c in match.groups()[:3])
+    match = re.fullmatch(r"rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:[\s,/]+([\d.]+%?))?\s*\)", v)
+    if match:
+        alpha = match.group(4)
+        if alpha is not None:
+            value_ = float(alpha[:-1]) / 100 if alpha.endswith("%") else float(alpha)
+            if value_ < 0.1:
+                return None
+        return tuple(min(255, int(c)) for c in match.groups()[:3])
+    return None
+
+
+def _declarations(text: str) -> dict[str, str]:
+    props: dict[str, str] = {}
+    for part in text.split(";"):
+        name, sep, value = part.partition(":")
+        if sep and name.strip():
+            props[name.strip().lower()] = value.replace("!important", "").strip().lower()
+    return props
+
+
+def _parse_css(css: str) -> dict[str, dict[str, str]]:
+    """Rules of a <style> block whose selector is one class, one id, or body/html (comma lists allowed).
+    Media and other at-rules are ignored, since whether they apply is not known."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = re.sub(r"@[a-zA-Z-]+[^{;]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", css)
+    rules: dict[str, dict[str, str]] = {}
+    for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        props = _declarations(body)
+        for selector in selectors.split(","):
+            selector = selector.strip().lower()
+            if re.fullmatch(r"\.[a-z0-9_-]+|#[a-z0-9_-]+|body|html", selector):
+                rules.setdefault(selector, {}).update(props)
+    return rules
+
+
+def _length_px(value: str) -> float | None:
+    match = re.fullmatch(r"(-?[\d.]+)\s*(px|em|rem|pt|vw|vh|%)?", value.strip())
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = match.group(2) or "px"
+    return number * {"px": 1, "pt": 1.33, "em": 16, "rem": 16, "vw": 12, "vh": 8, "%": 8}[unit]
+
+
+def _definite_hiding(props: dict[str, str]) -> str | None:
+    """How these declarations hide an element's text from a person, or None."""
+    if props.get("display") == "none":
+        return "display_none"
+    if props.get("visibility") in ("hidden", "collapse"):
+        return "visibility_hidden"
+    try:
+        if "opacity" in props and float(props["opacity"]) < 0.05:
+            return "transparent"
+    except ValueError:
+        pass
+    size = _length_px(props["font-size"]) if "font-size" in props else None
+    if size is not None and size < 3:
+        return "tiny_text"
+    for name in ("left", "right", "top", "bottom", "margin-left", "margin-top", "text-indent"):
+        offset = _length_px(props[name]) if name in props else None
+        if offset is not None and offset <= -500:
+            return "off_screen"
+    clipped = props.get("overflow") in ("hidden", "clip") or props.get("overflow-x") == "hidden"
+    width = _length_px(props["width"]) if "width" in props else None
+    height = _length_px(props["height"]) if "height" in props else None
+    if clipped and ((width is not None and width <= 2) or (height is not None and height <= 2)):
+        return "clipped"
+    if re.search(r"rect\(\s*0(px)?[\s,]+0(px)?[\s,]+0(px)?[\s,]+0(px)?\s*\)", props.get("clip", "")):
+        return "clipped"
+    if props.get("clip-path", "").startswith("inset(50%") or props.get("clip-path", "").startswith("inset(100%"):
+        return "clipped"
+    return None
 
 
 @dataclass
@@ -85,6 +185,9 @@ class ParsedPage:
     headings: list[str] = field(default_factory=list)
     text: str = ""
     links: list[tuple[str, str]] = field(default_factory=list)  # (absolute url, link text)
+    # Hidden text that reads like an instruction to an AI: [{"method", "text"}]. The text is for matching in
+    # memory only; PageRead.meta() and the brief keep the method and a count, never the text.
+    hidden: list[dict] = field(default_factory=list)
 
 
 class _Extractor(HTMLParser):
@@ -96,19 +199,71 @@ class _Extractor(HTMLParser):
         self.headings: list[str] = []
         self.chunks: list[str] = []
         self.links: list[tuple[str, str]] = []
+        self.hidden: list[dict] = []
+        self.rules: dict[str, dict[str, str]] = {}
         self._skip_depth = 0
         self._in_title = False
+        self._in_style = False
+        self._css: list[str] = []
         self._heading: list[str] | None = None
         self._link: tuple[str, list[str]] | None = None
+        self._stack: list[dict] = []
+        self._hidden_root: int | None = None  # stack index of the outermost definitely hidden element
+        self._hidden_method = ""
+        self._hidden_buffer: list[str] = []
+        self._ambiguous_root: int | None = None  # same colour as its background
+        self._ambiguous_buffer: list[str] = []
 
-    def handle_starttag(self, tag, attrs):
-        attributes = {name: value or "" for name, value in attrs}
+    # -- what a person sees ------------------------------------------------------------------------------
+    def _props(self, tag: str, attributes: dict[str, str]) -> dict[str, str]:
+        props: dict[str, str] = {}
+        if tag in ("body", "html") and tag in self.rules:
+            props.update(self.rules[tag])
+        for name in attributes.get("class", "").lower().split():
+            props.update(self.rules.get("." + name, {}))
+        if attributes.get("id"):
+            props.update(self.rules.get("#" + attributes["id"].lower(), {}))
+        props.update(_declarations(attributes.get("style", "")))
+        return props
+
+    def _inherited(self, key: str):
+        for entry in reversed(self._stack):
+            if entry.get(key) is not None:
+                return entry[key]
+        return None
+
+    def _note_hidden(self, method: str, text: str) -> None:
+        text = " ".join(text.split())
+        if text and hidden_text.is_instruction_like(text):
+            self.hidden.append({"method": method, "text": text[:MAX_HIDDEN_CHARS]})
+
+    def _emit(self, data: str) -> None:
+        self.chunks.append(data)
+        if self._heading is not None:
+            self._heading.append(data)
+        if self._link is not None:
+            self._link[1].append(data)
+
+    # -- parser events -----------------------------------------------------------------------------------
+    def handle_comment(self, data):
+        # Never part of the text; recorded when it reads like an instruction to an AI.
+        self._note_hidden("html_comment", data)
+
+    def handle_starttag(self, tag, attributes_list):
+        attributes = {name: value or "" for name, value in attributes_list}
         if tag == "title":
             self._in_title = True
+        elif tag == "style":
+            self._in_style = True
+            self._css = []
         elif tag == "meta":
             name = (attributes.get("name") or attributes.get("property") or "").lower()
             if name in ("description", "og:description") and not self.description:
-                self.description = attributes.get("content", "")
+                content = attributes.get("content", "")
+                if hidden_text.is_instruction_like(content):
+                    self._note_hidden("meta", content)
+                else:
+                    self.description = content
         if tag == "body":
             self._skip_depth = 0  # a head that was never closed must not hide the page
         if tag in _SKIPPED:
@@ -116,20 +271,72 @@ class _Extractor(HTMLParser):
             return
         if self._skip_depth:
             return
+        if tag not in _VOID:
+            self._open(tag, attributes)
+        if self._hidden_root is not None or self._ambiguous_root is not None:
+            if tag in _BLOCKS and self._ambiguous_root is not None and self._hidden_root is None:
+                self._ambiguous_buffer.append("\n")
+            return
         if tag in _BLOCKS:
             self.chunks.append("\n")
         if tag in ("h1", "h2", "h3"):
             self._heading = []
         if tag == "a" and attributes.get("href"):
-            self._link = (attributes["href"], [attributes.get("aria-label", "")])
+            label = attributes.get("aria-label", "")
+            if hidden_text.is_instruction_like(label):
+                self._note_hidden("attribute", label)
+                label = ""
+            self._link = (attributes["href"], [label])
+
+    def _open(self, tag: str, attributes: dict[str, str]) -> None:
+        props = self._props(tag, attributes)
+        method = None
+        if "hidden" in attributes and tag != "input":
+            method = "hidden_attribute"
+        elif attributes.get("aria-hidden", "").lower() == "true":
+            method = "aria_hidden"
+        else:
+            method = _definite_hiding(props)
+        colour = _colour(props.get("color")) if "color" in props else None
+        background = _colour(props.get("background-color") or props.get("background")) \
+            if ("background-color" in props or "background" in props) else None
+        self._stack.append({"tag": tag, "colour": colour, "background": background})
+        index = len(self._stack) - 1
+        if self._hidden_root is None and method is not None:
+            self._hidden_root, self._hidden_method, self._hidden_buffer = index, method, []
+            return
+        if self._hidden_root is None and self._ambiguous_root is None and (colour or background):
+            text_colour = colour or self._inherited_before("colour", index)
+            behind = background or self._inherited_before("background", index) or (255, 255, 255)
+            if text_colour and all(abs(a - b) <= 12 for a, b in zip(text_colour, behind)):
+                self._ambiguous_root, self._ambiguous_buffer = index, []
+
+    def _inherited_before(self, key: str, index: int):
+        for entry in reversed(self._stack[:index]):
+            if entry.get(key) is not None:
+                return entry[key]
+        return None
 
     def handle_endtag(self, tag):
         if tag == "title":
             self._in_title = False
+        if tag == "style":
+            self._in_style = False
+            for selector, props in _parse_css("".join(self._css)).items():
+                self.rules.setdefault(selector, {}).update(props)
+            self._css = []
         if tag in _SKIPPED:
             self._skip_depth = max(0, self._skip_depth - 1)
             return
         if self._skip_depth:
+            return
+        if tag not in _VOID:
+            self._close(tag)
+        if self._hidden_root is not None:
+            return
+        if self._ambiguous_root is not None:
+            if tag in _BLOCKS:
+                self._ambiguous_buffer.append("\n")
             return
         if tag in _BLOCKS:
             self.chunks.append("\n")
@@ -147,26 +354,64 @@ class _Extractor(HTMLParser):
             except ValueError:
                 pass
 
+    def _close(self, tag: str) -> None:
+        """Pop the open elements down to `tag`, finishing any hidden or same-colour run that ends here."""
+        names = [entry["tag"] for entry in self._stack]
+        if tag not in names:
+            return
+        while self._stack:
+            index = len(self._stack) - 1
+            entry = self._stack.pop()
+            if self._hidden_root == index:
+                self._note_hidden(self._hidden_method, "".join(self._hidden_buffer))
+                self._hidden_root, self._hidden_buffer = None, []
+            if self._ambiguous_root == index:
+                text = "".join(self._ambiguous_buffer)
+                if hidden_text.is_instruction_like(" ".join(text.split())):
+                    self._note_hidden("same_colour_as_background", text)
+                else:
+                    for piece in self._ambiguous_buffer:
+                        self._emit(piece)
+                self._ambiguous_root, self._ambiguous_buffer = None, []
+            if entry["tag"] == tag:
+                break
+
     def handle_data(self, data):
+        if self._in_style:
+            self._css.append(data)
         if self._in_title:
             self.title_parts.append(data)
         if self._skip_depth:
             return
-        self.chunks.append(data)
-        if self._heading is not None:
-            self._heading.append(data)
-        if self._link is not None:
-            self._link[1].append(data)
+        if self._hidden_root is not None:
+            self._hidden_buffer.append(data)
+            return
+        if self._ambiguous_root is not None:
+            self._ambiguous_buffer.append(data)
+            return
+        self._emit(data)
+
+    def finish(self) -> None:
+        """Close what the markup left open, so a run of hidden text that never ended is still handled."""
+        while self._stack:
+            self._close(self._stack[-1]["tag"])
 
 
 def parse_html(html: str, base_url: str) -> ParsedPage:
-    """Title, description, headings, visible text and links of an HTML page. Never raises."""
+    """Title, description, headings, visible text and links of an HTML page. Never raises.
+
+    Text a person cannot see is left out (see the note above `_SKIPPED`); hidden text that reads like an
+    instruction to an AI is listed in `hidden`, so the caller can say it was there without repeating it."""
     extractor = _Extractor(base_url)
     try:
         extractor.feed(html)
         extractor.close()
     except Exception:
         pass  # keep whatever was read before the markup broke
+    try:
+        extractor.finish()
+    except Exception:
+        pass
     lines, seen = [], set()
     for raw in "".join(extractor.chunks).split("\n"):
         line = " ".join(raw.split())
@@ -178,12 +423,17 @@ def parse_html(html: str, base_url: str) -> ParsedPage:
                 continue
             seen.add(line)
         lines.append(line)
+    title = " ".join("".join(extractor.title_parts).split())[:200]
+    if hidden_text.is_instruction_like(title):
+        extractor._note_hidden("title", title)
+        title = ""
     return ParsedPage(
-        title=" ".join("".join(extractor.title_parts).split())[:200],
+        title=title,
         description=" ".join(extractor.description.split())[:400],
         headings=extractor.headings[:30],
         text="\n".join(lines)[:MAX_TEXT_CHARS],
         links=extractor.links,
+        hidden=extractor.hidden[:50],
     )
 
 
@@ -298,11 +548,16 @@ class PageRead:
     status: int
     bytes: int
     links: list[tuple[str, str]] = field(default_factory=list)
+    # Hidden instruction-like text found on the page, [{"method", "text"}], for matching in memory only.
+    hidden: list[dict] = field(default_factory=list)
 
     def meta(self) -> dict:
         """What the trace and the brief keep about a page: never its text."""
-        return {"url": self.url, "kind": self.kind, "title": self.title, "method": self.method,
+        meta = {"url": self.url, "kind": self.kind, "title": self.title, "method": self.method,
                 "status": self.status, "bytes": self.bytes, "text_chars": len(self.text)}
+        if self.hidden:
+            meta["hidden_text_blocks"] = len(self.hidden)
+        return meta
 
 
 @dataclass
@@ -320,6 +575,7 @@ class BrowserRenderer:
 
     def __init__(self):
         self._opened = None
+        self.last_hidden: list[dict] = []
 
     async def render(self, url: str) -> str:
         """The page's HTML after scripts ran. Raises SiteRefused if the browser's guard refused something."""
@@ -334,6 +590,9 @@ class BrowserRenderer:
         if guard.blocks:
             raise SiteRefused(guard.block_reason() or "The browser refused an address.")
         await _settle(page)
+        # Hidden instruction-like text is emptied in the live page first (computed styles included), so the HTML
+        # returned does not carry it; what was found is kept for the caller.
+        self.last_hidden = await hidden_text.sweep_items(page)
         return await page.evaluate("document.documentElement.outerHTML")
 
     async def close(self) -> None:
@@ -513,8 +772,13 @@ class SiteDiscovery:
             try:
                 rendered = await asyncio.wait_for(self.renderer.render(fetched.url), max(5.0, self.seconds_left))
                 again = parse_html(rendered, fetched.url)
+                # what the browser's sweep emptied is evidence too, whichever read is kept
+                again.hidden += [dict(item) for item in getattr(self.renderer, "last_hidden", []) or []]
                 if len(again.text) > len(parsed.text):
+                    again.hidden += [item for item in parsed.hidden if item not in again.hidden]
                     parsed, method = again, "browser"
+                else:
+                    parsed.hidden += [item for item in again.hidden if item not in parsed.hidden]
             except SiteRefused as refusal:
                 self.result.stopped = str(refusal)
             except Exception as error:  # a render that fails leaves the page as the plain fetch saw it
@@ -522,6 +786,7 @@ class SiteDiscovery:
         return PageRead(
             url=fetched.url, kind=kind, title=parsed.title, description=parsed.description, headings=parsed.headings,
             text=parsed.text, method=method, status=fetched.status, bytes=len(fetched.body), links=parsed.links,
+            hidden=parsed.hidden,
         )
 
     async def run(self) -> SiteRead:

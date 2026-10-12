@@ -146,3 +146,6 @@ feedback for the neatlogs team, and a nice specific example:
 
 
 - **Redaction changes prompts as displayed.** Our system prompt says "Never use Google, GitHub, Apple … login"; the trace shows "Never use , , , or any other third-party login". The stored prompt no longer matches what the model received, which makes debugging prompts from traces unreliable. Same run: "Thank you for your order!" shown as "<ORGANIZATION> you for your order!", and a "Username" field shown as "<PERSON>". Trace 8862b1ebaf4b29d646bda39dc42278fa.
+
+## 2026-10-12: Incidents flagged our output-less guard spans
+- neatlogs Incidents flagged our output-less guard spans ("Egress host check requests finish with empty replies", 61 records); fixed by recording each decision: one `egress_check` GUARDRAIL span per host per run, with output `{host, port, decision, reason}`.

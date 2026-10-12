@@ -25,6 +25,7 @@ import trace_safety
 from config import VERIFIER_MODEL
 from costs import TokenTally
 from egress import EgressGuard, summary_span
+import hidden_text
 from site_reader import BrowserRenderer, PageRead, SiteDiscovery, SiteRead, normalise
 
 UNDERSTAND_MODEL = os.environ.get("UNDERSTAND_MODEL", VERIFIER_MODEL)
@@ -223,6 +224,12 @@ def _price_in_text(price: str, text: str) -> bool:
 def build_brief(raw: dict, site: SiteRead, url: str) -> dict:
     """The brief in a fixed shape, with everything checked against the pages that were read."""
     raw = raw if isinstance(raw, dict) else {}
+    # Hidden instruction-like text was already left out of what the model read (site_reader). Whatever the model
+    # wrote that still repeats instruction-like wording, or a sentence of that hidden text, is removed here,
+    # before the checks, so nothing built on it can survive.
+    hidden = [item for page in site.pages for item in page.hidden]
+    fragments = hidden_text.fragments_of(hidden)
+    raw = hidden_text.sanitize(raw, fragments=fragments, level="brief", removed="")
     pages = _Pages(site.pages)
     unknowns = [_clip(item, MAX_SHORT) for item in (raw.get("unknowns") or []) if _clip(item, MAX_SHORT)][:MAX_UNKNOWNS]
     has_pricing_page = any(page.kind == "pricing" for page in site.pages)
@@ -315,7 +322,7 @@ def build_brief(raw: dict, site: SiteRead, url: str) -> dict:
         unknowns.append("Only the homepage could be read, so the rest of the site is unknown.")
     unknowns = list(dict.fromkeys(unknowns))[:MAX_UNKNOWNS + 3]
 
-    return {
+    brief = {
         "version": BRIEF_VERSION,
         "url": url,
         "one_liner": _field(raw.get("one_liner"), MAX_SHORT),
@@ -331,7 +338,16 @@ def build_brief(raw: dict, site: SiteRead, url: str) -> dict:
         "pages": [page.meta() for page in site.pages],
         "skipped": site.skipped[:20],
         "limits": {"seconds": site.seconds, "browser_reads": site.renders, "stopped": site.stopped},
+        # Set when a page held text hidden from people that was addressed to AI agents: the fixed notice and where
+        # it was found, never the text.
+        "hidden_text": ({"notice": hidden_text.NOTICE,
+                         "found": hidden_text.evidence_by_page(
+                             {page.url: page.hidden for page in site.pages if page.hidden})}
+                        if hidden else None),
     }
+    # Every field once more: the claims, quotes and journeys are built from page text and model text.
+    return hidden_text.sanitize(brief, _skip={"pages", "skipped", "limits", "version"}, fragments=fragments,
+                                level="brief", removed="")
 
 
 # ----------------------------------------------------------------------------------- the model call

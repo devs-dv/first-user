@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
+import { hiddenTextNote } from "@/lib/brief-logic";
 import { grid } from "@/lib/css";
 import {
   ASSESSMENT_LABEL,
@@ -15,6 +16,7 @@ import {
   type FounderStatement,
 } from "@/lib/founder-types";
 
+import { HiddenTextNotice } from "./hidden-text-notice";
 import { SourceLink } from "./source-link";
 
 const POLL_MS = 2000;
@@ -185,8 +187,10 @@ function Report({ brief }: { brief: FounderBrief }) {
     ["go_to_market", "Go-to-market"],
   ] as const;
   const riskItems = risks.flatMap(([key, title]) => evidence.risks[key].map((item) => ({ title, item })));
+  const hidden = hiddenTextNote(brief);
   return (
     <>
+      {hidden && <HiddenTextNotice note={hidden} />}
       <Section title="Executive summary">
         <dl className="m-0">
           <Statement label="What the company is building" item={summary.building} />

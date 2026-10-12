@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import { hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 import { grid } from "@/lib/css";
 import { founderBriefEnabled } from "@/lib/founder-flag";
 import { siteName } from "@/lib/report-view";
 
 import { FounderView } from "./founder-view";
+import { HiddenTextNotice } from "./hidden-text-notice";
 import { SourceLink } from "./source-link";
 
 const POLL_MS = 2000;
@@ -188,6 +189,7 @@ function Ready({ id, run, brief }: { id: string; run: BriefRun; brief: Brief }) 
 }
 
 function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
+  const hidden = hiddenTextNote(brief);
   const overview: [string, string][] = [
     ["What it does", brief.what_it_does],
     ["Who it's for", brief.who_its_for],
@@ -196,6 +198,7 @@ function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
   ];
   return (
     <div className="flex flex-col" style={{ gap: "clamp(36px,5cqi,56px)" }}>
+      {hidden && <HiddenTextNotice note={hidden} />}
       <Journeys id={id} siteUrl={brief.url} journeys={brief.suggested_journeys ?? []} />
 
       <section aria-label="Summary" className="fu-grid border-t-[1.5px] border-ink pt-7" style={grid("300px", "clamp(20px,3cqi,40px)")}>

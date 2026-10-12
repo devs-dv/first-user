@@ -51,6 +51,7 @@ class Decision:
     addresses: list[str]
     reason: str = ""
     private: bool = False  # refused for safety, as opposed to simply not resolving
+    code: str = ""  # a short reason for the trace: "public address", "loopback", "dns failed" ...
 
 
 @dataclass
@@ -84,8 +85,8 @@ class EgressGuard:
     async def close(self) -> None:
         """Stop accepting connections, then cancel and await the ones still open.
 
-        Cancelled connections create no spans: host checks are not traced, and a refusal
-        span is created and ended in one synchronous call.
+        Cancelled connections create no spans: a host's check span (egress_check) and a refusal span are
+        each created and ended in one synchronous call, after the decision is made.
         """
         if self._server is None:
             return
@@ -113,7 +114,16 @@ class EgressGuard:
         """Record a refusal, with a GUARDRAIL span in the run's trace while the run is active."""
         self.blocks.append(record)
         if self._traced and self._context is not None:
-            self._context.copy().run(_refusal_span, record)
+            # The span gets the address without its query string or fragment, which can hold a token.
+            self._context.copy().run(_refusal_span, {**record, "url": _safe_url(record.get("url", ""))})
+
+    def _checked(self, host: str, port: int, decision: Decision) -> None:
+        """One `egress_check` GUARDRAIL span for a host's decision, in the run's trace while the run is active.
+
+        Created and ended in one synchronous call, after the decision is made, so a cancelled connection can
+        never leave one open or without an output. The decision is the output."""
+        if self._traced and self._context is not None:
+            self._context.copy().run(_check_span, check_record(host, port, decision))
 
     def block_reason(self) -> str | None:
         """A visitor-facing reason for the first refused request, or None."""
@@ -136,8 +146,11 @@ class EgressGuard:
                 if key not in self._decisions:
                     result = await _check_host(key, port)
                     self._decisions[key] = Decision(
-                        result["allowed"], result["addresses"], result["reason"], result["private"]
+                        result["allowed"], result["addresses"], result["reason"], result["private"],
+                        result.get("code", ""),
                     )
+                    # Once per host per run: every later request for the host reuses this decision.
+                    self._checked(key, port, self._decisions[key])
             decision = self._decisions[key]
         if decision.private:
             self._refused({"host": host, "port": port, "url": url, "addresses": decision.addresses,
@@ -238,6 +251,49 @@ class EgressGuard:
             upstream.close()
 
 
+def _safe_url(url: str) -> str:
+    """scheme://host[:port]/path of an address: no user name, password, query string or fragment."""
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+        port = f":{parts.port}" if parts.port else ""
+        return f"{parts.scheme}://{host}{port}{parts.path}" if parts.scheme else host
+    except ValueError:
+        return ""
+
+
+def check_record(host: str, port: int, decision: Decision) -> dict:
+    """The output of an egress_check span: {host, port, decision, reason}, and nothing else.
+
+    `decision` is "allowed", "refused" (a non-public address: the guard doing its job, not an error) or
+    "unresolved" (the name did not resolve, which is not a safety block). `reason` is a short code."""
+    outcome = "allowed" if decision.allowed else "refused" if decision.private else "unresolved"
+    return {"host": host, "port": port, "decision": outcome, "reason": decision.code or "unknown"}
+
+
+# What the guard's own check span is: a guardrail, not the agent, with the decision as its output.
+@neatlogs.span(kind="GUARDRAIL", name="egress_check")
+def _check_span(check: dict) -> dict:
+    return check
+
+
+def _address_code(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> str:
+    """Why an address is refused, as a short code. The metadata address is named as such."""
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    if address in (ipaddress.ip_address("169.254.169.254"), ipaddress.ip_address("fd00:ec2::254"),
+                   ipaddress.ip_address("100.100.100.200")):
+        return "metadata address"
+    if address.is_loopback:
+        return "loopback"
+    if address.is_link_local:
+        return "link-local"
+    return "private address"
+
+
+_SEVERITY = ["metadata address", "loopback", "link-local", "private address"]
+
+
 @neatlogs.span(kind="GUARDRAIL", name="egress_refused")
 def _refusal_span(record: dict) -> dict:
     """One span per refused request: synchronous, so it cannot be cut off by cancellation."""
@@ -257,16 +313,20 @@ async def _check_host(host: str, port: int) -> dict:
     except (socket.gaierror, UnicodeError) as error:
         # Not a safety block: the browser could not have loaded it either.
         return {"allowed": False, "private": False, "host": host, "addresses": [],
-                "reason": f"could not resolve: {error}"}
+                "reason": f"could not resolve: {error}", "code": "dns failed"}
     addresses = list(dict.fromkeys(info[4][0].split("%")[0] for info in infos))
     if not addresses:
-        return {"allowed": False, "private": False, "host": host, "addresses": [], "reason": "no addresses"}
+        return {"allowed": False, "private": False, "host": host, "addresses": [], "reason": "no addresses",
+                "code": "dns failed"}
     blocked = [a for a in addresses if is_blocked_address(ipaddress.ip_address(a))]
     if blocked:
         # Refuse the whole host if any address is non-public, so it cannot be steered there.
+        codes = {_address_code(ipaddress.ip_address(a)) for a in blocked}
+        code = next(c for c in _SEVERITY if c in codes)  # the most serious one, if the host has several
         return {"allowed": False, "private": True, "host": host, "addresses": addresses,
-                "reason": f"non-public address: {', '.join(blocked)}"}
-    return {"allowed": True, "private": False, "host": host, "addresses": addresses, "reason": ""}
+                "reason": f"non-public address: {', '.join(blocked)}", "code": code}
+    return {"allowed": True, "private": False, "host": host, "addresses": addresses, "reason": "",
+            "code": "public address"}
 
 
 async def _open_vetted(addresses: list[str], port: int):

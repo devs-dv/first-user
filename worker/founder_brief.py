@@ -24,6 +24,7 @@ import re
 import neatlogs
 from anthropic import AsyncAnthropic
 
+import hidden_text
 import trace_safety
 from costs import TokenTally
 from understand import UNDERSTAND_MODEL, UNKNOWN, _clip, _squash
@@ -170,9 +171,17 @@ def _strings(raw, limit: int = MAX_ITEMS) -> list[str]:
 
 
 # ----------------------------------------------------------------------------------- the report
+# Keys whose values are our own fixed words, or copied unchanged from the product brief.
+_FIXED_KEYS = {"version", "kind", "note", "label", "traction_label", "risks_label", "sources", "pages_read",
+               "source_url", "source_brief_id", "dimension", "pricing", "business_model", "tiers", "status",
+               "hidden_text"}
+
+
 def build_founder_brief(raw: dict, brief: dict, brief_id: str | None = None) -> dict:
     """The founder brief in a fixed shape, with everything checked against the stored brief."""
     raw = raw if isinstance(raw, dict) else {}
+    # Instruction-like wording (and sentences of hidden text the product brief recorded) never reaches a field.
+    raw = hidden_text.sanitize(raw, level="brief", removed="")
     evidence = Evidence(brief)
     summary = raw.get("executive_summary") if isinstance(raw.get("executive_summary"), dict) else {}
     opportunity = raw.get("opportunity") if isinstance(raw.get("opportunity"), dict) else {}
@@ -222,7 +231,7 @@ def build_founder_brief(raw: dict, brief: dict, brief_id: str | None = None) -> 
     if not traction and not any("traction" in m.lower() or "customer" in m.lower() for m in missing):
         missing.append("No customer numbers, revenue or usage figures are stated on the pages read.")
 
-    return {
+    result = {
         "version": FOUNDER_VERSION,
         "kind": "founder_brief",
         "note": FOUNDER_NOTE,
@@ -259,7 +268,12 @@ def build_founder_brief(raw: dict, brief: dict, brief_id: str | None = None) -> 
         },
         "readiness": readiness,
         "pages_read": evidence.read_urls,
+        # From the product brief: the fixed notice and where hidden text was found, or None.
+        "hidden_text": brief.get("hidden_text") if isinstance(brief.get("hidden_text"), dict) else None,
     }
+    # Every field once more. The fixed words and the copied facts (labels, notes, sources, prices) are left alone.
+    return hidden_text.sanitize(
+        result, _skip=_FIXED_KEYS, level="brief", removed="")
 
 
 # ----------------------------------------------------------------------------------- the model call
@@ -447,6 +461,9 @@ async def founder_brief(brief: dict, brief_id: str | None, usage: TokenTally, mo
     trace_safety.set_input(brief_id=brief_id, url=brief.get("url"), pages=len(brief.get("pages") or []),
                            claims=len(brief.get("claims") or []), model=UNDERSTAND_MODEL)
     trace_safety.set_metadata(environment=os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
+    # A brief stored before hidden text was handled is cleaned the same way before the model reads it.
+    brief = hidden_text.sanitize(
+        brief, _skip={"pages", "skipped", "limits", "version", "pricing", "hidden_text"}, level="brief", removed="")
     prompt = trace_safety.scrub(evidence_prompt(brief))
     raw = await (model_call(prompt) if model_call is not None else _ask_model(prompt, usage))
     return trace_safety.scrub(build_founder_brief(raw, brief, brief_id))
