@@ -7,6 +7,7 @@ import anthropic
 import neatlogs
 from anthropic import AsyncAnthropic
 
+import hidden_text
 import trace_safety
 from auth_tools import AUTH_FUNCTIONS, AUTH_SCHEMAS
 from config import (
@@ -209,7 +210,9 @@ async def run_persona(ctx: RunContext) -> dict:
     # Fixed keys and values (listed in hackathon.md) so traces can be
     # searched with exact strings such as "outcome": "gave_up" or "agent_issue_count": 0.
     # Everything in the result passes through scrub(): a test login must not reach a stored result.
-    return trace_safety.scrub({
+    # Hidden text aimed at AI agents is never repeated: every model-written string is cleaned, the fixed notice is
+    # added in code and the evidence (page, step, how it was hidden) goes in `hidden_text` (see hidden_text.py).
+    return trace_safety.scrub(hidden_text.apply_to_result({
         "outcome": finished["outcome"],
         "stopped_by": finished["stopped_by"],
         "reason": finished["reason"],
@@ -228,7 +231,7 @@ async def run_persona(ctx: RunContext) -> dict:
         "success_condition": ctx.success_condition,
         **({"egress_blocks": finished["egress_blocks"]} if "egress_blocks" in finished else {}),
         "usage": ctx.usage.summary(),
-    })
+    }))
 
 
 def _verdict(ctx: RunContext, finished: dict, verification: dict | None, entry: dict) -> dict:
@@ -503,11 +506,13 @@ async def _record(ctx: RunContext, tool: str, thought: str, args: dict, result: 
         return
     try:
         url = result.get("url") or await current_url()
-        await ctx.recorder.step(idx, tool, thought, args, result, url, result.get("screenshot_url"))
+        await ctx.recorder.step(idx, tool, hidden_text.sanitize(thought), args, hidden_text.sanitize(result), url,
+                                result.get("screenshot_url"))
         for friction in ctx.frictions[frictions_before:]:
             await ctx.recorder.friction(
                 idx, "site", friction["severity"],
-                trace_safety.scrub(friction["expected"]), trace_safety.scrub(friction["happened"]),
+                hidden_text.sanitize(trace_safety.scrub(friction["expected"])),
+                hidden_text.sanitize(trace_safety.scrub(friction["happened"])),
             )
         for issue in ctx.agent_issues[issues_before:]:
             await ctx.recorder.friction(

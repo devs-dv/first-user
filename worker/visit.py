@@ -2,6 +2,7 @@
 
 import neatlogs
 
+import hidden_text
 import page_watch
 import trace_safety
 from browse import run_persona
@@ -41,6 +42,7 @@ async def first_visit(
         # From here, the values are redacted in every span and scrubbed from every tool result.
         credentials.register()
     trace_id = current_trace_id()
+    hidden_text.reset()  # hidden instructions found in this visit (and none from an earlier one)
     browser, stagehand, page, guard = await open_browser()
     try:
         await page_watch.install(page)

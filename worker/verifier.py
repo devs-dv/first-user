@@ -18,6 +18,7 @@ from anthropic import AsyncAnthropic
 
 import credentials
 import element_state
+import hidden_text
 import trace_media
 import trace_safety
 from config import VERIFIER_MODEL
@@ -79,12 +80,16 @@ _FIELDS_JS = r"""JSON.stringify(Array.from(document.querySelectorAll('input, tex
   }))""" % MAX_FIELDS
 
 
-async def read_page(page) -> dict:
+async def read_page(page, step: int | None = None, where: str = "final_check") -> dict:
     """A fresh read of the page, with no model call.
+
+    Hidden text addressed to AI agents is removed from the page first (hidden_text.py), so neither the text nor
+    the screenshot given to a model carries it; where it was found is recorded as evidence.
 
     Read with any test login hidden in the page (credentials.redacted_page), and scrubbed again,
     so neither the text, the field values nor the screenshot can carry it to a model.
     """
+    await hidden_text.sweep(page, step, where)
     async with credentials.redacted_page(page):
         text = await page.evaluate("document.body ? document.body.innerText : ''") or ""
         fields = json.loads(await page.evaluate(_FIELDS_JS))

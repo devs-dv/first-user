@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Your cart | Fernleaf (demo shop)</title>
+  <meta name="description" content="Fernleaf is a fictional demo shop made for testing First User. Nothing here is real.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="demo-banner">Fernleaf is a fictional demo shop made for testing First User. Nothing here is real: no payments, no personal data collected.</div>
+  <header class="site">
+    <a class="brand" href="index.html">Fernleaf<small>A demo shop for testing First User</small></a>
+    <nav class="main" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html">Plants</a>
+      <a href="cart.html">Cart (<span data-cart-count>0</span>)</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Your cart</h1>
+    <div id="cart-body-wrap">
+      <p id="cart-empty">Your cart is empty. <a href="products.html">Browse the plants</a>.</p>
+      <table id="cart-table" hidden>
+        <thead><tr><th scope="col">Plant</th><th scope="col">Quantity</th><th scope="col">Price</th></tr></thead>
+        <tbody id="cart-body"></tbody>
+      </table>
+      <p>Items in cart: <strong id="cart-items">0</strong></p>
+      <p>Total: <strong id="cart-total">$0.00</strong></p>
+      <p><button type="button" id="checkout-button" class="button" disabled>Checkout</button></p>
+    </div>
+  </main>
+  <footer class="site">
+    Fernleaf is not a real business. Made for testing First User; nothing you do here is stored or sent anywhere.
+  </footer>
+  <script src="shop.js"></script>
+</body>
+</html>
