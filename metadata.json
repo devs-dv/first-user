@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QCB53047SY0TF0DSNVQECX",
+  "strategy": "manual-commit",
+  "branch": "understand",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "evals/cases.py",
+    "evals/feedback_report.py",
+    "evals/from_run.py",
+    "evals/run.py",
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/briefs/[id]/founder/route.ts",
+    "web/app/api/runs/[id]/feedback/route.ts",
+    "web/app/brief/[id]/brief-view.tsx",
+    "web/app/brief/[id]/founder-view.tsx",
+    "web/app/brief/[id]/source-link.tsx",
+    "web/lib/feedback-logic.test.ts",
+    "web/lib/feedback-logic.ts",
+    "web/lib/founder-flag.ts",
+    "web/lib/founder-logic.test.ts",
+    "web/lib/founder-types.ts",
+    "web/package.json",
+    "worker/founder_brief.py",
+    "worker/founder_brief_run.py",
+    "worker/test_feedback_loop.py",
+    "worker/test_founder_brief.py",
+    "worker/worker_run.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 166,
+    "cache_creation_tokens": 183827,
+    "cache_read_tokens": 28964825,
+    "output_tokens": 104263,
+    "api_call_count": 80
+  }
+}
