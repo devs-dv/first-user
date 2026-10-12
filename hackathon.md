@@ -808,3 +808,34 @@ Status of each item:
 - Public repo: `origin` exists; visibility unconfirmed.
 - Demo video: pending.
 - Nothing has been registered, deployed, or submitted by Claude.
+
+## Understand mode
+
+### 2026-10-12 — "Understand this website": a sourced product brief that feeds the test form
+
+Built on the `understand` branch, separate from the report and run-page work. Not committed.
+
+What it does:
+- A second run kind, `understand`, claimed from the same queue (`runs.kind`). `worker_run.execute` hands it to `understand_run.execute_understand`; a test run is unchanged.
+- `site_reader.py` reads the homepage and up to 8 same-site pages chosen by link text and path (pricing, product, features, about, docs, FAQ, customers, blog index), one of each kind first. Every request goes through the egress guard as an HTTP proxy, so private, loopback, link-local and metadata addresses are refused and every redirect hop is vetted. Limits: robots.txt (and Crawl-delay), 1 s between requests, 9 pages, 600 kB per page, 120 s in all. The browser opens only for a page with under 400 characters of text, at most 3 times.
+- `understand.py` writes the brief with one model call (`product_brief` span; `fetch_page` span per page; `understand_site` root). The model proposes and code decides: a claim needs a source URL that is a page read; "confirmed" needs a quote found in that page; a price is kept only if it is in the cited page; no pricing page and no verified price gives `not_published` with no tiers; the business model is always labelled inferred and needs quoted evidence; a journey must quote the call to action or claim it came from. Missing fields are `unknown`.
+- Web: the home form has "Test my website" / "Understand this website"; `/brief/[id]` shows the brief with every claim's source and status; each suggested journey is editable in place and "Test this journey" opens the test form with url, goal and success prefilled. The test run stores `brief_run_id`. The test form gained an optional "What would success look like?" input named `success`.
+- SQL: `supabase/schema.sql`, section "Understand mode" (`kind`, `brief`, `brief_run_id`, `enqueue_understand_run`). Must be run before the brief page works.
+
+Verification:
+- 35 new worker tests (`test_understand.py`): no pricing page gives `not_published` and no prices; private addresses (direct, metadata, loopback, a redirect, a link) are refused and never contacted; the page cap holds (9, and 3 when set); every claim has a source URL that was read; robots.txt, delay, byte and time caps; browser only when text is thin. One live test drives real Chrome through the guard.
+- 7 new web tests (`brief-logic.test.ts`). Whole suites: 187 worker tests (24 live skipped with SKIP_LIVE_TESTS=1), 15 web tests, typecheck, lint and `next build` clean, `scan_secrets.py` 0 matches.
+- Two real runs with the model, no queue: plausible.io (6 pages, 4 tiers verified against the homepage's text, 12 claims each with a source, 5 journeys, $0.003) and saucedemo.com (a script-drawn login page: one browser read, "unknown" for who it's for, `not_published`, 1 journey, $0.0006).
+
+Not done / known limits:
+- The brief page was type-checked and the home form's prefill was checked in the built app, but the brief page has not been looked at against a real database row; the SQL has not been run.
+- A running worker from before this change would claim an understand run and treat it as a test run. Run the new worker, or hold the queue, before using the form.
+- "Not published" means no pricing page was linked from the pages read, not that none exists.
+- Word-level quote matching: a model could quote real words in a misleading context. The page link is there to check.
+- No investor or accelerator assessment, competitor analysis or price analysis, by design.
+
+### 2026-10-12 — Success condition and the second pass on the brief page
+
+- **Success is its own value, not part of the goal.** The brief's journeys carry `goal` and `success` separately. They reach the test form as `?goal=...&success=...&brief=...` and `POST /api/runs` takes `success` as its own body field (validated, at most 300 characters) next to `briefId`. It is **not appended to the goal text** and is **not stored yet**: `app/api/runs/route.ts` leaves `successText` for the other branch's success-condition field (its column and the verifier). **At merge:** keep the query-string name `success` and the body name `success`; use the other branch's "What does success look like?" input for the form, and drop the duplicate `success` textarea this branch added to `run-form.tsx` (`app/home-form.tsx` passes `initial.success` into the form's defaults, so point that at the other branch's field).
+- **Checked against a real row** (`8ca3896f-a3d8-475f-b810-5c9b6b98bb9e`, plausible.io; made and processed by a one-off script that inserted it as `running`, so no queue claim): at 1280 and 390 px the page has no horizontal scroll; journeys come first, are editable, and the link follows the edited text; claims show status and a source link; pricing, business model, unknowns and pages read display. Fixed from that pass: descriptions were cut mid-word (now cut at a word with an ellipsis), a changelog was read as the product page (changelog, releases and status paths are no longer chosen).
+- **Intermittent hollow briefs, found and fixed.** About half of the model's replies for this site left out `claims`, `pricing` or `suggested_journeys` (a reply that stopped early or hit `max_tokens` at 4000), which showed up as a brief with no claims and no goals. The reply is now checked for every required field and asked for again (up to 3 tries, then the run fails rather than saving a hollow brief); `max_tokens` is 8000 and the prompt asks for a compact answer. Goals that do not quote the pages get one more try with a stricter note.

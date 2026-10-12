@@ -26,7 +26,10 @@ const TITLES: Record<string, string> = {
   server_error: "Something went wrong",
 };
 
-export function RunForm() {
+// What the form starts with: empty, or filled from a suggested journey on a product brief.
+export type RunFormInitial = { url: string; goal: string; success: string; brief: string };
+
+export function RunForm({ initial }: { initial?: RunFormInitial }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<FormError | null>(null);
@@ -37,6 +40,7 @@ export function RunForm() {
     const form = new FormData(event.currentTarget);
     const url = String(form.get("url") ?? "").trim();
     const goal = String(form.get("goal") ?? "").trim();
+    const success = String(form.get("success") ?? "").trim();
     const permission = form.get("permission") === "on";
     // Only the fields of the chosen option exist in the form, so nothing else is read or sent.
     const startUrl = access === "link" ? String(form.get("startUrl") ?? "").trim() : "";
@@ -67,6 +71,8 @@ export function RunForm() {
         body: JSON.stringify({
           url,
           goal,
+          success: success || undefined,
+          briefId: initial?.brief || undefined,
           permission,
           access,
           startUrl: startUrl || undefined,
@@ -118,6 +124,7 @@ export function RunForm() {
           inputMode="url"
           autoComplete="url"
           placeholder="https://yourapp.com"
+          defaultValue={initial?.url}
           required
           aria-invalid={error?.field === "url"}
           aria-describedby={error?.field === "url" ? "url-error" : undefined}
@@ -140,12 +147,28 @@ export function RunForm() {
           rows={2}
           maxLength={500}
           placeholder="For example: sign up and create your first project"
+          defaultValue={initial?.goal}
           aria-describedby="goal-hint"
           className={inputClass}
         />
         <p id="goal-hint" className="mt-2 text-sm text-subtle">
           Leave this empty and they&apos;ll work out what the product does and try its main feature.
         </p>
+      </div>
+
+      <div>
+        <label htmlFor="success" className="font-medium">
+          What would success look like? <span className="font-normal text-subtle">(optional)</span>
+        </label>
+        <textarea
+          id="success"
+          name="success"
+          rows={2}
+          maxLength={300}
+          placeholder="For example: a confirmation page that names the new project"
+          defaultValue={initial?.success}
+          className={inputClass}
+        />
       </div>
 
       <fieldset className="space-y-3" aria-describedby="access-hint">

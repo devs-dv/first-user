@@ -66,6 +66,10 @@ async def _take_credentials(run: dict):
 
 
 async def execute(run: dict, agent_version: str) -> None:
+    if run.get("kind") == "understand":
+        from understand_run import execute_understand  # the brief mode: no browser visit, no test login
+
+        return await execute_understand(run, agent_version)
     run_id = run["id"]
     start_url = run.get("start_url")
     access_mode = access_mode_for(run)

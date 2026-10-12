@@ -281,3 +281,70 @@ revoke execute on function public.enqueue_web_run(text, text, text, integer, int
   from public, anon, authenticated;
 grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text)
   to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Understand mode (2026-10-12): "Understand this website" writes a sourced product brief. Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- A run is a 'test' (the visit, as before) or an 'understand' run (read a few pages, write a brief).
+-- The worker's claim_run() claims both; it reads kind to decide what to do.
+alter table public.runs add column if not exists kind text not null default 'test'
+  check (kind in ('test', 'understand'));
+
+-- The brief, as JSON, on the understand run itself. A site that could not be read gets
+-- {"status": "could_not_read", "message": "..."} here and status 'failed'.
+alter table public.runs add column if not exists brief jsonb;
+
+-- For a test run started from a brief: the understand run (the brief) it came from.
+alter table public.runs add column if not exists brief_run_id uuid
+  references public.runs (id) on delete set null;
+
+create index if not exists runs_brief_run_id_idx on public.runs (brief_run_id) where brief_run_id is not null;
+
+-- Queue an understand run from the web app, under the same two limits as test runs (the queue and the
+-- per-visitor hour), in one transaction. Returns {"id": ...} or {"error": ...}.
+create or replace function public.enqueue_understand_run(
+  p_url text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs
+  where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object(
+      'error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer
+    );
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, kind, access_mode)
+  values (p_url, 'Understand this website', 'web', p_ip_hash, 'understand', 'public')
+  returning id into new_id;
+
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_understand_run(text, text, integer, integer)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_understand_run(text, text, integer, integer) to service_role;

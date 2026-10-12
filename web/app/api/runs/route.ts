@@ -1,3 +1,5 @@
+import { briefExists, recordBrief } from "@/lib/brief-link";
+import { MAX_SUCCESS_LENGTH, UUID } from "@/lib/brief-logic";
 import { supabase } from "@/lib/supabase";
 import { checkTargetUrl } from "@/lib/target-url";
 import { clientIp, hashIp } from "@/lib/visitor";
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission, access, startUrl, testEmail, testPassword } = (body ?? {}) as Record<
+  const { url, goal, permission, access, startUrl, testEmail, testPassword, success, briefId } = (body ?? {}) as Record<
     string,
     unknown
   >;
@@ -40,6 +42,20 @@ export async function POST(request: Request) {
   const goalText = (goal ?? "").trim();
   if (goalText.length > MAX_GOAL_LENGTH) {
     return fail(400, "goal_too_long", `Keep the goal under ${MAX_GOAL_LENGTH} characters.`);
+  }
+
+  // A test started from a product brief (Understand mode). `success` is its own value, never part of the
+  // goal text; it is validated here and not stored yet: the success-condition field (its column and the
+  // verifier) is added by the other branch, which reads `successText` below. The run records its brief.
+  if (success !== undefined && success !== null && typeof success !== "string") {
+    return fail(400, "invalid_request", "The success condition must be text.");
+  }
+  const successText = (success ?? "").trim();
+  if (successText.length > MAX_SUCCESS_LENGTH) {
+    return fail(400, "success_too_long", `Keep the success condition under ${MAX_SUCCESS_LENGTH} characters.`);
+  }
+  if (briefId !== undefined && briefId !== null && briefId !== "" && (typeof briefId !== "string" || !UUID.test(briefId))) {
+    return fail(400, "invalid_request", "That brief link is not valid.");
   }
 
   const target = await checkTargetUrl(url);
@@ -132,6 +148,9 @@ export async function POST(request: Request) {
   if (!result.id) {
     console.error("enqueue_web_run returned no id");
     return fail(500, "server_error", "Something went wrong on our side. Please try again in a minute.");
+  }
+  if (typeof briefId === "string" && briefId && (await briefExists(briefId))) {
+    await recordBrief(result.id, briefId);
   }
   return Response.json({ id: result.id }, { status: 201 });
 }
