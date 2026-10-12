@@ -1,0 +1,11 @@
+<pasted_content id="6268">
+I merged the branch "understand" into main and there are conflicts in evals/run.py, hackathon.md and supabase/schema.sql. worker/worker_run.py merged automatically but check it too. That branch adds Understand mode, the Founder brief, feedback storage with POST /api/runs/[id]/feedback, evals/from_run.py and a --cases flag on evals/run.py. Main has Report v2, Check again, the neatlogs test guard and environment labels. Resolve every conflict so both sides work:
+- evals/run.py: keep the branch's --cases flag (sites, real_world, all) and its success condition and access mode handling, and keep main's environment=eval metadata and worker id reporting.
+- enqueue_web_run: exactly one version, the 11-argument one from main (p_retest_of last). Do not add another.
+- schema.sql: keep every block once, in order: REPORT V2, Understand mode, Founder brief, CHECK AGAIN, FEEDBACK.
+- worker_run.py: understand and founder_brief runs go to their own handlers; test runs keep all of main's behaviour (verdict, run facts, worker id, retests).
+- Test setup: keep main's neatlogs guard (test_support.py and conftest.py) so no test exports traces, and make sure the branch's new test modules import it first.
+- evals/feedback_report.py read_retests() guessed the shape of runs.retest. Change it to read main's actual retest data so "fixed" votes are matched to retest labels correctly, and use the same finding ids as findingIds() in web/lib/feedback-logic.ts.
+- hackathon.md: keep every section from both sides.
+Leave no conflict markers anywhere. Then run all worker and web tests, typecheck, lint, build and the secret scan, and show me git status. Do not read or print any env file. Do not commit; I will.
+</pasted_content id="6268">
