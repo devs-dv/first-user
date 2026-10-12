@@ -1,0 +1,14 @@
+<pasted_content id="c7d7">
+Two parts.
+
+PART 1: get the eval from 5/7 to 7/7. Both failing cases are on the-internet.herokuapp.com:
+- herokuapp_add_remove: blocked on "$ is not defined"; its jQuery never loads here.
+- herokuapp_dynamic_loading: the Start click has no effect, with agent issues.
+Both pass in a normal browser, so something in our setup stops that site's scripts loading. Investigate before changing anything: load each page through our worker's browser and list every script request with its host, status, and whether the egress guard allowed it, refused it, or it timed out. Compare with the same page in a plain Chrome without our proxy. Likely suspects: a script host the guard marks unresolved or refuses, an http script on an https page, the 45-second page-ready cap, or the proxy handling of that CDN.
+Fix the real cause without weakening the safety guard: private and internal addresses must still be refused. Do not special-case this site and do not change the test cases.
+Then start a fresh worker with the Haiku brain, run the eval as v5 with --compare-to v0 v4, and show the table.
+
+PART 2: in the report writer, merge findings that describe the same symptom on the same page into one, keeping the earliest step as the main evidence and listing the other steps under it. Do this in code, not only in the prompt. Add a test using the First Name / Last Name pair from the saucedemo problem_user run.
+
+Update hackathon.md. Do not read or print the env files.
+</pasted_content id="c7d7">

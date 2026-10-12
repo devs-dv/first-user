@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4PX8SCM1RXPQ7CDEY15SQKW",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "evals/results/v5.json",
+    "evals/results/v5.md",
+    "hackathon.md",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-logic.test.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/types.ts",
+    "worker/page_watch.py",
+    "worker/report_writer.py",
+    "worker/test_broken_load.py",
+    "worker/test_report_writer.py",
+    "worker/tools.py",
+    "worker/visit.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 486818,
+    "cache_read_tokens": 13995476,
+    "output_tokens": 50730,
+    "api_call_count": 30
+  }
+}
