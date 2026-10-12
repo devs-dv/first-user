@@ -43,6 +43,9 @@ VERIFIER_MODEL = os.environ.get("VERIFIER_MODEL", "claude-haiku-5-5")
 # Report v2: a verdict, run facts, structured fix prompts with acceptance criteria and evidence bases.
 # REPORT_V2=false turns all of it off in the worker (the old report is written); the web app has its own flags.
 REPORT_V2 = _flag("REPORT_V2", True)
+# Check again: a run queued as a retest (runs.retest_of) is compared with its original. CHECK_AGAIN=false
+# makes such a run an ordinary visit, with no guided follow-up and no comparison.
+CHECK_AGAIN = _flag("CHECK_AGAIN", True)
 # Writes the report's findings after the visit (report_writer.py); one call per visit.
 REPORT_MODEL = os.environ.get("REPORT_MODEL", VERIFIER_MODEL)
 

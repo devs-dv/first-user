@@ -19,6 +19,7 @@ import credentials as credentials_module
 import bot_check
 import element_state
 import hidden_text
+import retest as retest_module
 import page_watch
 import trace_media
 from config import ACT_TIMEOUT_MS
@@ -116,6 +117,8 @@ class RunContext:
     # Page reloads made because the page's own files failed to load, and when the visit began.
     page_reloads: int = 0
     started_at: float = field(default_factory=time.time)
+    # The visible text of each page the visitor looked at, by page (host and path), for comparing a retest.
+    page_texts: dict[str, str] = field(default_factory=dict)
     # Screenshot URL and page URL of each recorded step, by step number, for the report's evidence.
     step_shots: dict[int, str] = field(default_factory=dict)
     step_urls: dict[int, str] = field(default_factory=dict)
@@ -313,6 +316,13 @@ async def look() -> dict:
         if url := await publish_image(ctx, image, "look", "png"):
             # The exported trace shows this URL in place of the inline image (trace_media.py).
             trace_media.register_url(ctx.pending_image, url)
+    try:
+        # The sweep runs first, so the stored text (used by Check again) never holds hidden injected text.
+        await hidden_text.sweep(page, ctx.tool_calls, "look")
+        text = await page.evaluate("document.body ? document.body.innerText : ''")
+        ctx.page_texts[retest_module.page_key(result["url"])] = trace_safety.scrub(str(text))[:8000]
+    except Exception:
+        pass
     ctx.last_look = (fingerprint, result)
     return result
 

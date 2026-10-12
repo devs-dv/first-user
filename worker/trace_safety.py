@@ -225,6 +225,26 @@ def _active_span():
     return otel_trace.get_current_span()
 
 
+def set_metadata(**values) -> bool:
+    """Merge plain values into the active span's `metadata`, which neatlogs shows and can filter on.
+
+    Used on a root span to say where a trace came from: environment=production for a real run,
+    environment=eval for an eval run, environment=development for a script run by hand. Returns False when
+    there is no active recording span.
+    """
+    span = _active_span()
+    if span is None or not span.is_recording():
+        return False
+    current = {}
+    try:
+        current = json.loads((getattr(span, "attributes", None) or {}).get("metadata") or "{}")
+    except (TypeError, ValueError):
+        current = {}
+    current.update({key: value for key, value in values.items() if value is not None})
+    span.set_attribute("metadata", json.dumps(current, default=str, ensure_ascii=False))
+    return True
+
+
 def set_input(**values) -> bool:
     """Record the active span's input explicitly, as plain values.
 

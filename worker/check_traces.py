@@ -31,6 +31,7 @@ EXPORT_LOG = Path(tempfile.gettempdir()) / f"first-user-spans-{os.getpid()}.log"
 os.environ["NEATLOGS_LOG_SPANS"] = "1"
 os.environ["NEATLOGS_LOG_SPANS_FILE"] = str(EXPORT_LOG)
 
+os.environ.setdefault("FIRST_USER_ENVIRONMENT", "development")  # not a production run
 import neatlogs  # noqa: E402
 from opentelemetry.sdk.trace import SpanProcessor, TracerProvider  # noqa: E402
 from opentelemetry.trace import StatusCode  # noqa: E402

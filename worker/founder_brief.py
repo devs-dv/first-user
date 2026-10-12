@@ -18,6 +18,7 @@ again. The model proposes and code enforces, as for the product brief:
 Traced as its own span (founder_brief).
 """
 
+import os
 import re
 
 import neatlogs
@@ -445,6 +446,7 @@ async def founder_brief(brief: dict, brief_id: str | None, usage: TokenTally, mo
         raise ValueError("there is no product brief to write from")
     trace_safety.set_input(brief_id=brief_id, url=brief.get("url"), pages=len(brief.get("pages") or []),
                            claims=len(brief.get("claims") or []), model=UNDERSTAND_MODEL)
+    trace_safety.set_metadata(environment=os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
     prompt = trace_safety.scrub(evidence_prompt(brief))
     raw = await (model_call(prompt) if model_call is not None else _ask_model(prompt, usage))
     return trace_safety.scrub(build_founder_brief(raw, brief, brief_id))

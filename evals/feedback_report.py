@@ -4,12 +4,18 @@ many findings voted "fixed" a later retest also labelled Fixed.
 Usage: python evals/feedback_report.py
 
 Reads finding_feedback (one vote per finding per visitor). A false positive is a vote of "not a real
-problem"; the rate is those votes divided by all votes. Retest data is read from runs.retest if that column
-exists (provisional shape: a list of {"finding_id": ..., "label": "Fixed" | ...}); until the retest feature
-writes it, the line says "not available yet".
+problem"; the rate is those votes divided by all votes.
+
+Retest data is runs.retest of a Check again run (worker/retest.py): {"labels": [{"finding_index": n,
+"label": "fixed" | "still_present" | "not_reached" | "inconclusive", ...}], "new": [...], "original_run_id":
+...}. `finding_index` is the position in the ORIGINAL run's findings, and a vote's finding_id is that
+finding's id by the rule of findingIds() in web/lib/feedback-logic.ts (its own valid `id`, else "f<index>"),
+so a "fixed" vote on the original run is matched to the label of the same finding in its latest retest. If
+the runs.retest column does not exist yet, the line says "not available yet".
 """
 
 import asyncio
+import re
 import sys
 from pathlib import Path
 
@@ -23,6 +29,8 @@ load_dotenv(ROOT.parent / "worker" / ".env")
 VERDICTS = ("useful", "not_a_problem", "fixed")
 LABELS = {"useful": "useful", "not_a_problem": "not a real problem", "fixed": "fixed"}
 PAGE = 1000
+# Same pattern as FINDING_ID in web/lib/feedback-logic.ts (a test keeps them equal).
+FINDING_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 
 
 def summarise(votes: list[dict], retests: dict[tuple[str, str], str] | None) -> dict:
@@ -73,18 +81,53 @@ async def read_votes(client) -> list[dict]:
         start += PAGE
 
 
+def finding_ids(findings: list | None) -> list[str]:
+    """The id of each finding, as findingIds() in web/lib/feedback-logic.ts has it: a finding's own valid
+    `id` string, otherwise "f" and its position."""
+    ids = []
+    for index, finding in enumerate(findings or []):
+        own = finding.get("id") if isinstance(finding, dict) else None
+        ids.append(own if isinstance(own, str) and FINDING_ID.match(own) else f"f{index}")
+    return ids
+
+
+def retest_labels(retest_rows: list[dict], originals: dict[str, list | None]) -> dict[tuple[str, str], str]:
+    """Label by (original run id, finding id) from Check again runs.
+
+    `retest_rows` are runs that have a retest ({"retest_of", "retest", "finished_at"}); `originals` maps an
+    original run id to its findings. When an original was checked more than once, the latest retest wins.
+    """
+    labels: dict[tuple[str, str], str] = {}
+    for row in sorted(retest_rows, key=lambda r: str(r.get("finished_at") or r.get("created_at") or "")):
+        retest = row.get("retest")
+        if not isinstance(retest, dict):
+            continue
+        original_id = retest.get("original_run_id") or row.get("retest_of")
+        if original_id not in originals:
+            continue
+        ids = finding_ids(originals[original_id])
+        for item in retest.get("labels") or []:
+            index = item.get("finding_index") if isinstance(item, dict) else None
+            if isinstance(index, int) and 0 <= index < len(ids) and item.get("label"):
+                labels[(original_id, ids[index])] = str(item["label"])
+    return labels
+
+
 async def read_retests(client) -> dict[tuple[str, str], str] | None:
-    """Retest labels by (run_id, finding_id), or None when the runs table has no retest data (yet)."""
+    """Retest labels by (original run id, finding id), or None when runs has no retest column (yet)."""
     try:
-        rows = (await client.table("runs").select("id, retest").not_.is_("retest", "null").execute()).data
+        rows = (await client.table("runs").select("id, retest_of, retest, created_at, finished_at")
+                .not_.is_("retest", "null").execute()).data
     except Exception:
         return None
-    labels: dict[tuple[str, str], str] = {}
-    for row in rows:
-        for item in row.get("retest") or []:
-            if isinstance(item, dict) and item.get("finding_id") and item.get("label"):
-                labels[(row["id"], str(item["finding_id"]))] = str(item["label"])
-    return labels or None
+    original_ids = sorted({(r.get("retest") or {}).get("original_run_id") or r.get("retest_of") for r in rows}
+                          - {None})
+    originals: dict[str, list | None] = {}
+    for start in range(0, len(original_ids), 100):
+        chunk = original_ids[start:start + 100]
+        found = (await client.table("runs").select("id, findings").in_("id", chunk).execute()).data
+        originals.update({r["id"]: r.get("findings") for r in found})
+    return retest_labels(rows, originals)
 
 
 async def main() -> None:

@@ -6,6 +6,8 @@ Usage: python -m unittest test_feedback_loop -v
 Nothing here touches the database or the queue.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
+
 import json
 import re
 import sys
@@ -157,6 +159,43 @@ class TheFeedbackReport(unittest.TestCase):
         self.assertEqual((summary["fixed_confirmed"], summary["fixed_votes_retested"]), (1, 2))
         self.assertIn("1 of 2 retested (3 voted fixed in all)", feedback_report.render(summary))
 
+    def test_the_retest_labels_are_read_from_the_shape_the_worker_writes(self):
+        # runs.retest of a Check again run: labels carry finding_index into the ORIGINAL run's findings.
+        originals = {"orig": [{"title": "a"}, {"id": "abc-1", "title": "b"}, {"id": "bad id!", "title": "c"}]}
+        rows = [{"retest_of": "orig", "finished_at": "2026-10-12T10:00:00Z", "retest": {
+            "original_run_id": "orig",
+            "labels": [{"finding_index": 0, "label": "fixed", "pass": "independent"},
+                       {"finding_index": 1, "label": "still_present"},
+                       {"finding_index": 2, "label": "not_reached"},
+                       {"finding_index": 7, "label": "fixed"}],
+            "new": [{"title": "n", "label": "new"}]}}]
+        labels = feedback_report.retest_labels(rows, originals)
+        self.assertEqual(labels, {("orig", "f0"): "fixed", ("orig", "abc-1"): "still_present",
+                                  ("orig", "f2"): "not_reached"})
+        votes = [{"run_id": "orig", "finding_id": "f0", "verdict": "fixed"},
+                 {"run_id": "orig", "finding_id": "abc-1", "verdict": "fixed"},
+                 {"run_id": "orig", "finding_id": "f2", "verdict": "fixed"}]
+        summary = feedback_report.summarise(votes, labels)
+        self.assertEqual((summary["fixed_confirmed"], summary["fixed_votes_retested"]), (1, 3))
+
+    def test_the_latest_retest_of_an_original_wins_and_a_missing_original_is_skipped(self):
+        originals = {"orig": [{}]}
+        rows = [{"retest_of": "orig", "finished_at": "2026-10-12T12:00:00Z",
+                 "retest": {"labels": [{"finding_index": 0, "label": "fixed"}]}},
+                {"retest_of": "orig", "finished_at": "2026-10-12T09:00:00Z",
+                 "retest": {"labels": [{"finding_index": 0, "label": "still_present"}]}},
+                {"retest_of": "gone", "finished_at": "2026-10-12T09:00:00Z",
+                 "retest": {"labels": [{"finding_index": 0, "label": "fixed"}]}}]
+        self.assertEqual(feedback_report.retest_labels(rows, originals), {("orig", "f0"): "fixed"})
+
+    def test_finding_ids_follow_the_web_rule(self):
+        self.assertEqual(feedback_report.finding_ids([{}, {"id": "abc123"}, {"id": "bad id!"}, {"id": 5}]),
+                         ["f0", "abc123", "f2", "f3"])
+        self.assertEqual(feedback_report.finding_ids(None), [])
+        web = (ROOT / "web" / "lib" / "feedback-logic.ts").read_text(encoding="utf-8")
+        self.assertIn("const FINDING_ID = /" + feedback_report.FINDING_ID.pattern + "/;", web)
+        self.assertIn("`f${index}`", web)
+
     def test_no_votes_is_not_a_division_by_zero(self):
         summary = feedback_report.summarise([], None)
         self.assertIsNone(summary["false_positive_rate"])
@@ -182,12 +221,25 @@ class TheFeedbackSql(unittest.TestCase):
         self.assertIn("alter table public.finding_feedback enable row level security", block)
         self.assertNotRegex(block, r"(?i)\b(email|user_agent|ip_address|name)\b\s+text")
 
-    def test_the_one_enqueue_web_run_is_still_the_ten_argument_one_and_nothing_new_was_added(self):
+    def test_the_one_live_enqueue_web_run_is_the_eleven_argument_one_with_retest_of_last(self):
         final = self.sql.rindex("create or replace function public.enqueue_web_run(")
-        self.assertIn("p_success_condition text default null", self.sql[final:final + 700])
-        # Everything after the final definition is other features' SQL, none of it redefining the function.
+        definition = self.sql[final:final + 900]
+        self.assertIn("p_success_condition text default null,\n  p_retest_of uuid default null\n)", definition)
+        # Nothing after the final definition redefines or drops it, and each earlier one was dropped by
+        # the block that replaced it.
         self.assertEqual(self.sql.count("create or replace function public.enqueue_web_run(", final + 1), 0)
         self.assertEqual(self.sql.count("drop function if exists public.enqueue_web_run(", final + 1), 0)
+        self.assertEqual(self.sql.count("create or replace function public.enqueue_web_run("),
+                         self.sql.count("drop function if exists public.enqueue_web_run("))
+
+    def test_the_blocks_are_in_order_and_each_appears_once(self):
+        heads = ["REPORT V2 (2026-10-12)", "Understand mode (2026-10-12)", "Founder brief (2026-10-12)",
+                 "CHECK AGAIN (2026-10-12)", "FEEDBACK (2026-10-12)"]
+        positions = [self.sql.index("-- " + h) for h in heads]
+        self.assertEqual(positions, sorted(positions))
+        for h in heads:
+            self.assertEqual(self.sql.count("-- " + h), 1)
+        self.assertNotRegex(self.sql, r"(?m)^(<<<<<<<|=======|>>>>>>>)")
 
 
 class TheVoteRoute(unittest.TestCase):

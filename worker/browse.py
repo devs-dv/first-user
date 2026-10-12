@@ -385,6 +385,8 @@ def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict 
             entry["page_errors"] = result["page_errors"]
         if result.get("field"):
             entry["field_after"] = f"{result['field']['label']}: {result['field']['value']!r}"
+            if result["field"].get("contains_typed_text") is not None:
+                entry["field_ok"] = result["field"]["contains_typed_text"]
         entry["url_after"] = result.get("url")
         if result.get("element"):
             entry["element"] = result["element"]

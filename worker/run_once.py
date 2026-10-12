@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+os.environ.setdefault("FIRST_USER_ENVIRONMENT", "development")  # not a production run
 import neatlogs
 from dotenv import load_dotenv
 

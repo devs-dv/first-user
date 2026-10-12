@@ -5,6 +5,8 @@ Usage: python -m unittest test_demo_shop -v
 Nothing here starts a browser, a server or a run; the shop is checked as files.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
+
 import json
 import os
 import re

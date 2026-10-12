@@ -117,6 +117,43 @@ export type RunFacts = {
   trace_id?: string | null;
 };
 
+// Check again (worker/retest.py): what happened to each finding of the original run.
+export type RetestLabel = "fixed" | "still_present" | "not_reached" | "inconclusive" | "new";
+
+export type RetestItem = {
+  finding_index?: number;
+  title: string;
+  kind?: string;
+  severity?: string;
+  original_step?: number | null;
+  original_url?: string | null;
+  label: RetestLabel;
+  // Which pass produced the label: the independent visit, or the guided follow-up along the original route.
+  pass?: "independent" | "guided" | null;
+  // A step of this (the retest's) report.
+  evidence_step: number | null;
+  reason?: string;
+  basis?: "observed";
+};
+
+export type RetestVerdictSide = {
+  kind: VerdictKind;
+  headline: string;
+  where_step: number | null;
+  where_url: string | null;
+} | null;
+
+export type RetestResult = {
+  original_run_id?: string;
+  labels: RetestItem[];
+  new: RetestItem[];
+  counts?: Record<string, number>;
+  verdict?: { before: RetestVerdictSide; after: RetestVerdictSide; change: string; summary: string };
+  fixed_means?: string;
+  guided?: { attempted: number; followed: number };
+  error?: string;
+};
+
 export type Run = {
   id: string;
   url: string;
@@ -129,6 +166,8 @@ export type Run = {
   verdict: Verdict | null;
   run_facts: RunFacts | null;
   success_condition: string | null;
+  retest_of: string | null;
+  retest: RetestResult | null;
   goal: string;
   status: RunStatus;
   outcome: Outcome | null;
@@ -160,20 +199,31 @@ export type Friction = {
   happened: string | null;
 };
 
-export type RunDetails = { run: Run; steps: Step[]; frictions: Friction[] };
+// The original of a retest, and the latest check of a run (either may be absent).
+export type RunLink = { id: string; status?: string; verdict?: Verdict | null; outcome?: Outcome | null };
+
+export type RunDetails = {
+  run: Run;
+  steps: Step[];
+  frictions: Friction[];
+  original?: RunLink | null;
+  latest_retest?: RunLink | null;
+};
 
 export type ApiError = { error: string; message: string };
 
 // Never includes the test login: it lives in run_secrets, which the web app never reads.
 // One string literal, so supabase-js can infer the row type from it.
 export const RUN_COLUMNS =
-  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, verdict, run_facts, success_condition, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, verdict, run_facts, success_condition, retest_of, retest, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
 // The same without the columns added on 2026-10-11 (access_mode, findings), for a database whose schema
 // has not been updated yet: the run page still loads, without them.
 export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "")
   .replace(" findings,", "")
   .replace(" verdict,", "")
   .replace(" run_facts,", "")
-  .replace(" success_condition,", "");
+  .replace(" success_condition,", "")
+  .replace(" retest_of,", "")
+  .replace(" retest,", "");
 export const STEP_COLUMNS = "idx, tool, thought, input, result, url, screenshot_path, created_at";
 export const FRICTION_COLUMNS = "id, step_idx, kind, severity, expected, happened";

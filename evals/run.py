@@ -408,6 +408,7 @@ async def main(version: str, only: list[str] | None, timeout_minutes: float, com
                which: str = "sites") -> None:
     trace_safety.set_input(version=version, only=only or [], timeout_minutes=timeout_minutes, compare_to=compare_to,
                            cases=which)
+    trace_safety.set_metadata(environment="eval", eval_version=version)
     cases = load_cases(only, which)
     for case in [c for c in cases if not case_files.runnable(c)[0]]:
         print(f"skipping {case['id']}: {case_files.runnable(case)[1]}", flush=True)

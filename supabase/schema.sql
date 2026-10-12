@@ -533,6 +533,84 @@ revoke execute on function public.enqueue_founder_brief_run(uuid, text, integer,
 grant execute on function public.enqueue_founder_brief_run(uuid, text, integer, integer) to service_role;
 
 -- ===========================================================================
+-- CHECK AGAIN (2026-10-12): re-run the same journey after a fix. Safe to re-run.
+-- Own block, last in the file.
+-- ===========================================================================
+
+-- The run this one re-checks (always the original, never a retest of a retest), and the comparison the
+-- worker made: a label for each old finding, the new ones, and the verdicts side by side.
+alter table public.runs add column if not exists retest_of uuid references public.runs (id) on delete set null;
+alter table public.runs add column if not exists retest jsonb;
+
+create index if not exists runs_retest_of_idx on public.runs (retest_of) where retest_of is not null;
+
+-- enqueue_web_run gains p_retest_of as its last argument (default null); every earlier argument is
+-- unchanged. Retests go through this same function, so they get the same limits as any new run.
+drop function if exists public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text);
+
+create or replace function public.enqueue_web_run(
+  p_url text,
+  p_goal text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer,
+  p_start_url text default null,
+  p_test_email text default null,
+  p_test_password text default null,
+  p_access_mode text default null,
+  p_success_condition text default null,
+  p_retest_of uuid default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+  with_login boolean := p_test_email is not null and p_test_password is not null;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  if p_retest_of is not null and not exists (select 1 from public.runs where id = p_retest_of) then
+    return jsonb_build_object('error', 'original_not_found');
+  end if;
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object('error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer);
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, start_url, has_test_login, access_mode, success_condition,
+                           retest_of)
+  values (p_url, p_goal, 'web', p_ip_hash, p_start_url, with_login, p_access_mode, p_success_condition,
+          p_retest_of)
+  returning id into new_id;
+
+  if with_login then
+    insert into public.run_secrets (run_id, test_email, test_password)
+    values (new_id, p_test_email, p_test_password);
+  end if;
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text, uuid)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text, uuid)
+  to service_role;
+
+-- ===========================================================================
 -- FEEDBACK (2026-10-12): did a finding help? One vote per finding per visitor. Safe to re-run.
 -- Own block, last in the file, so it merges cleanly with other changes to this file.
 -- ===========================================================================

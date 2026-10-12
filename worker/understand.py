@@ -430,6 +430,7 @@ async def understand_site(url: str, run_id: str, *, renderer=None, model_call=No
     """Read the site and write the brief. Returns {"brief", "usage", "cost_usd"}; raises SiteUnreadable
     when not a single page could be read. `limits` are SiteDiscovery's (max_pages, delay, ...)."""
     trace_safety.set_input(url=url, run_id=run_id, model=UNDERSTAND_MODEL)
+    trace_safety.set_metadata(environment=os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
     guard = EgressGuard()
     await guard.start()
     try:

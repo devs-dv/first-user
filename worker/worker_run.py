@@ -12,7 +12,7 @@ import neatlogs
 
 import db
 import trace_safety
-from config import BRAIN_MODEL, CLEAN_RUN_FILES
+from config import BRAIN_MODEL, CHECK_AGAIN, CLEAN_RUN_FILES
 from credentials import TestCredentials
 from tools import RUNS_DIR
 from visit import first_visit
@@ -66,6 +66,22 @@ async def _take_credentials(run: dict):
     return credentials, False
 
 
+async def _load_original(run: dict) -> dict | None:
+    """The original run a retest is compared with, or None for an ordinary run (or if it cannot be read).
+
+    Only its findings, verdict, start link and recorded steps: never a test login.
+    """
+    original_id = run.get("retest_of")
+    if not original_id or not CHECK_AGAIN:
+        return None
+    try:
+        return await db.get_original_for_retest(original_id)
+    except Exception as error:
+        print(f"Could not read the original run {original_id} for run {run['id']}: {type(error).__name__}",
+              flush=True)
+        return None
+
+
 async def execute(run: dict, agent_version: str) -> None:
     if run.get("kind") == "understand":
         from understand_run import execute_understand  # the brief mode: no browser visit, no test login
@@ -81,13 +97,16 @@ async def execute(run: dict, agent_version: str) -> None:
     print(f"Claimed run {run_id}: {run['url']}" + (f" (start link {start_url})" if start_url else "")
           + f" (access {access_mode}, brain {BRAIN_MODEL}, agent {agent_version})", flush=True)
     credentials, unavailable = await _take_credentials(run)
+    retest = await _load_original(run)
     try:
         with neatlogs.identify(session_id=f"run_{run_id}"):
             result = await first_visit(
                 run["url"], run["goal"], run_id, recorder=db.RunRecorder(run_id),
                 start_url=start_url, credentials=credentials, test_login_unavailable=unavailable,
                 access_mode=access_mode, access_mode_chosen=access_mode_was_chosen(run),
-                success_condition=run.get("success_condition") or None,
+                success_condition=run.get("success_condition") or None, retest=retest,
+                # Runs queued by evals/run.py carry source "eval"; everything else is a real run.
+                environment="eval" if run.get("source") == "eval" else "production",
             )
     except Exception as error:
         # Error text and tracebacks pass through scrub(): an exception can echo what was typed.

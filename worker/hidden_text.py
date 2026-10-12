@@ -53,7 +53,7 @@ PATTERNS = [
 ]
 _COMPILED = [re.compile(pattern, re.I) for pattern in PATTERNS]
 _ACHIEVED_PATTERN = 1  # "report ... goal ... achieved": an honest "was not achieved" must survive
-_NEGATION = re.compile(r"\b(not|n't|never|unable|failed|couldn't|cannot|no)\b", re.I)
+_NEGATION = re.compile(r"\b(not|n't|never|unable|failed|couldn't|cannot)\b", re.I)
 _SKIP_KEYS = {"success_condition", "usage", "egress", "trace_id", "url", "urls", "hidden_text", "run_facts"}
 
 
@@ -295,3 +295,18 @@ def apply_to_result(result: dict) -> dict:
     cleaned["hidden_text"] = ({"notice": NOTICE, "found": where, "sentences_removed": removed_count()}
                               if where else None)
     return cleaned
+
+
+def refresh(result: dict) -> dict:
+    """The result again after work done since apply_to_result (the Check again comparison and its guided pass):
+    the retest's labels, summaries and new findings are sanitized, and `hidden_text` and the first impression's
+    notice reflect everything found in the visit so far, the guided replays included."""
+    out = dict(result)
+    if isinstance(out.get("retest"), dict):
+        out["retest"] = sanitize(out["retest"])
+    where = found()
+    out["hidden_text"] = ({"notice": NOTICE, "found": where, "sentences_removed": removed_count()}
+                          if where else out.get("hidden_text"))
+    if where and isinstance(out.get("first_impression"), dict):
+        out["first_impression"] = with_notice(out["first_impression"])
+    return out

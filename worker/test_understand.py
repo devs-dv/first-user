@@ -9,6 +9,8 @@ while 127.0.0.2 and the metadata address stay private. One live test drives a re
 guard for a page that needs JavaScript; SKIP_LIVE_TESTS=1 skips it.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
+
 import asyncio
 import ipaddress
 import os

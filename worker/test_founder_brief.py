@@ -6,6 +6,8 @@ No model is called and nothing is fetched: the model is a stand-in that returns 
 (including things it must not be believed about), and the brief it works from is a stored product brief.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
+
 import json
 import re
 import unittest

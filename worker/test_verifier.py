@@ -3,6 +3,7 @@
 Usage: python -m unittest test_verifier -v
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import json
 import os

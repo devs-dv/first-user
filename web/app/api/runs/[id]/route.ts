@@ -39,5 +39,24 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/runs/[id]">
 
   // A failed run's reason is an internal error message (API or browser failure), not a finding.
   const runData = runRow.status === "failed" ? { ...runRow, reason: null } : runRow;
-  return Response.json({ run: runData, steps: steps.data, frictions: frictions.data }, { headers: NO_STORE });
+
+  // Check again: the original this run re-checks, and this run's latest re-check. Either query failing
+  // (an older schema) just leaves the link out.
+  let original: unknown = null;
+  let latestRetest: unknown = null;
+  if (typeof runRow.retest_of === "string") {
+    const found = await db.from("runs").select("id, status, outcome, verdict").eq("id", runRow.retest_of).maybeSingle();
+    original = found.error ? null : found.data;
+  }
+  const latest = await db
+    .from("runs")
+    .select("id, status, outcome, verdict")
+    .eq("retest_of", id)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (!latest.error && latest.data && latest.data.length > 0) latestRetest = latest.data[0];
+  return Response.json(
+    { run: runData, steps: steps.data, frictions: frictions.data, original, latest_retest: latestRetest },
+    { headers: NO_STORE },
+  );
 }

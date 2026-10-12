@@ -4,6 +4,7 @@ Usage: python -m unittest test_server_mode -v
 No browser, no model, no network.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import contextlib
 import io
