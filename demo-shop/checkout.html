@@ -21,6 +21,17 @@
   <main>
     <h1>Checkout</h1>
     <p id="checkout-empty" hidden>Your cart is empty. <a href="products.html">Add a plant first</a>.</p>
+    <section id="order-summary" aria-labelledby="order-heading">
+      <h2 id="order-heading">Your order</h2>
+      <p id="order-empty" hidden>Your cart is empty. <a href="products.html">Browse the plants</a>.</p>
+      <div id="order-filled" hidden>
+        <table>
+          <thead><tr><th scope="col">Plant</th><th scope="col">Quantity</th><th scope="col">Price</th></tr></thead>
+          <tbody id="order-lines"></tbody>
+        </table>
+        <p>Total: <strong id="order-total">$0.00</strong></p>
+      </div>
+    </section>
     <form id="checkout-form" class="simple" hidden>
       <p class="muted">This is a demo. Please do not enter real details; any made-up name and email will do.</p>
       <label>Name <input type="text" name="name" autocomplete="off" required></label>
@@ -33,5 +44,6 @@
     Fernleaf is not a real business. Made for testing First User; nothing you do here is stored or sent anywhere.
   </footer>
   <script src="shop.js"></script>
+  <script src="checkout.js"></script>
 </body>
 </html>
