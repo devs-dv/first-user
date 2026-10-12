@@ -21,10 +21,13 @@ Paste each link after the colon. Leave a line as it is if you don't have it yet.
 - Friction Fixer, with first impression:
 
 ## Entire
-- Checkpoint for the recovery-ladder fix, ID:
-- Checkpoint for the recovery-ladder fix, link:
-- Checkpoint for the verifier, ID:
-- Checkpoint for the verifier, link:
+- Checkpoint for the recovery-ladder fix, ID: 01M4JKVBR6Y56SHAER3B1J3P34
+- Checkpoint for the recovery-ladder fix, link: https://entire.io/gh/devs-dv/first-user/commit/51e480bc36f25adbd566e63b994c5b952c7b4d27
+- Checkpoint for the verifier, ID: PASTE FROM THE PAGE
+- Checkpoint for the verifier, link: https://entire.io/gh/devs-dv/first-user/commit/a1188d3e37e8150da8d5d37d73bc4b01c6843891
+- Checkpoint for Check again, ID: 01M4QC7Y7XDGR52829BFVNNQ47
+- Checkpoint for Check again, link: https://entire.io/gh/devs-dv/first-user/commit/6904a29c320f147fc6fe5fc4a01619df6a7e0fbb
+- All milestone checkpoints: see the table in links.md
 
 ## cfo.ai
 - Plan link: https://cfo.ai/s/AOaTCh1FguibmvmV

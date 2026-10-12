@@ -1,0 +1,338 @@
+/*
+  Design tokens for First User, taken from the designer's export (design/code/First User v8.dc.html).
+  This is the one place for fonts, colours, type scale, spacing, radii, shadows and motion. Components
+  read these variables (directly, through the fu-* classes in ui.css, or through the Tailwind theme in
+  globals.css); none of them hard-code a value that is listed here.
+
+  Theme: light and dark follow the system, and the header's toggle pins one with
+  <html data-fu-theme="light|dark">.
+*/
+
+:root {
+  /* ---------------------------------------------------------------- colour, light */
+  --bg: #f3f2ed;
+  --s1: #fcfbf8;
+  --s2: #f7f6f1;
+  --line: #e1dfd6;
+  --ink: #0e1116;
+  --ink2: #363a42;
+  --ink3: #545963;
+  --ink4: #7c818b;
+  --off: #d2d0c6;
+  --acc: #c6ff3d;
+  --acc-h: #b4f01f;
+  --acc-soft: #f4ffd9;
+  --on-acc: #0e1320;
+  --deep: #0e1116;
+  --hard: #0e1320;
+  --blue-soft: #dce6ff;
+  --amber-soft: #fff1d6;
+  --green-soft: #e3f4e8;
+  --amber-ink: #7a4a00;
+  --green-ink: #0f6b3a;
+  --blue-ink: #1f3fb8;
+  --pass: #138a4b;
+  --info: #2f5bff;
+  --bad: #c93424;
+  --bad-soft: #fde3df;
+  --bad-ink: #9a2214;
+  --on-bad: #ffffff;
+  --warn: #a86400;
+
+  /* Fixed colours that do not change with the theme: the mock browser pages, the dark code panel,
+     the "night" sections (results, footer) and the brand marks on them. */
+  --night: #07080a;
+  --night-s1: #111317;
+  --night-s2: #16181d;
+  --night-line: #22262d;
+  --night-line2: #2e333b;
+  --night-ink: #f1f2f4;
+  --night-ink2: #d5d8de;
+  --night-ink3: #9da3ae;
+  --ink-fixed: #0e1320;
+  --acc-fixed: #c6ff3d;
+  --code-bg: #0e1320;
+  --code-ink: #d6dce8;
+  --code-mute: #9aa3b5;
+  --page-white: #ffffff;
+  --page-side: #f2f4f8;
+  --page-line: #dde2eb;
+  --page-line2: #cdd3df;
+  --page-ink: #0e1320;
+  --page-ink2: #343d4f;
+  --page-ink3: #4f596c;
+  --page-ink4: #7a8396;
+  --page-btn: #2f5bff;
+  --page-ring-bad: #c93424;
+
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------- type */
+  --ff-display: var(--font-archivo), "Archivo", sans-serif;
+  --ff-body: var(--font-geist), "Geist", sans-serif;
+  --ff-code: var(--font-geist-mono), "Geist Mono", monospace;
+
+  /* Archivo is set narrow and heavy for every display line. */
+  --display-stretch: 68%;
+  --display-stretch-mid: 72%;
+  --display-stretch-wide: 75%;
+  --display-weight: 850;
+
+  /* Display sizes scale with the page container (cqi), as in the design. */
+  --t-hero: clamp(60px, 9cqi, 120px);
+  --t-giant: clamp(64px, 11cqi, 168px);
+  --t-journey: clamp(56px, 9.6cqi, 140px);
+  --t-section: clamp(44px, 6cqi, 76px);
+  --t-section-sm: clamp(40px, 6cqi, 72px);
+  --t-cta: clamp(52px, 8cqi, 104px);
+  --t-stat: clamp(72px, 9cqi, 112px);
+  --t-verdict: clamp(40px, 5.6cqi, 76px);
+  --t-page: clamp(40px, 6cqi, 76px);
+  --t-run: clamp(36px, 5cqi, 60px);
+  --t-block: clamp(30px, 3.8cqi, 44px);
+  --t-card: clamp(28px, 3.4cqi, 40px);
+  --t-founder: clamp(26px, 3cqi, 36px);
+  --t-footer: clamp(40px, 5cqi, 64px);
+  --t-who: clamp(28px, 3.6cqi, 48px);
+  --t-mile: clamp(44px, 5cqi, 64px);
+  --t-tool: clamp(36px, 4.6cqi, 60px);
+  --t-metric: clamp(40px, 4.4cqi, 56px);
+  --t-link-card: clamp(30px, 3.6cqi, 44px);
+  --t-wordmark: min(21cqi, 268px);
+  --t-lede: clamp(19px, 1.9cqi, 24px);
+  --t-lede-sm: clamp(18px, 1.9cqi, 21px);
+
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-13: 13px;
+  --t-14: 14px;
+  --t-15: 15px;
+  --t-16: 16px;
+  --t-17: 17px;
+  --t-18: 18px;
+  --t-19: 19px;
+  --lh-tight: 0.88;
+  --lh-body: 1.5;
+
+  /* ---------------------------------------------------------------- spacing */
+  --gutter: clamp(20px, 4cqi, 48px);
+  --section-y: clamp(72px, 9cqi, 112px);
+  --section-y-lg: clamp(88px, 10cqi, 128px);
+  --page-top: clamp(28px, 4cqi, 48px);
+  --page-top-lg: clamp(40px, 6cqi, 72px);
+  --page-bottom: clamp(64px, 8cqi, 96px);
+  --block-gap: clamp(44px, 6cqi, 72px);
+  --card-pad: clamp(18px, 2.6cqi, 26px);
+  --card-pad-lg: clamp(20px, 2.6cqi, 28px);
+  --header-offset: 96px;
+  --page-max: 1280px;
+
+  /* ---------------------------------------------------------------- radii */
+  --r-pill: 999px;
+  --r-hero: 24px;
+  --r-form: 22px;
+  --r-card: 20px;
+  --r-card-sm: 18px;
+  --r-panel: 16px;
+  --r-frame: 14px;
+  --r-field: 12px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+
+  /* ---------------------------------------------------------------- borders and shadows */
+  --bw: 1.5px;
+  --sh-hard-xl: 12px 12px 0 var(--hard);
+  --sh-hard-lg: 10px 10px 0 var(--hard);
+  --sh-hard: 8px 8px 0 var(--hard);
+  --sh-hard-md: 6px 6px 0 var(--hard);
+  --sh-hard-sm: 4px 4px 0 var(--hard);
+  --sh-press: 0 6px 0 var(--hard);
+  --sh-float: 0 18px 40px color-mix(in srgb, #000 18%, transparent);
+  --sh-badge: 0 10px 24px color-mix(in srgb, #000 20%, transparent);
+  --sh-bar: 0 12px 32px rgba(0, 0, 0, 0.16);
+
+  /* ---------------------------------------------------------------- motion */
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-spring: cubic-bezier(0.3, 1.3, 0.5, 1);
+  --e-bounce: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --e-pop: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --e-swipe: cubic-bezier(0.7, 0, 0.2, 1);
+  --e-cursor: cubic-bezier(0.6, 0, 0.3, 1);
+  --dur-fast: 0.2s;
+  --dur-hover: 0.25s;
+  --dur-card: 0.3s;
+  --dur-state: 0.4s;
+  --dur-slide: 0.45s;
+  --dur-swipe: 0.55s;
+  --dur-reveal: 0.8s;
+  --dur-cursor: 1.1s;
+  --dur-glow: 1.2s;
+  --marquee: 42s;
+}
+
+/* ---------------------------------------------------------------- colour, dark */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-fu-theme="light"]) {
+    --bg: #0a0b0e;
+    --s1: #121419;
+    --s2: #17191f;
+    --line: #262a32;
+    --ink: #f1f2f4;
+    --ink2: #c8ccd3;
+    --ink3: #9da3ae;
+    --ink4: #858b97;
+    --off: #323843;
+    --acc: #c6ff3d;
+    --acc-h: #d6ff6e;
+    --acc-soft: #232e10;
+    --on-acc: #0e1320;
+    --deep: #16181e;
+    --hard: #c6ff3d;
+    --blue-soft: #1a2754;
+    --amber-soft: #33270e;
+    --green-soft: #102b1c;
+    --amber-ink: #f5c46a;
+    --green-ink: #6fe3a0;
+    --blue-ink: #a9bcff;
+    --pass: #57e38d;
+    --info: #8aa4ff;
+    --bad: #ff7a6b;
+    --bad-soft: #3a1714;
+    --bad-ink: #ffb0a6;
+    --on-bad: #0e1320;
+    --warn: #f5b544;
+    color-scheme: dark;
+  }
+}
+
+:root[data-fu-theme="dark"] {
+  --bg: #0a0b0e;
+  --s1: #121419;
+  --s2: #17191f;
+  --line: #262a32;
+  --ink: #f1f2f4;
+  --ink2: #c8ccd3;
+  --ink3: #9da3ae;
+  --ink4: #858b97;
+  --off: #323843;
+  --acc: #c6ff3d;
+  --acc-h: #d6ff6e;
+  --acc-soft: #232e10;
+  --on-acc: #0e1320;
+  --deep: #16181e;
+  --hard: #c6ff3d;
+  --blue-soft: #1a2754;
+  --amber-soft: #33270e;
+  --green-soft: #102b1c;
+  --amber-ink: #f5c46a;
+  --green-ink: #6fe3a0;
+  --blue-ink: #a9bcff;
+  --pass: #57e38d;
+  --info: #8aa4ff;
+  --bad: #ff7a6b;
+  --bad-soft: #3a1714;
+  --bad-ink: #ffb0a6;
+  --on-bad: #0e1320;
+  --warn: #f5b544;
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------- keyframes */
+@keyframes fuBlink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes fuMarq {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes fuTap {
+  0%,
+  20% {
+    transform: translate(70px, 46px);
+  }
+  45%,
+  60% {
+    transform: translate(0, 0);
+  }
+  52% {
+    transform: translate(0, 0) scale(0.86);
+  }
+  85%,
+  100% {
+    transform: translate(70px, 46px);
+  }
+}
+@keyframes fuRing {
+  0%,
+  45% {
+    box-shadow: 0 0 0 0 rgba(201, 52, 36, 0.55);
+  }
+  75% {
+    box-shadow: 0 0 0 12px rgba(201, 52, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(201, 52, 36, 0);
+  }
+}
+@keyframes fuSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fuNudge {
+  0%,
+  70%,
+  100% {
+    transform: translateX(0);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+  90% {
+    transform: translateX(-1px);
+  }
+}
+@keyframes fuPulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pass) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes fuLook {
+  0%,
+  30% {
+    transform: translateX(0);
+  }
+  36%,
+  52% {
+    transform: translateX(-6px);
+  }
+  58%,
+  74% {
+    transform: translateX(6px);
+  }
+  80%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Every animation and transition stops for people who ask for less motion. The scripted motion
+   (reveals, the hero's demo run, counters) checks the same setting before it starts. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

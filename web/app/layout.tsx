@@ -1,42 +1,49 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { Archivo, Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
+
 import "./globals.css";
+import { MotionRuntime } from "./motion";
+import { SiteFooter } from "./site-footer";
+import { SiteHeader } from "./site-header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// The three families of the design. Archivo carries its width axis, so display lines can be set narrow.
+const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], axes: ["wdth"] });
+const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "First User",
-  description: "Paste your app's link. A first-time user tries it and tells you where they got stuck.",
+  description:
+    "Find out whether a stranger can actually use your product, before you spend money acquiring users. A first-time visitor tries one goal in a real browser and reports honestly what happened.",
 };
+
+// Applies a saved light or dark choice before the first paint, so the page never flashes the other theme.
+const THEME_SCRIPT = `try{var t=localStorage.getItem("fu_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-fu-theme",t)}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${archivo.variable} ${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       {/* Browser extensions (e.g. ColorZilla's cz-shortcut-listen) add attributes to <body> before
           React hydrates. This ignores attribute mismatches on <body> only, not its children. */}
-      <body suppressHydrationWarning className="flex min-h-full flex-col font-sans text-base leading-relaxed">
-        <header className="border-b border-line">
-          <div className="mx-auto flex max-w-3xl items-center px-4 py-4 sm:px-6">
-            <Link href="/" className="font-semibold tracking-tight">
-              First User
-            </Link>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6 sm:py-14">{children}</main>
-        <footer className="border-t border-line">
-          <p className="mx-auto max-w-3xl px-4 py-6 text-sm text-subtle sm:px-6">
-            First User is a simulated visitor. Findings are leads to check, not verdicts.
-          </p>
-        </footer>
+      <body suppressHydrationWarning>
+        <div className="fu-root">
+          <div aria-hidden className="fu-noise" />
+          <a href="#main" className="sr-only-focusable fu-btn fu-btn-sm absolute left-4 top-4 z-[80]">
+            Skip to content
+          </a>
+          <Suspense fallback={<header className="fu-header" style={{ height: 72 }} />}>
+            <SiteHeader />
+          </Suspense>
+          <div id="main">{children}</div>
+          <Suspense fallback={null}>
+            <SiteFooter />
+            <MotionRuntime />
+          </Suspense>
+        </div>
       </body>
     </html>
   );

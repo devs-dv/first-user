@@ -1,0 +1,880 @@
+/*
+  Shared component classes (fu-*), built only from the tokens in tokens.css. Page layouts use Tailwind
+  utilities on top of these; anything that repeats across pages lives here.
+*/
+
+/* Base element styles sit in the base layer and the fu-* classes in the components layer, so Tailwind
+   utilities on an element always win over both. */
+@layer base {
+  /* ------------------------------------------------------------------------------------- base */
+  html,
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--ff-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--ink3);
+  }
+  input,
+  textarea {
+    color: var(--ink);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--ink4);
+  }
+  ::selection {
+    background: var(--acc);
+    color: var(--on-acc);
+  }
+  :focus-visible {
+    outline: 2.5px solid var(--info);
+    outline-offset: 2px;
+  }
+  html {
+    scroll-padding-top: var(--header-offset);
+  }
+
+}
+
+@layer components {
+  /* The page frame: every page sits in one 1280px container, and display sizes are measured against it. */
+  .fu-root {
+    position: relative;
+    max-width: var(--page-max);
+    margin: 0 auto;
+    min-height: 100vh;
+    container: fu / inline-size;
+    background: var(--bg);
+    color: var(--ink);
+    overflow: clip;
+  }
+  .fu-noise {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22180%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%22.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E");
+  }
+  .fu-dots {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(var(--off) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+  }
+  .sr-only-focusable:not(:focus) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------------------------------- type */
+  .fu-eyebrow {
+    font: 500 var(--t-sm) var(--ff-code);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink3);
+  }
+  .fu-eyebrow-sm {
+    font: 500 var(--t-xs) var(--ff-code);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink3);
+  }
+  .fu-display {
+    margin: 0;
+    font-family: var(--ff-display);
+    font-stretch: var(--display-stretch);
+    font-weight: var(--display-weight);
+    text-transform: uppercase;
+    line-height: var(--lh-tight);
+  }
+  .fu-display-mid {
+    font-stretch: var(--display-stretch-mid);
+  }
+  .fu-display-wide {
+    font-stretch: var(--display-stretch-wide);
+    font-weight: 800;
+  }
+  .fu-mark {
+    display: inline-block;
+    background: var(--acc);
+    color: var(--on-acc);
+    padding: 0 12px;
+    border-radius: 12px;
+    transform: rotate(-1.5deg);
+  }
+  .fu-mono {
+    font-family: var(--ff-code);
+  }
+  .fu-pretty {
+    text-wrap: pretty;
+  }
+  /* A heading line that slides up into view when the page opens (motion.tsx). */
+  .fu-line {
+    display: block;
+    overflow: hidden;
+  }
+  .fu-line > span {
+    display: block;
+  }
+
+  /* ------------------------------------------------------------------------------------- small marks */
+  .fu-dot-live {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--pass);
+    animation: fuPulse 1.8s infinite;
+  }
+  .fu-logo-mark {
+    width: 30px;
+    height: 22px;
+    flex: none;
+    border-radius: 9px;
+    background: var(--acc);
+    border: var(--bw) solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .fu-logo-mark > span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-fixed);
+    animation: fuLook 6s ease-in-out infinite;
+  }
+  .fu-logo-word {
+    font: 800 19px var(--ff-display);
+    font-stretch: var(--display-stretch-wide);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .fu-num {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--bg);
+    font: 600 var(--t-xs) var(--ff-body);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ------------------------------------------------------------------------------------- buttons */
+  .fu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 18px;
+    border-radius: var(--r-pill);
+    border: var(--bw) solid var(--ink);
+    background: var(--acc);
+    color: var(--on-acc);
+    font: 600 var(--t-15) var(--ff-body);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      transform var(--dur-fast),
+      box-shadow var(--dur-fast),
+      background var(--dur-fast);
+  }
+  .fu-btn:hover {
+    color: var(--on-acc);
+    background: var(--acc-h);
+    transform: translateY(-2px);
+  }
+  .fu-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+  }
+  .fu-btn-lg {
+    height: 60px;
+    padding: 0 8px 0 24px;
+    font-size: var(--t-16);
+    justify-content: space-between;
+  }
+  .fu-btn-lg:hover {
+    box-shadow: 0 5px 0 var(--hard);
+  }
+  .fu-btn-md {
+    height: 48px;
+    padding: 0 22px;
+  }
+  .fu-btn-sm {
+    height: 36px;
+    padding: 0 12px;
+    font-size: var(--t-13);
+    font-weight: 500;
+  }
+  .fu-btn-with-arrow {
+    padding-right: 6px;
+  }
+  .fu-btn-ghost {
+    background: var(--s1);
+    color: var(--ink);
+    font-weight: 500;
+    font-size: var(--t-14);
+  }
+  .fu-btn-ghost:hover {
+    background: var(--s1);
+    color: var(--ink);
+  }
+  .fu-btn-outline {
+    background: transparent;
+    color: var(--ink);
+  }
+  .fu-btn-outline:hover {
+    background: var(--s1);
+    color: var(--ink);
+  }
+  .fu-btn-dark {
+    background: var(--ink-fixed);
+    border-color: var(--ink-fixed);
+    color: var(--acc-fixed);
+  }
+  .fu-btn-dark:hover {
+    background: var(--ink-fixed);
+    color: var(--acc-fixed);
+  }
+  .fu-arrow {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ink-fixed);
+    color: var(--acc-fixed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fu-arrow-acc {
+    background: var(--acc-fixed);
+    color: var(--ink-fixed);
+  }
+  .fu-arrow-lg {
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+  }
+  .fu-nudge {
+    animation: fuNudge 2.4s ease-in-out infinite;
+  }
+  .fu-text-btn {
+    border: none;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  .fu-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .fu-link:hover {
+    color: var(--ink3);
+  }
+
+  /* ------------------------------------------------------------------------------------- chips */
+  .fu-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line);
+    font: 500 var(--t-sm) var(--ff-code);
+    white-space: nowrap;
+    flex: none;
+  }
+  .fu-chip-tag {
+    height: 24px;
+    padding: 0 9px;
+    font: 500 var(--t-xs) var(--ff-code);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .fu-chip-word {
+    height: 24px;
+    padding: 0 9px;
+    border: none;
+    font: 600 var(--t-sm) var(--ff-body);
+  }
+  .fu-chip-dashed {
+    border: var(--bw) dashed var(--ink);
+    height: 30px;
+    padding: 0 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .fu-pill-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    background: var(--s1);
+    border: 1px solid var(--line);
+    font: 500 var(--t-13) var(--ff-code);
+    color: var(--ink2);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------------------------------- cards */
+  .fu-card {
+    background: var(--s1);
+    border: var(--bw) solid var(--ink);
+    border-radius: var(--r-card);
+  }
+  .fu-card-sm {
+    background: var(--s1);
+    border: var(--bw) solid var(--ink);
+    border-radius: var(--r-card-sm);
+  }
+  .fu-lift {
+    transition:
+      transform var(--dur-card),
+      box-shadow var(--dur-card),
+      background 0.5s;
+  }
+  .fu-lift:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: var(--sh-hard-md);
+  }
+  .fu-lift-lg:hover {
+    transform: translate(-4px, -4px);
+    box-shadow: var(--sh-hard);
+  }
+  .fu-lift-sm:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 5px 5px 0 var(--hard);
+  }
+  .fu-panel {
+    padding: 14px;
+    border-radius: var(--r-field);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .fu-quote {
+    padding-left: 12px;
+    border-left: 2px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  /* ------------------------------------------------------------------------------------- the mock browser */
+  .fu-browser {
+    border-radius: var(--r-field);
+    border: var(--bw) solid var(--ink);
+    overflow: hidden;
+    background: var(--page-white);
+    color: var(--page-ink);
+  }
+  .fu-browser-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: var(--page-side);
+    border-bottom: 1px solid var(--page-line);
+    font: 500 var(--t-xs) var(--ff-code);
+    color: var(--page-ink3);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .fu-browser-bar > .fu-browser-dot {
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--page-line2);
+  }
+  .fu-browser-shot {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .fu-traffic {
+    display: flex;
+    gap: 6px;
+  }
+  .fu-traffic > span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+
+  /* ------------------------------------------------------------------------------------- form fields */
+  .fu-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font: 600 var(--t-14) var(--ff-body);
+  }
+  .fu-field {
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    padding: 0 14px;
+    border-radius: var(--r-field);
+    border: var(--bw) solid var(--line);
+    background: var(--bg);
+    font: 400 var(--t-16) var(--ff-body);
+    outline: none;
+    transition: border-color var(--dur-fast);
+  }
+  .fu-field:focus {
+    border-color: var(--ink);
+  }
+  .fu-field[aria-invalid="true"] {
+    border-color: var(--bad);
+  }
+  .fu-field-mono {
+    height: 48px;
+    font: 500 var(--t-14) var(--ff-code);
+  }
+  .fu-field-wrap {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 14px;
+    border-radius: var(--r-field);
+    border: var(--bw) solid var(--ink);
+    background: var(--bg);
+  }
+  .fu-field-wrap > span {
+    font: 500 var(--t-15) var(--ff-code);
+    color: var(--ink4);
+  }
+  .fu-field-wrap > input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font: 500 var(--t-15) var(--ff-code);
+  }
+  .fu-field-wrap:focus-within {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 35%, transparent);
+  }
+  .fu-field-wrap[data-invalid="true"] {
+    border-color: var(--bad);
+  }
+  .fu-error {
+    margin: 0;
+    font-size: var(--t-14);
+    line-height: 1.45;
+    color: var(--bad-ink);
+  }
+  .fu-hint {
+    margin: 0;
+    font-size: var(--t-13);
+    line-height: 1.45;
+    color: var(--ink3);
+  }
+  .fu-alert {
+    padding: 14px 16px;
+    border-radius: var(--r-field);
+    border: var(--bw) solid var(--ink);
+    background: var(--bad-soft);
+    color: var(--ink);
+    font-size: var(--t-14);
+    line-height: 1.5;
+  }
+  .fu-notice {
+    padding: 12px 16px;
+    border-radius: var(--r-field);
+    border: 1px solid var(--ink);
+    background: var(--amber-soft);
+    color: var(--amber-ink);
+    font-size: var(--t-14);
+    line-height: 1.5;
+  }
+
+  /* ------------------------------------------------------------------------------------- page layout */
+  .fu-section {
+    padding: var(--section-y) var(--gutter);
+  }
+  .fu-page {
+    padding: var(--page-top) var(--gutter) var(--page-bottom);
+    display: flex;
+    flex-direction: column;
+  }
+  .fu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--min, 300px)), 1fr));
+    gap: var(--gap, 14px);
+  }
+  .fu-grid-fill {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min, 300px)), 1fr));
+    gap: var(--gap, 14px);
+  }
+  .fu-scroll-x {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 4px 4px 16px;
+    margin: 0 -4px;
+  }
+
+  /* ------------------------------------------------------------------------------------- header */
+  .fu-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    padding: 12px clamp(10px, 2cqi, 24px) 0;
+  }
+  .fu-bar {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 8px 8px 14px;
+    border-radius: var(--r-pill);
+    border: var(--bw) solid transparent;
+    transition:
+      background 0.35s,
+      border-color 0.35s,
+      box-shadow 0.35s;
+  }
+  .fu-bar[data-scrolled="true"] {
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    border-color: var(--line);
+    box-shadow: var(--sh-bar);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  }
+  .fu-progress {
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    bottom: -1.5px;
+    height: 2px;
+    border-radius: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .fu-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--acc);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+  .fu-nav {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--s1) 72%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 6%, transparent);
+  }
+  .fu-nav-pill {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 0;
+    height: 36px;
+    border-radius: var(--r-pill);
+    background: var(--s2);
+    border: 1px solid var(--line);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      left var(--dur-state) var(--e-spring),
+      width var(--dur-state) var(--e-spring),
+      opacity var(--dur-hover);
+  }
+  .fu-nav-link {
+    position: relative;
+    z-index: 1;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: var(--r-pill);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    font: 500 14.5px var(--ff-body);
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    transition:
+      color var(--dur-hover),
+      background var(--dur-hover);
+  }
+  .fu-nav-link:hover {
+    color: var(--ink);
+  }
+  .fu-nav-link[aria-current="page"] {
+    color: var(--ink-fixed);
+    background: var(--acc);
+    box-shadow: inset 0 0 0 1.5px var(--ink-fixed);
+  }
+  .fu-nav-link[aria-current="page"]::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-fixed);
+  }
+  .fu-icon-btn {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--s1) 72%, transparent);
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      transform 0.5s var(--e-bounce),
+      border-color var(--dur-fast);
+  }
+  .fu-icon-btn:hover {
+    transform: rotate(-25deg);
+    border-color: var(--ink);
+  }
+  .fu-burger {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--r-pill);
+    border: var(--bw) solid var(--ink);
+    background: var(--s1);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .fu-burger > span {
+    width: 16px;
+    height: 1.5px;
+    background: var(--ink);
+    transition: transform var(--dur-card);
+  }
+  .fu-burger[aria-expanded="true"] > span:first-child {
+    transform: translateY(2.75px) rotate(45deg);
+  }
+  .fu-burger[aria-expanded="true"] > span:last-child {
+    transform: translateY(-2.75px) rotate(-45deg);
+  }
+  .fu-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: min(280px, 92cqi);
+    padding: 8px;
+    border-radius: var(--r-card-sm);
+    border: var(--bw) solid var(--ink);
+    background: var(--bg);
+    box-shadow: var(--sh-hard);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fu-menu a {
+    height: 48px;
+    padding: 0 16px;
+    border-radius: var(--r-field);
+    display: flex;
+    align-items: center;
+    font: 500 var(--t-16) var(--ff-body);
+    color: var(--ink);
+  }
+  .fu-menu a[aria-current="page"] {
+    background: var(--acc);
+    color: var(--ink-fixed);
+  }
+  .fu-cta-text {
+    display: none;
+  }
+  .fu-wide-only {
+    display: none;
+  }
+  @container fu (min-width: 560px) {
+    .fu-cta-text {
+      display: inline;
+    }
+    .fu-cta {
+      padding-left: 18px !important;
+    }
+  }
+  @container fu (min-width: 1000px) {
+    .fu-wide-only {
+      display: flex;
+    }
+    .fu-narrow-only {
+      display: none !important;
+    }
+  }
+
+  /* ------------------------------------------------------------------------------------- footer */
+  .fu-footer {
+    --bg: var(--night);
+    --s1: var(--night-s1);
+    --s2: #16181d;
+    --line: var(--night-line);
+    --ink: var(--night-ink);
+    --ink2: #c8ccd3;
+    --ink3: var(--night-ink3);
+    --ink4: #858b97;
+    --off: #2c3139;
+    --hard: var(--acc-fixed);
+    --acc-soft: #1f2a0e;
+    color-scheme: dark;
+    position: relative;
+    isolation: isolate;
+    padding: clamp(64px, 8cqi, 104px) var(--gutter) 0;
+    background: var(--night);
+    color: var(--night-ink);
+    overflow: hidden;
+  }
+  .fu-footer a:not(.fu-btn) {
+    color: var(--ink);
+  }
+  .fu-footer-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--t-16);
+    color: var(--ink2) !important;
+    transition:
+      color var(--dur-fast),
+      transform var(--dur-hover);
+  }
+  .fu-footer-link:hover {
+    color: var(--ink) !important;
+    transform: translateX(4px);
+  }
+  .fu-wordmark {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    font-family: var(--ff-display);
+    font-stretch: 66%;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: var(--t-wordmark);
+    line-height: 0.78;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-mask-image: linear-gradient(#000 45%, transparent 98%);
+    mask-image: linear-gradient(#000 45%, transparent 98%);
+  }
+  .fu-wordmark > span {
+    display: inline-block;
+    color: var(--off);
+    transition:
+      color 0.35s,
+      transform var(--dur-slide) var(--e-pop);
+  }
+
+  /* ------------------------------------------------------------------------------------- the dark code panel */
+  .fu-code {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font: 400 var(--t-14) / 1.6 var(--ff-code);
+  }
+  .fu-code-h {
+    font: 500 var(--t-sm) var(--ff-code);
+    color: var(--code-mute);
+  }
+  .fu-code-title {
+    font: 500 var(--t-sm) var(--ff-code);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--acc-fixed);
+  }
+
+  /* ------------------------------------------------------------------------------------- home */
+  @container fu (min-width: 1000px) {
+    .fu-sticky-col {
+      position: sticky;
+      top: var(--header-offset);
+    }
+  }
+  /* "Who it's for": a green fill swipes in from the left on hover. */
+  .fu-who {
+    background: linear-gradient(var(--acc), var(--acc)) no-repeat left / 0% 100%;
+    transition:
+      background-size var(--dur-swipe) var(--e-swipe),
+      color var(--dur-card),
+      padding var(--dur-state);
+  }
+  .fu-who:hover {
+    background-size: 100% 100%;
+    color: var(--on-acc);
+    padding-left: 24px;
+  }
+
+  /* ------------------------------------------------------------------------------------- disclosure */
+  .fu-plus {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: var(--bw) solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--dur-card);
+  }
+  [aria-expanded="true"] > .fu-plus,
+  details[open] > summary .fu-plus {
+    transform: rotate(45deg);
+  }
+  details > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+}

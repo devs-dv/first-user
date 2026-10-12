@@ -1,70 +1,108 @@
 @import "tailwindcss";
+@import "./tokens.css";
+@import "./ui.css";
 
-:root {
-  --background: #fafaf9;
-  --surface: #ffffff;
-  --foreground: #1c1917;
-  --muted: #57534e;
-  --subtle: #78716c;
-  --line: #e7e5e4;
-  --accent: #0f766e;
-  --accent-strong: #115e59;
-  --accent-soft: #f0fdfa;
-  --danger: #b91c1c;
-  --danger-soft: #fef2f2;
-  --warning: #a16207;
-  --warning-soft: #fefce8;
-  --success: #15803d;
-  --success-soft: #f0fdf4;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #121110;
-    --surface: #1c1a19;
-    --foreground: #f5f5f4;
-    --muted: #c4c0bc;
-    --subtle: #a8a29e;
-    --line: #34302d;
-    --accent: #2dd4bf;
-    --accent-strong: #5eead4;
-    --accent-soft: #10302c;
-    --danger: #f87171;
-    --danger-soft: #3a1717;
-    --warning: #facc15;
-    --warning-soft: #332b0c;
-    --success: #4ade80;
-    --success-soft: #13301d;
-  }
-}
-
+/* The design tokens (tokens.css) exposed to Tailwind, so `bg-s1`, `text-ink3`, `font-display`,
+   `rounded-card`, `shadow-hard` and `text-section` all read the same variables. */
 @theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-subtle: var(--subtle);
+  --color-bg: var(--bg);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
   --color-line: var(--line);
-  --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
-  --color-accent-soft: var(--accent-soft);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-warning: var(--warning);
-  --color-warning-soft: var(--warning-soft);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-ink3: var(--ink3);
+  --color-ink4: var(--ink4);
+  --color-off: var(--off);
+  --color-acc: var(--acc);
+  --color-acc-h: var(--acc-h);
+  --color-acc-soft: var(--acc-soft);
+  --color-on-acc: var(--on-acc);
+  --color-deep: var(--deep);
+  --color-hard: var(--hard);
+  --color-blue-soft: var(--blue-soft);
+  --color-amber-soft: var(--amber-soft);
+  --color-green-soft: var(--green-soft);
+  --color-amber-ink: var(--amber-ink);
+  --color-green-ink: var(--green-ink);
+  --color-blue-ink: var(--blue-ink);
+  --color-pass: var(--pass);
+  --color-info: var(--info);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-ink: var(--bad-ink);
+  --color-on-bad: var(--on-bad);
+  --color-warn: var(--warn);
+  --color-night: var(--night);
+  --color-night-s1: var(--night-s1);
+  --color-night-line: var(--night-line);
+  --color-night-line2: var(--night-line2);
+  --color-night-ink: var(--night-ink);
+  --color-night-ink2: var(--night-ink2);
+  --color-night-ink3: var(--night-ink3);
+  --color-ink-fixed: var(--ink-fixed);
+  --color-acc-fixed: var(--acc-fixed);
+  --color-code-bg: var(--code-bg);
+  --color-code-ink: var(--code-ink);
+  --color-code-mute: var(--code-mute);
+  --color-page: var(--page-white);
+  --color-page-side: var(--page-side);
+  --color-page-line: var(--page-line);
+  --color-page-line2: var(--page-line2);
+  --color-page-ink: var(--page-ink);
+  --color-page-ink2: var(--page-ink2);
+  --color-page-ink3: var(--page-ink3);
+  --color-page-ink4: var(--page-ink4);
+  --color-page-btn: var(--page-btn);
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-}
+  --font-sans: var(--ff-body);
+  --font-mono: var(--ff-code);
+  --font-display: var(--ff-display);
+  --font-code: var(--ff-code);
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-  }
+  --radius-pill: var(--r-pill);
+  --radius-hero: var(--r-hero);
+  --radius-form: var(--r-form);
+  --radius-card: var(--r-card);
+  --radius-cardsm: var(--r-card-sm);
+  --radius-panel: var(--r-panel);
+  --radius-frame: var(--r-frame);
+  --radius-field: var(--r-field);
+  --radius-r10: var(--r-sm);
+  --radius-r8: var(--r-xs);
+
+  --shadow-hard-xl: var(--sh-hard-xl);
+  --shadow-hard-lg: var(--sh-hard-lg);
+  --shadow-hard: var(--sh-hard);
+  --shadow-hard-md: var(--sh-hard-md);
+  --shadow-hard-sm: var(--sh-hard-sm);
+  --shadow-press: var(--sh-press);
+  --shadow-float: var(--sh-float);
+
+  --text-hero: var(--t-hero);
+  --text-giant: var(--t-giant);
+  --text-journey: var(--t-journey);
+  --text-section: var(--t-section);
+  --text-section-sm: var(--t-section-sm);
+  --text-cta: var(--t-cta);
+  --text-stat: var(--t-stat);
+  --text-verdict: var(--t-verdict);
+  --text-pagetitle: var(--t-page);
+  --text-run: var(--t-run);
+  --text-block: var(--t-block);
+  --text-card: var(--t-card);
+  --text-founder: var(--t-founder);
+  --text-footer: var(--t-footer);
+  --text-who: var(--t-who);
+  --text-mile: var(--t-mile);
+  --text-tool: var(--t-tool);
+  --text-metric: var(--t-metric);
+  --text-link-card: var(--t-link-card);
+  --text-lede: var(--t-lede);
+  --text-lede-sm: var(--t-lede-sm);
+
+  --ease-out: var(--e-out);
+  --ease-spring: var(--e-spring);
+  --ease-bounce: var(--e-bounce);
+  --ease-pop: var(--e-pop);
 }

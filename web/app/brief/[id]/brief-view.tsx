@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
-import { founderBriefEnabled } from "@/lib/founder-flag";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
+import { grid } from "@/lib/css";
+import { founderBriefEnabled } from "@/lib/founder-flag";
+import { siteName } from "@/lib/report-view";
 
 import { FounderView } from "./founder-view";
-import { SourceLink, displayUrl } from "./source-link";
+import { SourceLink } from "./source-link";
 
 const POLL_MS = 2000;
 
@@ -52,50 +54,70 @@ export function BriefView({ id }: { id: string }) {
 
   if (state.kind === "loading") {
     return (
-      <div className="space-y-4">
-        <p className="text-muted">Loading the brief…</p>
+      <main className="fu-page gap-4">
+        <p role="status" className="m-0 font-code text-[13px] text-ink3">
+          Loading the brief…
+        </p>
         {connectionTrouble && <ConnectionNotice />}
-      </div>
+      </main>
     );
   }
   if (state.kind === "not_found") {
     return (
-      <section className="space-y-3">
-        <h1 className="text-2xl font-semibold">We couldn&apos;t find that brief</h1>
-        <p className="text-muted">The link may be mistyped, or the brief may no longer exist.</p>
-        <Link href="/?mode=understand" className="font-medium text-accent hover:underline">
-          Understand a website
+      <main className="fu-page gap-5">
+        <span className="fu-eyebrow">Understand</span>
+        <h1 className="fu-display text-pagetitle">We couldn&apos;t find that brief</h1>
+        <p className="m-0 text-[17px] text-ink2">The link may be mistyped, or the brief may no longer exist.</p>
+        <Link href="/?mode=understand#fu-form" className="fu-btn fu-btn-md self-start">
+          Understand a website →
         </Link>
-      </section>
+      </main>
     );
   }
 
   const { run } = state;
+  const ready = isBrief(run.brief) && run.status === "done";
   return (
-    <div className="space-y-10">
-      <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-wide text-subtle">Product brief</p>
-        <h1 className="break-all text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
-          <a href={safeHref(run.url) ?? undefined} target="_blank" rel="noopener noreferrer nofollow" className="hover:underline">
-            {displayUrl(run.url)}
-          </a>
-        </h1>
-      </header>
-      {connectionTrouble && <ConnectionNotice />}
-      {run.status === "queued" || run.status === "running" ? (
-        <InProgress queued={run.status === "queued"} />
-      ) : isBrief(run.brief) && run.status === "done" ? (
-        <Ready id={run.id} brief={run.brief} />
+    <main className="fu-page" style={{ gap: "clamp(36px,5cqi,56px)" }}>
+      {ready ? (
+        <Ready id={run.id} run={run} brief={run.brief as Brief} />
       ) : (
-        <Failed message={isFailure(run.brief) ? run.brief.message : null} />
+        <>
+          <BriefHeader run={run} />
+          {connectionTrouble && <ConnectionNotice />}
+          {run.status === "queued" || run.status === "running" ? (
+            <InProgress queued={run.status === "queued"} />
+          ) : (
+            <Failed message={isFailure(run.brief) ? run.brief.message : null} />
+          )}
+        </>
       )}
+    </main>
+  );
+}
+
+function BriefHeader({ run, tabs }: { run: BriefRun; tabs?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-[18px]">
+      <div className="flex min-w-0 flex-col gap-2.5">
+        <span className="fu-eyebrow">
+          Understand ·{" "}
+          <a href={safeHref(run.url) ?? undefined} target="_blank" rel="noopener noreferrer nofollow" className="fu-link">
+            {siteName(run.url)}
+          </a>
+        </span>
+        <h1 className="fu-display text-pagetitle" style={{ overflowWrap: "anywhere" }}>
+          {siteName(run.url)}
+        </h1>
+      </div>
+      {tabs}
     </div>
   );
 }
 
 function ConnectionNotice() {
   return (
-    <p role="status" className="rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm">
+    <p role="status" className="fu-notice m-0">
       We lost the connection for a moment. Still trying.
     </p>
   );
@@ -103,14 +125,14 @@ function ConnectionNotice() {
 
 function InProgress({ queued }: { queued: boolean }) {
   return (
-    <section role="status" className="rounded-xl border border-line bg-surface p-5">
-      <div className="flex items-center gap-3">
-        <span aria-hidden className={`size-2.5 rounded-full ${queued ? "bg-subtle" : "bg-accent"}`} />
-        <p className="font-medium">{queued ? "Waiting for a free worker" : "Reading the site now"}</p>
-      </div>
-      <p className="mt-2 text-sm text-muted">
-        We read the homepage and a few more public pages, then write the brief. This usually takes under a minute.
-        This page updates by itself, and you can come back to this link later.
+    <section role="status" className="fu-card-sm flex flex-col gap-3 p-6">
+      <span className="flex items-center gap-2 font-code text-[12px] font-medium uppercase tracking-[.06em] text-ink3">
+        <span aria-hidden className="size-2 rounded-full" style={{ background: queued ? "var(--ink4)" : "var(--pass)", animation: "fuBlink 1.6s ease-in-out infinite" }} />
+        {queued ? "Waiting for a free worker" : "Reading the site now"}
+      </span>
+      <p className="m-0 text-[16px] leading-normal text-ink2">
+        We read the homepage and a few more public pages, then write the brief. This usually takes under a minute. This page
+        updates by itself, and you can come back to this link later.
       </p>
     </section>
   );
@@ -118,75 +140,110 @@ function InProgress({ queued }: { queued: boolean }) {
 
 function Failed({ message }: { message: string | null }) {
   return (
-    <section role="alert" className="rounded-xl border border-danger/30 bg-danger-soft p-5">
-      <p className="font-medium text-danger">We couldn&apos;t write a brief for this site</p>
-      <p className="mt-2 text-sm">{message ?? "Something went wrong on our side. Please try again in a minute."}</p>
-      <Link href="/?mode=understand" className="mt-4 inline-block text-sm font-medium text-accent hover:underline">
-        Try another website
+    <section role="alert" className="flex flex-col gap-3 rounded-cardsm border-[1.5px] border-dashed border-ink p-6">
+      <h2 className="m-0 text-[19px] font-semibold">We couldn&apos;t write a brief for this site</h2>
+      <p className="m-0 text-[16px] leading-normal text-ink2">{message ?? "Something went wrong on our side. Please try again in a minute."}</p>
+      <Link href="/?mode=understand#fu-form" className="fu-btn fu-btn-md self-start">
+        Try another website →
       </Link>
     </section>
   );
 }
 
-function Ready({ id, brief }: { id: string; brief: Brief }) {
+function Ready({ id, run, brief }: { id: string; run: BriefRun; brief: Brief }) {
   const [tab, setTab] = useState<"product" | "founder">("product");
   // The founder brief is behind NEXT_PUBLIC_FOUNDER_BRIEF; without it this page is the product brief alone.
   const founder = founderBriefEnabled();
-  const tabClass = (active: boolean) =>
-    "rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 " +
-    (active
-      ? "bg-accent text-white dark:text-background"
-      : "border border-line bg-surface text-muted hover:border-accent/60");
+  const tabs = founder ? (
+    <div role="tablist" aria-label="Which brief" className="flex gap-1 rounded-pill border-[1.5px] border-ink bg-s1 p-1">
+      {(
+        [
+          ["product", "Product brief"],
+          ["founder", "Founder brief"],
+        ] as const
+      ).map(([value, label]) => {
+        const on = tab === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => setTab(value)}
+            className="h-10 cursor-pointer whitespace-nowrap rounded-pill border-none px-4 text-[14px] font-semibold"
+            style={{ background: on ? "var(--ink)" : "transparent", color: on ? "var(--bg)" : "var(--ink)" }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
   return (
     <>
-      {founder && (
-        <div role="tablist" aria-label="Which report" className="flex gap-2">
-          <button type="button" role="tab" aria-selected={tab === "product"} onClick={() => setTab("product")} className={tabClass(tab === "product")}>
-            Product brief
-          </button>
-          <button type="button" role="tab" aria-selected={tab === "founder"} onClick={() => setTab("founder")} className={tabClass(tab === "founder")}>
-            Founder brief
-          </button>
-        </div>
-      )}
+      <BriefHeader run={run} tabs={tabs} />
       {founder && tab === "founder" ? <FounderView briefId={id} /> : <ProductBrief id={id} brief={brief} />}
     </>
   );
 }
 
 function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
+  const overview: [string, string][] = [
+    ["What it does", brief.what_it_does],
+    ["Who it's for", brief.who_its_for],
+    ["How it works", brief.how_it_works],
+    ["Primary value", brief.primary_value],
+  ];
   return (
-    <>
-      <p className="text-xl leading-snug">{brief.one_liner}</p>
+    <div className="flex flex-col" style={{ gap: "clamp(36px,5cqi,56px)" }}>
       <Journeys id={id} siteUrl={brief.url} journeys={brief.suggested_journeys ?? []} />
-      <section className="space-y-4">
-        <h2 className="text-xl font-semibold">What it is</h2>
-        <dl className="space-y-4">
-          <Field label="What it does" value={brief.what_it_does} />
-          <Field label="Who it&apos;s for" value={brief.who_its_for} />
-          <Field label="How it works" value={brief.how_it_works} />
-          <Field label="The main thing a user gets" value={brief.primary_value} />
+
+      <section aria-label="Summary" className="fu-grid border-t-[1.5px] border-ink pt-7" style={grid("300px", "clamp(20px,3cqi,40px)")}>
+        <p className="m-0 text-[clamp(22px,2.6cqi,30px)] font-medium leading-[1.3] fu-pretty">{brief.one_liner}</p>
+        <dl className="m-0 flex flex-col">
+          {overview.map(([label, value]) => {
+            const unknown = !value || value === "unknown";
+            return (
+              <div key={label} className="flex flex-col gap-1 border-b border-line py-3">
+                <dt className="font-code text-[12px] font-medium uppercase tracking-[.04em] text-ink3">{label}</dt>
+                <dd className={`m-0 text-[16px] leading-normal ${unknown ? "text-ink3" : ""}`}>
+                  {unknown ? "Unknown: the site doesn't say." : value}
+                </dd>
+              </div>
+            );
+          })}
         </dl>
       </section>
-      <Pricing pricing={brief.pricing} />
-      <BusinessModel model={brief.business_model} />
-      <Claims claims={brief.claims ?? []} />
-      <Unknowns unknowns={brief.unknowns ?? []} />
-      <PagesRead brief={brief} />
-      <p className="text-sm text-muted">
-        This brief is written from the public pages listed above and nothing else. Marketing claims are goals to
-        test, not proof that the product does them.
-      </p>
-    </>
-  );
-}
 
-function Field({ label, value }: { label: string; value: string }) {
-  const unknown = !value || value === "unknown";
-  return (
-    <div>
-      <dt className="text-sm font-medium text-subtle">{label}</dt>
-      <dd className={unknown ? "text-subtle" : "text-foreground"}>{unknown ? "Unknown: the site doesn't say." : value}</dd>
+      <section aria-label="Pricing and business model" className="fu-grid" style={grid("300px")}>
+        <Pricing pricing={brief.pricing} />
+        <BusinessModel model={brief.business_model} />
+      </section>
+
+      <Claims claims={brief.claims ?? []} />
+
+      <section aria-label="Unknowns and pages read" className="fu-grid" style={grid("300px")}>
+        <div className="flex flex-col gap-2.5 rounded-cardsm border-[1.5px] border-dashed border-ink3 p-[22px]">
+          <h2 className="m-0 text-[19px] font-semibold">What we couldn&apos;t confirm</h2>
+          {(brief.unknowns ?? []).length === 0 ? (
+            <p className="m-0 text-[15px] text-ink2">Nothing listed.</p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+              {brief.unknowns.map((item, index) => (
+                <li key={index} className="text-[15px] leading-normal text-ink2">
+                  · {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <PagesRead brief={brief} />
+      </section>
+
+      <p className="m-0 text-[14px] leading-normal text-ink3">
+        This brief is written from the public pages listed above and nothing else. Marketing claims are goals to test, not proof
+        that the product does them.
+      </p>
     </div>
   );
 }
@@ -195,148 +252,160 @@ function Field({ label, value }: { label: string; value: string }) {
 // form with the URL, the goal and the success condition as they are now.
 function Journeys({ id, siteUrl, journeys }: { id: string; siteUrl: string; journeys: SuggestedJourney[] }) {
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Goals worth testing</h2>
-        <p className="mt-1 text-sm text-muted">
-          Taken from the site&apos;s own calls to action and claims. Edit one, then test it with a first-time visitor.
-        </p>
+    <section aria-labelledby="journeys-title" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <h2 id="journeys-title" className="fu-display fu-display-wide text-card" style={{ lineHeight: 1 }}>
+          Suggested journeys
+        </h2>
+        <span className="text-[15px] text-ink2">
+          Taken from the site&apos;s own calls to action and claims. Pick one, edit it if you like, and test it.
+        </span>
       </div>
       {journeys.length === 0 ? (
-        <p className="rounded-xl border border-line bg-surface p-4 text-sm text-muted">
+        <p className="m-0 rounded-cardsm border-[1.5px] border-dashed border-ink3 p-5 text-[15px] text-ink2">
           The pages we read gave nothing specific enough to suggest a goal. You can still{" "}
-          <Link href={testJourneyHref(id, siteUrl, "", "")} className="font-medium text-accent hover:underline">
+          <Link href={testJourneyHref(id, siteUrl, "", "")} className="fu-link font-semibold">
             write your own goal
           </Link>
           .
         </p>
       ) : (
-        <ul className="space-y-4">
+        <ol className="fu-grid m-0 list-none p-0" style={grid("280px")}>
           {journeys.map((journey, index) => (
-            <Journey key={`${index}-${journey.goal}`} id={id} siteUrl={siteUrl} journey={journey} />
+            <Journey key={`${index}-${journey.goal}`} index={index} id={id} siteUrl={siteUrl} journey={journey} />
           ))}
-        </ul>
+        </ol>
       )}
     </section>
   );
 }
 
-function Journey({ id, siteUrl, journey }: { id: string; siteUrl: string; journey: SuggestedJourney }) {
+function Journey({ index, id, siteUrl, journey }: { index: number; id: string; siteUrl: string; journey: SuggestedJourney }) {
   const [goal, setGoal] = useState(journey.goal);
   const [success, setSuccess] = useState(journey.success);
-  const fieldClass =
-    "mt-1 block w-full rounded-lg border border-line bg-background px-3 py-2 text-base text-foreground focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
+  // Grows with its text where the browser supports it; three rows otherwise.
+  const field = "h-auto min-h-[46px] resize-y py-2.5 text-[15px] leading-snug [field-sizing:content]";
   return (
-    <li className="space-y-3 rounded-xl border border-line bg-surface p-4">
-      <div>
-        <label className="text-sm font-medium text-subtle">
-          Goal
-          <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={2} maxLength={500} className={fieldClass} />
-        </label>
+    <li className="fu-card-sm flex flex-col gap-3.5 p-5">
+      <span className="font-code text-[12px] font-medium text-ink3">{String(index + 1).padStart(2, "0")}</span>
+      <label className="flex flex-col gap-1.5">
+        <span className="fu-eyebrow-sm">Goal</span>
+        <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} className={`fu-field ${field} font-semibold`} />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className="fu-eyebrow-sm">Success looks like</span>
+        <textarea value={success} onChange={(event) => setSuccess(event.target.value)} rows={3} maxLength={300} className={`fu-field ${field}`} />
+      </label>
+      <div className="fu-quote">
+        <span className="text-[13px] text-ink3">{journey.claim_to_test ? "A claim to test, not proof that it works" : "A call to action on the site"}</span>
+        <span className="text-[14px] leading-[1.45] text-ink2">&ldquo;{journey.basis_text}&rdquo;</span>
+        <SourceLink url={journey.source_url} />
       </div>
-      <div>
-        <label className="text-sm font-medium text-subtle">
-          Success looks like
-          <textarea value={success} onChange={(event) => setSuccess(event.target.value)} rows={2} maxLength={300} className={fieldClass} />
-        </label>
-      </div>
-      <p className="text-sm text-muted">
-        {journey.claim_to_test ? "A claim to test, not proof that it works: " : "A call to action on the site: "}
-        <q>{journey.basis_text}</q> (<SourceLink url={journey.source_url} />)
-      </p>
-      <Link
-        href={testJourneyHref(id, siteUrl, goal, success)}
-        className="inline-block rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 dark:text-background"
-      >
-        Test this journey
+      <Link href={testJourneyHref(id, siteUrl, goal, success)} className="fu-btn mt-auto">
+        Test this journey →
       </Link>
     </li>
   );
 }
 
-const PRICING_LABEL: Record<Brief["pricing"]["status"], string> = {
-  published: "Published",
-  not_published: "Not published",
-  unclear: "Unclear",
-};
-
 function Pricing({ pricing }: { pricing: Brief["pricing"] }) {
+  const published = pricing.status === "published" && pricing.tiers.length > 0;
+  const firstSource = pricing.source_urls?.[0] ?? pricing.tiers[0]?.source_url;
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold">Pricing</h2>
-      <p>
-        <span className="rounded-full bg-surface px-2.5 py-0.5 text-sm font-medium ring-1 ring-line">
-          {PRICING_LABEL[pricing.status] ?? "Unclear"}
-        </span>
-      </p>
-      {pricing.status !== "published" && pricing.note && <p className="text-muted">{pricing.note}</p>}
-      {pricing.tiers.length > 0 && (
-        <ul className="space-y-3">
+    <div className="fu-card-sm flex flex-col gap-3.5 p-[22px]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <h2 className="m-0 text-[19px] font-semibold">Pricing</h2>
+        {published && firstSource ? (
+          <SourceLink url={firstSource} />
+        ) : (
+          <span className="fu-chip fu-chip-tag bg-s2 text-ink3">{pricing.status === "unclear" ? "Unclear" : "Not published"}</span>
+        )}
+      </div>
+      {published ? (
+        <ul className="m-0 flex list-none flex-col p-0">
           {pricing.tiers.map((tier, index) => (
-            <li key={`${index}-${tier.name}`} className="rounded-xl border border-line bg-surface p-4">
-              <p className="font-medium">
-                {tier.name} <span className="text-muted">· {tier.price}</span>
-              </p>
-              {tier.what_you_get && tier.what_you_get !== "unknown" && <p className="mt-1 text-muted">{tier.what_you_get}</p>}
-              <p className="mt-1 text-sm text-subtle">
-                Source: <SourceLink url={tier.source_url} />
-              </p>
+            <li key={`${index}-${tier.name}`} className="flex flex-col gap-1 border-t border-line py-2.5">
+              <span className="flex justify-between gap-3">
+                <span className="text-[15px] font-semibold">{tier.name}</span>
+                <span className="text-right font-code text-[14px] font-medium">{tier.price}</span>
+              </span>
+              {tier.what_you_get && tier.what_you_get !== "unknown" && (
+                <span className="text-[13px] leading-[1.45] text-ink2">{tier.what_you_get}</span>
+              )}
+              {tier.source_url !== firstSource && <SourceLink url={tier.source_url} />}
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="m-0 text-[15px] leading-normal text-ink2">
+          {pricing.status === "unclear" ? "The pages we read don't make the prices clear." : "Not published on the pages we read."}
+        </p>
       )}
-      {pricing.note && pricing.status === "published" && <p className="text-sm text-muted">{pricing.note}</p>}
-    </section>
+      {pricing.note && <p className="m-0 text-[13px] leading-normal text-ink3">{pricing.note}</p>}
+      {!published && (pricing.source_urls ?? []).length > 0 && (
+        <span className="flex flex-wrap items-center gap-2 text-[13px] text-ink3">
+          Where we looked:
+          {pricing.source_urls.map((url) => (
+            <SourceLink key={url} url={url} />
+          ))}
+        </span>
+      )}
+    </div>
   );
 }
 
 function BusinessModel({ model }: { model: Brief["business_model"] }) {
   const unknown = !model.model || model.model === "unknown";
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold">
-        Business model <span className="text-base font-normal text-subtle">(inferred)</span>
-      </h2>
-      <p className={unknown ? "text-subtle" : ""}>
+    <div className="fu-card-sm flex flex-col gap-3.5 p-[22px]">
+      <div className="flex items-center justify-between gap-2.5">
+        <h2 className="m-0 text-[19px] font-semibold">Business model</h2>
+        <span className="fu-chip fu-chip-tag border-dashed border-ink bg-amber-soft text-amber-ink">Inferred</span>
+      </div>
+      <p className={`m-0 text-[17px] font-medium leading-[1.45] ${unknown ? "text-ink3" : ""}`}>
         {unknown ? "Unknown: the pages give no evidence." : model.model}
       </p>
-      {model.evidence.length > 0 && (
-        <ul className="space-y-2 text-sm text-muted">
-          {model.evidence.map((item, index) => (
-            <li key={index}>
-              <q>{item.quote}</q> (<SourceLink url={item.source_url} />)
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+      {model.evidence.map((item, index) => (
+        <div key={index} className="fu-quote">
+          <span className="text-[14px] text-ink2">&ldquo;{item.quote}&rdquo;</span>
+          <SourceLink url={item.source_url} />
+        </div>
+      ))}
+    </div>
   );
 }
 
-const STATUS_LABEL: Record<ClaimStatus, { label: string; tone: string }> = {
-  confirmed: { label: "Stated on the site", tone: "bg-success-soft text-success" },
-  inferred: { label: "Inferred", tone: "bg-warning-soft text-warning" },
-  unknown: { label: "Unknown", tone: "bg-surface text-subtle ring-1 ring-line" },
+const STATUS: Record<ClaimStatus, { label: string; bg: string; fg: string }> = {
+  confirmed: { label: "Confirmed", bg: "var(--green-soft)", fg: "var(--green-ink)" },
+  inferred: { label: "Inferred", bg: "var(--amber-soft)", fg: "var(--amber-ink)" },
+  unknown: { label: "Unknown", bg: "var(--s2)", fg: "var(--ink3)" },
 };
 
 function Claims({ claims }: { claims: BriefClaim[] }) {
   if (claims.length === 0) return null;
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold">What the site claims</h2>
-      <ul className="space-y-3">
+    <section aria-labelledby="claims-title" className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-1">
+        <h2 id="claims-title" className="m-0 text-[19px] font-semibold">
+          Claims on the site
+        </h2>
+        <span className="text-[14px] text-ink3">Confirmed means the site says it, in the quoted words. It does not mean we checked it is true.</span>
+      </div>
+      <ul className="m-0 list-none overflow-hidden rounded-cardsm border-[1.5px] border-ink bg-s1 p-0">
         {sortClaims(claims).map((claim, index) => {
-          const status = STATUS_LABEL[claim.status] ?? STATUS_LABEL.unknown;
+          const status = STATUS[claim.status] ?? STATUS.unknown;
           return (
-            <li key={index} className="rounded-xl border border-line bg-surface p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${status.tone}`}>{status.label}</span>
-                <p className="font-medium">{claim.claim}</p>
-              </div>
-              {claim.quote && <p className="mt-2 text-sm text-muted"><q>{claim.quote}</q></p>}
-              <p className="mt-1 text-sm text-subtle">
-                Source: <SourceLink url={claim.source_url} />
-              </p>
+            <li key={index} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-5 py-3.5" style={{ borderTop: index ? "1px solid var(--line)" : "none" }}>
+              <span className="flex min-w-[min(100%,220px)] flex-1 flex-col gap-1">
+                <span className="text-[16px] leading-[1.45]">{claim.claim}</span>
+                {claim.quote && <span className="text-[14px] leading-[1.45] text-ink3">&ldquo;{claim.quote}&rdquo;</span>}
+              </span>
+              <span className="flex items-center gap-2.5">
+                <span className="fu-chip fu-chip-word" style={{ background: status.bg, color: status.fg }}>
+                  {status.label}
+                </span>
+                <SourceLink url={claim.source_url} />
+              </span>
             </li>
           );
         })}
@@ -345,45 +414,47 @@ function Claims({ claims }: { claims: BriefClaim[] }) {
   );
 }
 
-function Unknowns({ unknowns }: { unknowns: string[] }) {
-  if (unknowns.length === 0) return null;
-  return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold">What we couldn&apos;t confirm</h2>
-      <ul className="list-disc space-y-1 pl-5 text-muted">
-        {unknowns.map((item, index) => (
-          <li key={index}>{item}</li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function PagesRead({ brief }: { brief: Brief }) {
   return (
-    <section className="space-y-3">
-      <h2 className="text-xl font-semibold">Pages read</h2>
-      <ul className="space-y-1 text-sm text-muted">
-        {brief.pages.map((page) => (
-          <li key={page.url}>
-            <span className="text-subtle">{page.kind}: </span>
-            <SourceLink url={page.url} />
-            {page.method === "browser" && <span className="text-subtle"> (needed a browser)</span>}
-          </li>
-        ))}
+    <div className="flex flex-col gap-2.5 rounded-cardsm border-[1.5px] border-line bg-s1 p-[22px]">
+      <h2 className="m-0 text-[19px] font-semibold">Pages read</h2>
+      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+        {brief.pages.map((page) => {
+          const href = safeHref(page.url);
+          const label = (() => {
+            try {
+              return new URL(page.url).pathname;
+            } catch {
+              return page.url;
+            }
+          })();
+          return (
+            <li key={page.url}>
+              <a
+                href={href ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                title={`${page.kind}${page.method === "browser" ? " (needed a browser)" : ""}`}
+                className="flex h-[30px] items-center whitespace-nowrap rounded-r8 border border-line bg-bg px-2.5 font-code text-[13px] font-medium hover:border-ink"
+              >
+                {label}
+              </a>
+            </li>
+          );
+        })}
       </ul>
       {brief.skipped.length > 0 && (
-        <div>
-          <p className="text-sm font-medium text-subtle">Not read</p>
-          <ul className="mt-1 space-y-1 text-sm text-muted">
+        <div className="flex flex-col gap-1">
+          <span className="fu-eyebrow-sm">Not read</span>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-ink3">
             {brief.skipped.map((item, index) => (
               <li key={index}>
-                <SourceLink url={item.url} /> — {item.reason}
+                <SourceLink url={item.url} /> · {item.reason}
               </li>
             ))}
           </ul>
         </div>
       )}
-    </section>
+    </div>
   );
 }

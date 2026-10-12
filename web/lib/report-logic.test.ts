@@ -184,7 +184,7 @@ test("what to fix first is the top finding, and nothing for a visit that says no
 
 test("every Report v2 section can be switched off, all at once or one at a time", () => {
   const all = flagsFrom({});
-  assert.deepEqual(Object.values(all), [true, true, true, true, true, true, true]);
+  assert.deepEqual(Object.values(all), [true, true, true, true, true, true, true, true]);
   assert.equal(flagsFrom({ master: "off" }).verdict, false);
   assert.equal(flagsFrom({ master: "off" }).facts, false);
   assert.deepEqual(flagsFrom({ facts: "false" }), { ...all, facts: false });
@@ -194,7 +194,7 @@ test("every Report v2 section can be switched off, all at once or one at a time"
   assert.equal(flagsFrom({ success: "hidden" }).success, false);
   assert.equal(flagsFrom({ verdict: "off" }).verdict, false);
   // The address switches everything off for that view, without a rebuild.
-  assert.deepEqual(Object.values(flagsFrom({}, "?report=basic")), [false, false, false, false, false, false, false]);
+  assert.deepEqual(Object.values(flagsFrom({}, "?report=basic")), [false, false, false, false, false, false, false, false]);
   assert.equal(flagsFrom({}, "?report=full").answers, true);
 });
 

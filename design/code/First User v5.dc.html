@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F3F5F9;--s1:#FFFFFF;--s2:#F7F8FB;--line:#DDE2EB;--ink:#0E1320;--ink2:#343D4F;--ink3:#4F596C;--ink4:#7A8396;--off:#CDD3DF;--acc:#C6FF3D;--acc-h:#B4F01F;--acc-soft:#F4FFD9;--on-acc:#0E1320;--deep:#0E1320;--hard:#0E1320;--blue-soft:#DCE6FF;--amber-soft:#FFF1D6;--green-soft:#E3F4E8;--amber-ink:#7A4A00;--green-ink:#0F6B3A;--blue-ink:#1F3FB8;--pass:#138A4B;--info:#2F5BFF;--bad:#C93424;--bad-soft:#FDE3DF;--bad-ink:#9A2214;--on-bad:#FFFFFF;--warn:#A86400;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-fu-theme="light"]){--bg:#0B0F18;--s1:#131A29;--s2:#182033;--line:#263049;--ink:#EEF1F7;--ink2:#C3CAD8;--ink3:#9AA3B5;--ink4:#828BA0;--off:#3A4460;--acc:#C6FF3D;--acc-h:#D6FF6E;--acc-soft:#232E10;--on-acc:#0E1320;--deep:#1D2640;--hard:#C6FF3D;--blue-soft:#1A2754;--amber-soft:#33270E;--green-soft:#102B1C;--amber-ink:#F5C46A;--green-ink:#6FE3A0;--blue-ink:#A9BCFF;--pass:#57E38D;--info:#8AA4FF;--bad:#FF7A6B;--bad-soft:#3A1714;--bad-ink:#FFB0A6;--on-bad:#0E1320;--warn:#F5B544;color-scheme:dark}}
+:root[data-fu-theme="dark"]{--bg:#0B0F18;--s1:#131A29;--s2:#182033;--line:#263049;--ink:#EEF1F7;--ink2:#C3CAD8;--ink3:#9AA3B5;--ink4:#828BA0;--off:#3A4460;--acc:#C6FF3D;--acc-h:#D6FF6E;--acc-soft:#232E10;--on-acc:#0E1320;--deep:#1D2640;--hard:#C6FF3D;--blue-soft:#1A2754;--amber-soft:#33270E;--green-soft:#102B1C;--amber-ink:#F5C46A;--green-ink:#6FE3A0;--blue-ink:#A9BCFF;--pass:#57E38D;--info:#8AA4FF;--bad:#FF7A6B;--bad-soft:#3A1714;--bad-ink:#FFB0A6;--on-bad:#0E1320;--warn:#F5B544;color-scheme:dark}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--ink3)}
+input::placeholder{color:var(--ink4)}
+input{color:var(--ink)}
+::selection{background:var(--acc);color:var(--on-acc)}
+@keyframes fuBlink{50%{opacity:.25}}
+@keyframes fuPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--pass) 45%, transparent)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@keyframes fuLook{0%,30%{transform:translateX(0)}36%,52%{transform:translateX(-6px)}58%,74%{transform:translateX(6px)}80%,100%{transform:translateX(0)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</helmet>
+<div style="min-height:100vh; padding:{{ framePad }}; background:{{ frameBg }};">
+<div ref="{{ rootRef }}" data-screen-label="{{ screenLabel }}" style="max-width:{{ frameW }}; margin:0 auto; border:{{ frameB }}; border-radius:{{ frameR }}; container-type:inline-size; background:var(--bg); color:var(--ink); overflow:clip;">
+
+<header style="position:sticky; top:0; z-index:50; padding:12px clamp(12px,2.4cqi,28px); background:color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--line);">
+  <div ref="{{ barRef }}" style="position:relative; display:flex; gap:12px; align-items:center; justify-content:space-between;">
+    <a href="#" onClick="{{ goHome }}" aria-label="First User home" style="display:flex; align-items:center; gap:10px; color:var(--ink);">
+      <span style="width:30px; height:22px; border-radius:9px; background:var(--acc); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; overflow:hidden;"><span style="width:6px; height:6px; border-radius:50%; background:#0E1320; animation:fuLook 6s ease-in-out infinite;"></span></span>
+      <span style="font:800 19px 'Archivo',sans-serif; font-stretch:75%; text-transform:uppercase; letter-spacing:.01em; white-space:nowrap;">First User</span>
+    </a>
+    <sc-if value="{{ wideNav }}" hint-placeholder-val="{{ true }}"><nav style="display:flex; align-items:center; gap:2px;">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4"><a href="#" onClick="{{ n.go }}" style="height:36px; padding:0 14px; border-radius:999px; display:flex; align-items:center; white-space:nowrap; font-size:15px; color:{{ n.color }}; background:{{ n.bg }};" style-hover="background:var(--s1);">{{ n.label }}</a></sc-for>
+    </nav></sc-if>
+    <div style="display:flex; align-items:center; gap:8px; flex:none;">
+      <sc-if value="{{ narrowNav }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleMenu }}" aria-label="Menu" aria-expanded="{{ menuOpen }}" style="width:44px; height:44px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;"><span style="width:16px; height:1.5px; background:var(--ink); transform:{{ burgerA }}; transition:transform .3s;"></span><span style="width:16px; height:1.5px; background:var(--ink); transform:{{ burgerB }}; transition:transform .3s;"></span></button></sc-if>
+      <button onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width:44px; height:44px; flex:none; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); color:var(--ink); cursor:pointer; font-size:17px; display:flex; align-items:center; justify-content:center;">{{ themeIcon }}</button>
+      <button onClick="{{ goTry }}" aria-label="Test my website" style="height:44px; padding:0 6px 0 {{ ctaPadL }}; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:10px;" style-hover="background:var(--acc-h);"><sc-if value="{{ ctaText }}" hint-placeholder-val="{{ true }}">Test my website</sc-if><span style="width:32px; height:32px; border-radius:50%; background:#0E1320; color:#C6FF3D; display:flex; align-items:center; justify-content:center;">→</span></button>
+    </div>
+    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; right:0; top:calc(100% + 10px); width:min(280px, 92cqi); padding:8px; border-radius:18px; border:1.5px solid var(--ink); background:var(--bg); box-shadow:8px 8px 0 var(--hard); display:flex; flex-direction:column; gap:2px;">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4"><a href="#" onClick="{{ n.go }}" style="height:48px; padding:0 16px; border-radius:12px; display:flex; align-items:center; font:500 16px 'Geist',sans-serif; color:{{ n.color }}; background:{{ n.bg }};">{{ n.label }}</a></sc-for>
+    </div></sc-if>
+  </div>
+</header>
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<main>
+  <section data-screen-label="Home" style="position:relative; isolation:isolate;">
+    <div aria-hidden="true" style="position:absolute; inset:0; z-index:-1; background-image:radial-gradient(var(--off) 1.2px, transparent 1.2px); background-size:22px 22px; -webkit-mask-image:radial-gradient(ellipse 70% 80% at 70% 45%, #000 20%, transparent 75%); mask-image:radial-gradient(ellipse 70% 80% at 70% 45%, #000 20%, transparent 75%); opacity:.9;"></div>
+    <div aria-hidden="true" style="position:absolute; right:6%; top:12%; width:min(480px,90cqi); height:min(480px,90cqi); z-index:-1; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--acc) 45%, transparent), transparent 65%); filter:blur(30px);"></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr)); gap:64px; padding:48px clamp(20px,4cqi,48px) 104px; align-items:center;">
+      <div style="display:flex; flex-direction:column; gap:28px;">
+        <span style="align-self:flex-start; display:flex; align-items:center; gap:8px; height:32px; padding:0 14px; border-radius:999px; background:var(--s1); border:1px solid var(--line); font:500 13px 'Geist Mono',monospace; color:var(--ink2); white-space:nowrap;"><span style="width:7px; height:7px; border-radius:50%; background:var(--pass); animation:fuPulse 1.8s infinite;"></span>Built at #neatHack</span>
+        <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(60px,9cqi,120px); line-height:.86; letter-spacing:-.01em; display:flex; flex-direction:column;">
+          <span style="display:block; overflow:hidden; padding-bottom:.04em;"><span ref="{{ lineRef }}" style="display:block;">Your first user.</span></span>
+          <span style="display:block; overflow:hidden; padding:.06em 0;"><span ref="{{ lineRef }}" style="display:block;"><span style="display:inline-block; background:var(--acc); padding:0 12px; margin-left:-4px; border-radius:12px; transform:rotate(-1.5deg); color:var(--on-acc);">Before</span> the</span></span>
+          <span style="display:block; overflow:hidden; padding-bottom:.04em;"><span ref="{{ lineRef }}" style="display:block;">real ones.</span></span>
+        </h1>
+        <p style="margin:0; font:500 clamp(19px,1.9cqi,24px)/1.4 'Geist',sans-serif; color:var(--ink); max-width:500px; text-wrap:pretty;">Find out whether a stranger can actually use your product, before you spend money acquiring users.</p>
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 8px 8px 18px; background:var(--s1); border:1.5px solid var(--ink); border-radius:999px; box-shadow:0 6px 0 var(--hard); max-width:540px;">
+          <span style="font:500 15px 'Geist Mono',monospace; color:var(--ink4);">https://</span>
+          <input value="{{ f.url }}" onChange="{{ setUrl }}" placeholder="your-app.com" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font:500 16px 'Geist Mono',monospace; color:var(--ink);">
+          <button onClick="{{ heroGo }}" style="height:48px; padding:0 20px; border-radius:999px; border:none; background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; transition:background .2s;" style-hover="background:var(--acc-h);">{{ heroBtn }}</button>
+        </div>
+        <p style="margin:-12px 0 0 18px; font-size:15px; line-height:1.5; color:var(--ink3); max-width:480px;">Pick a goal next. First User opens your site and attempts it in a real browser.</p>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; font:500 13px 'Geist Mono',monospace; color:var(--ink3);">
+          <button onClick="{{ tryExample }}" style="height:32px; padding:0 12px; border-radius:999px; border:1px dashed var(--ink3); background:transparent; color:var(--ink); font:500 13px 'Geist Mono',monospace; cursor:pointer; white-space:nowrap;" style-hover="border-style:solid; background:var(--s1);">Try taskpond.app</button>
+          <span style="display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px;"><span>1–3 min</span><span style="width:4px; height:4px; border-radius:50%; background:var(--ink4);"></span><span>Real browser</span><span style="width:4px; height:4px; border-radius:50%; background:var(--ink4);"></span><span>Watch it live</span></span>
+        </div>
+      </div>
+
+      <div onMouseMove="{{ tilt }}" onMouseLeave="{{ untilt }}" style="position:relative; perspective:1200px; padding-bottom:36px;">
+        <div style="position:absolute; right:-8px; top:-22px; z-index:4; display:flex; align-items:center; gap:8px; height:40px; padding:0 14px 0 8px; border-radius:999px; background:var(--acc); color:var(--on-acc); border:1.5px solid #0E1320; font:600 14px 'Geist',sans-serif; white-space:nowrap; box-shadow:0 10px 24px color-mix(in srgb, #000 20%, transparent); opacity:{{ a.vOp }}; transform:{{ a.vTf }}; transition:opacity .4s, transform .5s cubic-bezier(.3,1.6,.5,1);"><span style="width:24px; height:24px; border-radius:50%; background:#0E1320; color:#C6FF3D; display:flex; align-items:center; justify-content:center; font-size:13px;">✓</span>Goal reached · verified</div>
+        <div ref="{{ cardRef }}" style="transition:transform .25s ease-out; transform-style:preserve-3d;">
+          <div style="background:var(--s1); border:1.5px solid var(--ink); border-radius:18px; overflow:hidden; box-shadow:12px 12px 0 var(--hard);">
+            <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--s2);">
+              <span style="display:flex; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span></span>
+              <span style="flex:1; min-width:0; height:28px; border-radius:8px; background:var(--s1); border:1px solid var(--line); display:flex; align-items:center; padding:0 12px; font:500 12px 'Geist Mono',monospace; color:var(--ink3); overflow:hidden; white-space:nowrap;">taskpond.app{{ a.path }}</span>
+              <span style="display:flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:999px; background:#0E1320; color:#C6FF3D; font:500 11px 'Geist Mono',monospace; white-space:nowrap;"><span style="width:6px; height:6px; border-radius:50%; background:#C6FF3D; animation:fuBlink 1s infinite;"></span>LIVE · {{ a.n }}</span>
+            </div>
+            <div style="position:relative; height:300px; background:#FFFFFF; display:grid; grid-template-columns:minmax(70px,22%) minmax(0,1fr); color:#0E1320; overflow:hidden;">
+              <div style="background:#F2F4F8; border-right:1px solid #DDE2EB; padding:16px 12px; display:flex; flex-direction:column; gap:10px;"><span style="font:700 13px 'Geist',sans-serif;">Taskpond</span><span style="height:8px; width:70%; border-radius:4px; background:#DDE2EB;"></span><span style="height:8px; width:55%; border-radius:4px; background:#DDE2EB;"></span><span style="height:8px; width:62%; border-radius:4px; background:#DDE2EB;"></span></div>
+              <div style="padding:18px; display:flex; flex-direction:column; gap:12px; min-width:0;">
+                <span style="font:600 20px/1.2 'Geist',sans-serif; height:30px; overflow:hidden;">{{ a.title }}</span>
+                <sc-for list="{{ a.rows }}" as="w" hint-placeholder-count="2"><span style="height:34px; border-radius:8px; border:1px solid #DDE2EB; padding:0 10px; display:flex; align-items:center; font-size:13px; color:#343D4F; overflow:hidden; white-space:nowrap;">{{ w }}</span></sc-for>
+                <span style="align-self:flex-start; height:34px; padding:0 14px; border-radius:8px; background:#2F5BFF; color:#FFFFFF; font:500 13px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap; outline:2.5px solid {{ a.ring }}; outline-offset:3px; transition:outline-color .3s;">{{ a.target }}</span>
+              </div>
+              <div style="position:absolute; left:{{ a.cx }}%; top:{{ a.cy }}%; transition:left 1.1s cubic-bezier(.6,0,.3,1), top 1.1s cubic-bezier(.6,0,.3,1); pointer-events:none; z-index:2;">
+                <svg width="22" height="22" viewBox="0 0 22 22" style="display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));"><path d="M2 2l7 18 2.6-7.4L19 10z" fill="#0E1320" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+                <div style="position:absolute; left:20px; top:18px; width:min(230px,52cqi); padding:10px 12px; border-radius:12px 12px 12px 4px; background:#0E1320; color:#FFFFFF; font-size:13px; line-height:1.4; box-shadow:0 10px 24px rgba(14,19,32,.25);"><span style="display:block; font:500 10px 'Geist Mono',monospace; color:#C6FF3D; margin-bottom:3px; letter-spacing:.06em;">THINKING</span>{{ a.thought }}</div>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border-top:1px solid var(--line);">
+              <sc-for list="{{ a.phases }}" as="p" hint-placeholder-count="4"><div style="padding:12px 6px 14px; display:flex; flex-direction:column; align-items:center; gap:7px; background:{{ p.bg }}; transition:background .4s; text-align:center;"><span style="width:20px; height:20px; border-radius:50%; border:1.5px solid {{ p.ring }}; background:{{ p.fill }}; color:{{ p.markColor }}; font:600 11px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center; transition:all .4s;">{{ p.mark }}</span><span style="font:500 12px/1.25 'Geist',sans-serif; color:{{ p.color }};">{{ p.name }}</span></div></sc-for>
+            </div>
+          </div>
+        </div>
+        <div ref="{{ feedRef }}" style="position:absolute; left:-12px; bottom:0; width:min(300px,80%); background:var(--s1); border:1.5px solid var(--ink); border-radius:14px; padding:14px 16px; box-shadow:0 18px 40px color-mix(in srgb, #000 18%, transparent); display:flex; flex-direction:column; gap:6px; z-index:3;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font:500 11px 'Geist Mono',monospace; color:var(--ink3); letter-spacing:.05em;">STEP {{ a.n }}</span><span style="height:22px; padding:0 9px; border-radius:999px; background:{{ a.resBg }}; color:{{ a.resColor }}; font:600 11px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ a.resLabel }}</span></div>
+          <div style="font:500 14px 'Geist Mono',monospace; color:var(--ink);">{{ a.act }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fu-start" data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px); background:var(--s1); border-top:1.5px solid var(--ink);">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr)); gap:clamp(32px,5cqi,64px); align-items:start;">
+      <div style="display:flex; flex-direction:column; gap:22px;">
+        <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">01 · Start a run</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(44px,6cqi,72px); line-height:.88;">Tell it what<br>to try.</h2></div>
+        <p style="margin:0; font-size:18px; line-height:1.5; color:var(--ink2); max-width:34em; text-wrap:pretty;">Test one journey now, or let it read your site first and suggest which journeys are worth testing.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; font:500 13px 'Geist Mono',monospace; color:var(--ink3);">
+          <sc-for list="{{ loop }}" as="l" hint-placeholder-count="4"><span style="display:flex; align-items:center; gap:8px; white-space:nowrap;"><span style="height:30px; padding:0 12px; border-radius:999px; border:1.5px solid {{ l.bc }}; background:{{ l.bg }}; color:{{ l.fg }}; display:flex; align-items:center; transition:background .4s, border-color .4s;">{{ l.name }}</span><span style="display:{{ l.arrow }};">→</span></span></sc-for>
+        </div>
+      </div>
+      <div id="fu-form" ref="{{ formRef }}" style="background:var(--s1); border:1.5px solid var(--ink); border-radius:22px; box-shadow:10px 10px 0 var(--hard); overflow:hidden;">
+        <div role="tablist" style="display:grid; grid-template-columns:1fr 1fr; border-bottom:1.5px solid var(--ink);">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2"><button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.go }}" style="min-height:56px; padding:10px 14px; border:none; border-right:{{ t.br }}; background:{{ t.bg }}; color:var(--ink); font:600 15px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;"><span style="width:8px; height:8px; flex:none; border-radius:50%; background:{{ t.dot }};"></span>{{ t.label }}</button></sc-for>
+        </div>
+        <div style="padding:clamp(20px,2.6cqi,28px); display:flex; flex-direction:column; gap:18px;">
+          <label style="display:flex; flex-direction:column; gap:8px;"><span style="font:600 14px 'Geist',sans-serif;">Website URL</span>
+            <span style="display:flex; align-items:center; height:52px; padding:0 14px; border-radius:12px; border:1.5px solid var(--ink); background:var(--bg);"><span style="font:500 15px 'Geist Mono',monospace; color:var(--ink4);">https://</span><input ref="{{ urlRef }}" value="{{ f.url }}" onChange="{{ setUrl }}" placeholder="your-app.com" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font:500 15px 'Geist Mono',monospace;"></span>
+          </label>
+          <sc-if value="{{ tabTest }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:18px;">
+              <label style="display:flex; flex-direction:column; gap:8px;"><span style="font:600 14px 'Geist',sans-serif;">What should a new user be able to do?</span>
+                <input value="{{ f.goal }}" onChange="{{ setGoal }}" placeholder="Create a project and add the first task" style="height:52px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); font:400 16px 'Geist',sans-serif; outline:none;" style-focus="border-color:var(--ink);">
+              </label>
+              <label style="display:flex; flex-direction:column; gap:8px;"><span style="font:600 14px 'Geist',sans-serif;">What does success look like? <span style="font-weight:400; color:var(--ink3);">Optional</span></span>
+                <input value="{{ f.success }}" onChange="{{ setSuccess }}" placeholder="A project appears in the dashboard" style="height:52px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); font:400 16px 'Geist',sans-serif; outline:none;" style-focus="border-color:var(--ink);">
+              </label>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <span style="font:600 14px 'Geist',sans-serif;">How should the visitor get in?</span>
+                <div role="radiogroup" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:8px;">
+                  <sc-for list="{{ access }}" as="o" hint-placeholder-count="4"><button role="radio" aria-checked="{{ o.on }}" onClick="{{ o.go }}" style="display:flex; gap:10px; align-items:flex-start; padding:12px; border-radius:12px; border:{{ o.border }}; background:{{ o.bg }}; color:var(--ink); text-align:left; cursor:pointer;">
+                    <span style="flex:none; margin-top:2px; width:16px; height:16px; border-radius:50%; border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center;"><span style="width:8px; height:8px; border-radius:50%; background:var(--ink); opacity:{{ o.dotOp }};"></span></span>
+                    <span style="display:flex; flex-direction:column; gap:3px;"><span style="font:600 14px 'Geist',sans-serif;">{{ o.t }}</span><span style="font-size:13px; line-height:1.4; color:var(--ink3);">{{ o.d }}</span></span>
+                  </button></sc-for>
+                </div>
+                <sc-if value="{{ accLink }}" hint-placeholder-val="{{ false }}"><input placeholder="https://your-app.com/demo" style="height:48px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); font:500 14px 'Geist Mono',monospace; outline:none;"></sc-if>
+                <sc-if value="{{ accLogin }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:8px;">
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:8px;"><input placeholder="test@your-app.com" style="height:48px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); font:500 14px 'Geist Mono',monospace; outline:none;"><input type="password" placeholder="Password" style="height:48px; padding:0 14px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); font:500 14px 'Geist Mono',monospace; outline:none;"></div>
+                  <span style="font-size:13px; line-height:1.45; color:var(--ink3);">Use a throwaway account. It is never shown to the AI and is deleted after the run.</span>
+                </div></sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <button onClick="{{ submit }}" style="height:56px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 16px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:transform .2s, box-shadow .2s;" style-hover="transform:translateY(-2px); box-shadow:0 4px 0 var(--hard);">{{ submitLabel }} <span aria-hidden="true">→</span></button>
+          <p style="margin:0; text-align:center; font-size:14px; line-height:1.5; color:var(--ink3); text-wrap:pretty;">No QA team required. No pretending a click worked when it didn't.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fu-real" data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px); background:var(--s1); border-top:1.5px solid var(--ink); border-bottom:1.5px solid var(--ink);">
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:20px 40px; margin-bottom:36px;">
+      <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">02 · Demo run</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">One run,<br>start to fix.</h2></div>
+      <span style="display:flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; border:1.5px dashed var(--ink); font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap;">Demo run · replace with a real run + date</span>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); border:1.5px solid var(--ink); border-radius:20px; overflow:hidden; background:var(--bg); box-shadow:12px 12px 0 var(--hard);">
+      <div style="padding:24px; display:flex; flex-direction:column; gap:14px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);">
+        <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">01 · Goal</span>
+        <p style="margin:0; font:600 22px/1.3 'Geist',sans-serif;">Create a project and add the first task.</p>
+        <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink2);">Success: a project appears in the dashboard.</p>
+        <span style="margin-top:auto; font:500 13px 'Geist Mono',monospace; color:var(--ink3);">taskpond.app · start link</span>
+      </div>
+      <div style="padding:24px; display:flex; flex-direction:column; gap:14px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);">
+        <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">02 · What the agent observed</span>
+        <div style="border-radius:12px; border:1.5px solid var(--ink); overflow:hidden; background:#FFFFFF;">
+          <div style="display:flex; align-items:center; gap:6px; padding:7px 10px; background:#F2F4F8; border-bottom:1px solid #DDE2EB; font:500 11px 'Geist Mono',monospace; color:#4F596C;"><span style="width:7px; height:7px; border-radius:50%; background:#CDD3DF;"></span>taskpond.app/projects/new</div>
+          <div style="padding:14px; display:flex; flex-direction:column; gap:8px;"><span style="font:600 14px 'Geist',sans-serif; color:#0E1320;">New project</span><span style="height:30px; border-radius:6px; border:1px solid #CDD3DF; padding:0 8px; display:flex; align-items:center; font-size:12px; color:#343D4F;">Launch plan</span><span style="align-self:flex-start; height:30px; padding:0 12px; border-radius:6px; background:#2F5BFF; color:#FFFFFF; font-size:12px; display:flex; align-items:center; outline:2.5px solid #C93424; outline-offset:3px;">Create project</span></div>
+        </div>
+        <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink2);">Step 6: "Create project" showed a spinner, then the form stayed on screen with no message. Seen again at step 8 and step 11.</p>
+      </div>
+      <div style="padding:24px; display:flex; flex-direction:column; gap:14px; border-bottom:1px solid var(--line);">
+        <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">03 · The fix it recommends</span>
+        <div style="flex:1; border-radius:12px; background:#0E1320; color:#D6DCE8; padding:16px; font:400 13px/1.6 'Geist Mono',monospace;"><span style="color:#C6FF3D;">What to change</span><br>Only clear the form after the create request succeeds. If it fails, keep the input and show the error next to the button.<br><br><span style="color:#C6FF3D;">Retest</span><br>Create "Launch plan" once. It appears in the dashboard.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fu-how" data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px);">
+    <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">03 · How it works</span><h2 style="margin:0 0 36px; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">How it works</h2></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:14px;">
+      <sc-for list="{{ loop }}" as="l" hint-placeholder-count="4">
+        <div style="background:{{ l.card }}; border:1.5px solid var(--ink); border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:12px; min-height:220px; transition:transform .3s, box-shadow .3s, background .5s;" style-hover="transform:translate(-4px,-4px); box-shadow:6px 6px 0 var(--hard);">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">0{{ l.n }}</span><span style="width:10px; height:10px; border-radius:50%; border:1.5px solid var(--ink); background:{{ l.dot }}; transition:background .4s;"></span></div>
+          <span style="font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:32px; line-height:1;">{{ l.name }}</span>
+          <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink2); text-wrap:pretty;">{{ l.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section data-reveal="" style="padding:0 clamp(20px,4cqi,48px) clamp(64px,8cqi,96px);">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:clamp(24px,4cqi,56px); align-items:start;">
+      <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">04 · Trust</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">Why trust<br>the report</h2></div>
+      <div style="display:flex; flex-direction:column; border-top:1.5px solid var(--ink);">
+        <sc-for list="{{ trust }}" as="t" hint-placeholder-count="5"><div style="display:grid; grid-template-columns:44px minmax(0,1fr); gap:12px; padding:18px 12px; margin:0 -12px; border-radius:12px; border-bottom:1px solid var(--line); transition:background .25s;" style-hover="background:var(--s1);"><span style="width:28px; height:28px; border-radius:50%; background:var(--acc); color:#0E1320; border:1.5px solid var(--ink); font:600 13px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center;">✓</span><span style="font:500 18px/1.45 'Geist',sans-serif; text-wrap:pretty;">{{ t.t }}</span></div></sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px); background:var(--deep); color:#FFFFFF;">
+    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:36px;"><div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:#C6FF3D;">05 · Results</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">Results</h2></div><span style="font:500 13px 'Geist Mono',monospace; color:#9AA3B5; align-self:flex-end;">Measured on v6</span></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:1px; background:#3A4460; border:1px solid #3A4460; border-radius:18px; overflow:hidden;">
+      <sc-for list="{{ results }}" as="r" hint-placeholder-count="3"><div style="background:var(--deep); padding:32px 26px; display:flex; flex-direction:column; gap:16px; transition:background .3s;" style-hover="background:#141B2D;"><span style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; font-size:clamp(64px,8cqi,104px); line-height:.85; color:#C6FF3D;">{{ r.big }}</span><span style="font-size:16px; line-height:1.5; color:#D6DCE8; text-wrap:pretty;">{{ r.t }}</span></div></sc-for>
+    </div>
+  </section>
+
+  <section data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px) 0;">
+    <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">06 · Who it's for</span><h2 style="margin:0 0 28px; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">Who it's for</h2></div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px;">
+      <sc-for list="{{ who }}" as="w" hint-placeholder-count="4"><span style="height:60px; padding:0 26px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); font:600 clamp(16px,1.8cqi,20px) 'Geist',sans-serif; display:flex; align-items:center; gap:10px; white-space:nowrap; transition:transform .25s, background .25s;" style-hover="transform:rotate(-3deg) scale(1.04); background:var(--acc-soft);"><span style="width:8px; height:8px; border-radius:50%; background:var(--acc); border:1.5px solid var(--ink);"></span>{{ w }}</span></sc-for>
+    </div>
+  </section>
+
+  <section data-reveal="" style="padding:clamp(64px,8cqi,96px) clamp(20px,4cqi,48px);">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:clamp(24px,4cqi,56px); align-items:start;">
+      <div><span style="display:block; margin-bottom:16px; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">07 · Questions</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">FAQ</h2></div>
+      <div style="display:flex; flex-direction:column; border-top:1.5px solid var(--ink);">
+        <sc-for list="{{ faq }}" as="q" hint-placeholder-count="4"><div style="border-bottom:1px solid var(--line);">
+          <button onClick="{{ q.go }}" aria-expanded="{{ q.open }}" style="width:100%; min-height:64px; padding:16px 0; border:none; background:transparent; color:var(--ink); display:flex; justify-content:space-between; align-items:center; gap:16px; text-align:left; font:600 18px 'Geist',sans-serif; cursor:pointer;">{{ q.q }}<span style="flex:none; width:32px; height:32px; border-radius:50%; border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; transform:{{ q.rot }}; transition:transform .3s;">+</span></button>
+          <sc-if value="{{ q.open }}" hint-placeholder-val="{{ false }}"><p style="margin:0 0 20px; max-width:56ch; font-size:16px; line-height:1.55; color:var(--ink2);">{{ q.a }}</p></sc-if>
+        </div></sc-for>
+      </div>
+    </div>
+  </section>
+  <section data-reveal="" style="margin:0 clamp(20px,4cqi,48px) 56px; padding:clamp(36px,6cqi,72px) clamp(20px,4cqi,48px); border-radius:24px; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); display:flex; flex-direction:column; align-items:center; gap:28px; text-align:center;">
+    <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(52px,8cqi,104px); line-height:.86;">Meet your<br>first user.</h2>
+    <p style="margin:0; font-size:18px; line-height:1.5; max-width:34em;">One goal, one real browser, one honest report. About 1–3 minutes.</p>
+    <button onClick="{{ heroGo }}" style="height:56px; padding:0 8px 0 26px; border-radius:999px; border:1.5px solid #0E1320; background:#0E1320; color:#C6FF3D; font:600 16px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; gap:12px; transition:transform .2s, box-shadow .2s;" style-hover="transform:translateY(-2px); box-shadow:0 5px 0 #FFFFFF;">Test my website<span style="width:40px; height:40px; border-radius:50%; background:#C6FF3D; color:#0E1320; display:flex; align-items:center; justify-content:center;">→</span></button>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isRun }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="Live run" style="padding:clamp(28px,4cqi,48px) clamp(20px,4cqi,48px) clamp(64px,8cqi,96px); display:flex; flex-direction:column; gap:24px;">
+  <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <span style="display:flex; align-items:center; gap:8px; font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);"><span style="width:8px; height:8px; border-radius:50%; background:{{ run.liveDot }}; animation:fuBlink 1.6s ease-in-out infinite;"></span>{{ run.status }} · {{ f.urlShow }}</span>
+      <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(36px,5cqi,60px); line-height:.9;">{{ f.goalShow }}</h1>
+    </div>
+    <span style="font:500 15px 'Geist Mono',monospace; white-space:nowrap;">Step {{ run.n }} of up to 20</span>
+  </div>
+  <ol style="list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)); gap:8px;">
+    <sc-for list="{{ run.phases }}" as="p" hint-placeholder-count="4"><li aria-current="{{ p.cur }}" style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:12px; border:{{ p.border }}; background:{{ p.bg }}; transition:background .6s, border-color .6s;"><span style="flex:none; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--ink); background:{{ p.fill }}; color:{{ p.markColor }}; font:600 12px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center;">{{ p.mark }}</span><span style="font:500 14px/1.3 'Geist',sans-serif; color:{{ p.color }};">{{ p.name }}</span></li></sc-for>
+  </ol>
+  <div style="border:1.5px solid var(--ink); border-radius:18px; overflow:hidden; background:var(--s1); box-shadow:10px 10px 0 var(--hard);">
+    <div style="display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--s2); border-bottom:1px solid var(--line);">
+      <span style="display:flex; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span></span>
+      <span style="flex:1; min-width:0; height:28px; border-radius:8px; background:var(--s1); border:1px solid var(--line); display:flex; align-items:center; padding:0 12px; font:500 12px 'Geist Mono',monospace; color:var(--ink3); overflow:hidden; white-space:nowrap;">taskpond.app{{ run.path }}</span>
+      <span style="font:500 11px 'Geist Mono',monospace; color:var(--ink3); white-space:nowrap;">Latest screenshot</span>
+    </div>
+    <div ref="{{ shotRef }}" style="position:relative; aspect-ratio:16/9; min-height:240px; background:#FFFFFF; display:grid; grid-template-columns:minmax(80px,20%) minmax(0,1fr); color:#0E1320;">
+      <div style="background:#F2F4F8; border-right:1px solid #DDE2EB; padding:14px 12px; display:flex; flex-direction:column; gap:10px;"><span style="font:700 13px 'Geist',sans-serif;">Taskpond</span><span style="height:8px; width:70%; border-radius:4px; background:#DDE2EB;"></span><span style="height:8px; width:55%; border-radius:4px; background:#DDE2EB;"></span><span style="height:8px; width:62%; border-radius:4px; background:#DDE2EB;"></span></div>
+      <div style="padding:clamp(14px,3cqi,32px); display:flex; flex-direction:column; gap:12px; min-width:0;">
+        <span style="font:600 clamp(16px,2.4cqi,26px)/1.2 'Geist',sans-serif;">{{ run.title }}</span>
+        <sc-for list="{{ run.rows }}" as="w" hint-placeholder-count="2"><span style="min-height:34px; border-radius:8px; border:1px solid #DDE2EB; padding:6px 10px; display:flex; align-items:center; font-size:13px; color:#343D4F;">{{ w }}</span></sc-for>
+        <span style="align-self:flex-start; height:34px; padding:0 14px; border-radius:8px; background:#2F5BFF; color:#FFFFFF; font:500 13px 'Geist',sans-serif; display:flex; align-items:center; outline:2.5px solid #0E1320; outline-offset:3px;">{{ run.target }}</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:14px; padding:16px 18px; border-top:1.5px solid var(--ink);">
+      <span style="flex:none; height:26px; padding:0 10px; border-radius:999px; background:var(--deep); color:#C6FF3D; font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; display:flex; align-items:center;">NOW</span>
+      <span style="flex:1; min-width:0; font:500 clamp(16px,1.8cqi,19px)/1.35 'Geist',sans-serif;">{{ run.act }}</span>
+    </div>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;">
+    <span style="font-size:14px; color:var(--ink3);">A run takes about 1–3 minutes. You can leave this page; the report keeps its link.</span>
+    <sc-if value="{{ run.done }}" hint-placeholder-val="{{ false }}"><button onClick="{{ goReport }}" style="height:52px; padding:0 24px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 16px 'Geist',sans-serif; cursor:pointer;">Open the report →</button></sc-if>
+  </div>
+</main>
+</sc-if>
+
+<sc-if value="{{ isReport }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="Report" style="padding:clamp(28px,4cqi,48px) clamp(20px,4cqi,48px) clamp(64px,8cqi,96px); display:flex; flex-direction:column; gap:clamp(36px,5cqi,56px);">
+  <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+    <span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">taskpond.app · Create a project and add the first task</span>
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); margin-right:4px;">Demo · preview state</span>
+      <sc-for list="{{ vStates }}" as="s" hint-placeholder-count="6"><button onClick="{{ s.go }}" style="height:30px; padding:0 10px; border-radius:999px; border:1px solid var(--ink); background:{{ s.bg }}; color:{{ s.fg }}; font:500 12px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">{{ s.label }}</button></sc-for>
+    </div>
+  </div>
+
+  <section ref="{{ verdictRef }}" style="padding:clamp(24px,4cqi,44px); border-radius:22px; border:1.5px {{ v.bs }} var(--ink); background:{{ v.bg }}; color:{{ v.fg }}; display:flex; flex-direction:column; gap:18px;">
+    <span style="align-self:flex-start; height:28px; padding:0 12px; border-radius:999px; background:{{ v.chipBg }}; color:{{ v.chipFg }}; font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; white-space:nowrap;">{{ v.chip }}</span>
+    <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6.4cqi,84px); line-height:.88; max-width:16ch; text-wrap:balance;">{{ v.title }}</h1>
+    <p style="margin:0; font-size:clamp(16px,1.6cqi,19px); line-height:1.5; max-width:58ch; text-wrap:pretty;">{{ v.body }}</p>
+    <sc-if value="{{ v.hasQuote }}" hint-placeholder-val="{{ false }}"><blockquote style="margin:0; padding:14px 18px; border-radius:12px; background:color-mix(in srgb, var(--s1) 70%, transparent); color:var(--ink); border:1px solid var(--ink); display:flex; flex-direction:column; gap:6px; max-width:62ch;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">{{ v.quoteBy }}</span><span style="font:500 16px/1.5 'Geist',sans-serif;">{{ v.quote }}</span></blockquote></sc-if>
+    <sc-if value="{{ v.isLogin }}" hint-placeholder-val="{{ false }}"><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:10px;">
+      <sc-for list="{{ ways }}" as="w" hint-placeholder-count="3"><div style="padding:16px; border-radius:14px; background:var(--s1); color:var(--ink); border:1.5px solid var(--ink); display:flex; flex-direction:column; gap:6px;"><span style="font:600 16px 'Geist',sans-serif;">{{ w.t }}</span><span style="font-size:14px; line-height:1.45; color:var(--ink2);">{{ w.d }}</span></div></sc-for>
+    </div></sc-if>
+    <sc-if value="{{ v.isFail }}" hint-placeholder-val="{{ false }}"><button onClick="{{ goRun }}" style="align-self:flex-start; height:48px; padding:0 22px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer;">Run it again</button></sc-if>
+  </section>
+
+  <section style="display:flex; flex-direction:column; gap:16px;">
+    <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(28px,3.4cqi,40px); line-height:1;">The short answer</h2>
+    <div style="border:1.5px solid var(--ink); border-radius:18px; overflow:hidden; background:var(--s1);">
+      <sc-for list="{{ shortA }}" as="q" hint-placeholder-count="3"><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:8px 24px; padding:18px 22px; border-top:{{ q.bt }};">
+        <span style="font:500 15px 'Geist',sans-serif; color:var(--ink3);">{{ q.q }}</span>
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-start;">
+          <sc-if value="{{ q.hasChip }}" hint-placeholder-val="{{ false }}"><span style="height:24px; padding:0 10px; border-radius:999px; background:{{ q.chipBg }}; color:{{ q.chipFg }}; font:600 12px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ q.chip }}</span></sc-if>
+          <span style="font:600 17px/1.4 'Geist',sans-serif;">{{ q.a }}</span>
+          <sc-if value="{{ q.hasNote }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; line-height:1.5; color:var(--ink2);">{{ q.note }}</span></sc-if>
+        </div>
+      </div></sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex; flex-direction:column; gap:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;"><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(28px,3.4cqi,40px); line-height:1;">Findings</h2><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">{{ findCount }}</span></div>
+    <sc-if value="{{ noFindings }}" hint-placeholder-val="{{ false }}"><div style="padding:22px; border-radius:16px; border:1.5px dashed var(--ink3); font-size:16px; line-height:1.5; color:var(--ink2);">{{ v.noFind }}</div></sc-if>
+    <sc-for list="{{ findings }}" as="k" hint-placeholder-count="3">
+      <article style="border:1.5px solid var(--ink); border-radius:18px; background:var(--s1); overflow:hidden; transition:box-shadow .3s, transform .3s;" style-hover="box-shadow:6px 6px 0 var(--hard); transform:translate(-3px,-3px);">
+        <div style="padding:clamp(18px,2.4cqi,24px); display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+            <span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3); margin-right:4px;">0{{ k.n }}</span>
+            <span style="height:24px; padding:0 9px; border-radius:999px; background:{{ k.sevBg }}; color:{{ k.sevFg }}; font:600 12px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ k.sev }}</span>
+            <span style="height:24px; padding:0 9px; border-radius:999px; border:1px {{ k.basisBs }} var(--ink); font:500 11px 'Geist Mono',monospace; letter-spacing:.04em; text-transform:uppercase; display:flex; align-items:center; white-space:nowrap;">{{ k.basis }}</span>
+          </div>
+          <h3 style="margin:0; font:600 clamp(19px,2cqi,22px)/1.3 'Geist',sans-serif; text-wrap:pretty;">{{ k.title }}</h3>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:10px;">
+            <div style="padding:14px; border-radius:12px; background:var(--s2); border:1px solid var(--line); display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">The visitor expected</span><span style="font-size:15px; line-height:1.5;">{{ k.expected }}</span></div>
+            <div style="padding:14px; border-radius:12px; background:var(--s2); border:1px solid var(--line); display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">What happened</span><span style="font-size:15px; line-height:1.5;">{{ k.happened }}</span></div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px;">
+            <span style="flex:none; width:96px; aspect-ratio:16/10; border-radius:8px; border:1.5px solid var(--ink); background:#FFFFFF; padding:6px; display:flex; flex-direction:column; gap:4px;"><span style="height:5px; width:50%; border-radius:2px; background:#343D4F;"></span><span style="height:9px; border-radius:2px; border:1px solid #CDD3DF;"></span><span style="height:9px; width:46%; border-radius:2px; background:#2F5BFF; outline:1.5px solid #C93424; outline-offset:1px;"></span></span>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:0;"><span style="font:600 14px 'Geist',sans-serif;">Step {{ k.step }}</span><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3); overflow-wrap:anywhere;">taskpond.app{{ k.path }}</span><sc-if value="{{ k.hasSeen }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px; color:var(--ink2);">Seen again at {{ k.seen }}</span></sc-if></div>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; padding:12px clamp(18px,2.4cqi,24px); border-top:1px solid var(--line); background:var(--s2);">
+          <button onClick="{{ k.copy }}" aria-expanded="{{ k.open }}" style="height:44px; padding:0 18px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 14px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">{{ k.copyLabel }}</button>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <sc-for list="{{ k.fb }}" as="b" hint-placeholder-count="3"><button onClick="{{ b.go }}" aria-pressed="{{ b.on }}" style="height:36px; padding:0 12px; border-radius:999px; border:1px solid {{ b.bc }}; background:{{ b.bg }}; color:var(--ink); font:500 13px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">{{ b.label }}</button></sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ k.open }}" hint-placeholder-val="{{ false }}"><div style="background:#0E1320; color:#D6DCE8; padding:clamp(18px,2.4cqi,24px); display:flex; flex-direction:column; gap:16px; font:400 14px/1.6 'Geist Mono',monospace;">
+          <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:#C6FF3D;">Fix prompt · copied to clipboard</span>
+          <sc-for list="{{ k.parts }}" as="p" hint-placeholder-count="4"><div style="display:flex; flex-direction:column; gap:4px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.04em; color:#9AA3B5;">{{ p.h }}</span><span>{{ p.t }}</span></div></sc-for>
+          <div style="display:flex; flex-direction:column; gap:6px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.04em; color:#9AA3B5;">Acceptance criteria</span>
+            <sc-for list="{{ k.criteria }}" as="c" hint-placeholder-count="3"><label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer;"><input type="checkbox" style="margin:4px 0 0; accent-color:#C6FF3D; width:16px; height:16px; flex:none;"><span>{{ c }}</span></label></sc-for>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.04em; color:#9AA3B5;">Retest instruction</span><span>{{ k.retest }}</span></div>
+        </div></sc-if>
+      </article>
+    </sc-for>
+  </section>
+
+  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px 20px; padding:clamp(20px,3cqi,32px); border-radius:20px; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink);">
+    <div style="flex:1; min-width:min(100%,260px); display:flex; flex-direction:column; gap:4px;"><span style="font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(26px,3cqi,36px); line-height:1;">Fixed something?</span><span style="font-size:15px; line-height:1.45;">Run the same goal again. We compare it with this report.</span></div>
+    <button onClick="{{ goRetest }}" style="height:56px; padding:0 28px; border-radius:999px; border:1.5px solid #0E1320; background:#0E1320; color:#C6FF3D; font:600 16px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">Check again →</button>
+  </div>
+
+  <section style="border:1.5px solid var(--ink); border-radius:18px; background:var(--s1); overflow:hidden;">
+    <button onClick="{{ toggleHow }}" aria-expanded="{{ howOpen }}" style="width:100%; min-height:64px; padding:16px 22px; border:none; background:transparent; color:var(--ink); display:flex; justify-content:space-between; align-items:center; gap:16px; font:600 18px 'Geist',sans-serif; cursor:pointer; text-align:left;">How this report was made<span style="flex:none; width:32px; height:32px; border-radius:50%; border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; transform:{{ howRot }}; transition:transform .3s;">+</span></button>
+    <sc-if value="{{ howOpen }}" hint-placeholder-val="{{ false }}"><dl style="margin:0; padding:0 22px 18px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); column-gap:32px;">
+      <sc-for list="{{ made }}" as="m" hint-placeholder-count="6"><div style="display:flex; flex-direction:column; gap:4px; padding:12px 0; border-top:1px solid var(--line);"><dt style="font:500 12px 'Geist Mono',monospace; letter-spacing:.04em; text-transform:uppercase; color:var(--ink3);">{{ m.k }}</dt><dd style="margin:0; font:{{ m.font }}; line-height:1.5; overflow-wrap:anywhere;">{{ m.v }}</dd></div></sc-for>
+    </dl></sc-if>
+  </section>
+
+  <section style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px;">
+    <span style="font:600 16px 'Geist',sans-serif;">Share this report</span>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <button onClick="{{ copyLink }}" style="height:44px; padding:0 18px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); color:var(--ink); font:500 14px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">{{ linkLabel }}</button>
+      <a href="https://x.com/intent/post?text=I%20ran%20First%20User%20on%20my%20site" target="_blank" rel="noopener" style="height:44px; padding:0 18px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); font:500 14px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">Share on X</a>
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Ffirstuser.app" target="_blank" rel="noopener" style="height:44px; padding:0 18px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); font:500 14px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">Share on LinkedIn</a>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isRetest }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="Retest report" style="padding:clamp(28px,4cqi,48px) clamp(20px,4cqi,48px) clamp(64px,8cqi,96px); display:flex; flex-direction:column; gap:clamp(32px,4cqi,48px);">
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Check again · demo · taskpond.app</span>
+    <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,76px); line-height:.88;">What changed</h1>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:12px; align-items:stretch;">
+    <div style="padding:24px; border-radius:18px; border:1.5px solid var(--ink); background:var(--bad); color:var(--on-bad); display:flex; flex-direction:column; gap:12px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase;">Before · first run</span><span style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(34px,4.4cqi,52px); line-height:.9;">Stuck at Create project</span><a href="#" onClick="{{ goReportStuck }}" style="margin-top:auto; color:inherit; text-decoration:underline; text-underline-offset:3px; font-size:15px;">Open the first report</a></div>
+    <div style="padding:24px; border-radius:18px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); display:flex; flex-direction:column; gap:12px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase;">After · check again</span><span style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(34px,4.4cqi,52px); line-height:.9;">Got through</span><a href="#" onClick="{{ goReportVerified }}" style="margin-top:auto; color:inherit; text-decoration:underline; text-underline-offset:3px; font-size:15px;">Open the new report</a></div>
+  </div>
+  <section style="display:flex; flex-direction:column; gap:12px;">
+    <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(28px,3.4cqi,40px); line-height:1;">Each finding</h2>
+    <p style="margin:0; padding:12px 16px; border-radius:12px; background:var(--green-soft); color:var(--green-ink); border:1px solid var(--ink); font-size:14px; line-height:1.5;">Fixed means not reproduced under the tested conditions, not a guarantee.</p>
+    <div style="border:1.5px solid var(--ink); border-radius:18px; overflow:hidden; background:var(--s1);">
+      <sc-for list="{{ retest }}" as="r" hint-placeholder-count="5"><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:10px 20px; padding:18px 22px; border-top:{{ r.bt }}; align-items:start;">
+        <div style="display:flex; flex-direction:column; gap:6px;"><span style="font:600 16px/1.4 'Geist',sans-serif;">{{ r.title }}</span><sc-if value="{{ r.hasNote }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; line-height:1.45; color:var(--ink3);">{{ r.note }}</span></sc-if></div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-start;"><span style="height:28px; padding:0 12px; border-radius:999px; background:{{ r.bg }}; color:{{ r.fg }}; border:1px solid var(--ink); font:600 13px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ r.label }}</span><span style="height:28px; padding:0 10px; border-radius:999px; border:1px dashed var(--ink3); font:500 11px 'Geist Mono',monospace; color:var(--ink2); display:flex; align-items:center; white-space:nowrap;">{{ r.pass }}</span></div>
+      </div></sc-for>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isBrief }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="{{ briefLabel }}" style="padding:clamp(28px,4cqi,48px) clamp(20px,4cqi,48px) clamp(64px,8cqi,96px); display:flex; flex-direction:column; gap:clamp(36px,5cqi,56px);">
+  <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:18px;">
+    <div style="display:flex; flex-direction:column; gap:10px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Understand · demo · taskpond.app</span><h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,76px); line-height:.88;">Taskpond</h1></div>
+    <div role="tablist" style="display:flex; gap:4px; padding:4px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1);">
+      <sc-for list="{{ briefTabs }}" as="t" hint-placeholder-count="2"><button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.go }}" style="height:40px; padding:0 16px; border-radius:999px; border:none; background:{{ t.bg }}; color:{{ t.fg }}; font:600 14px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">{{ t.label }}</button></sc-for>
+    </div>
+  </div>
+
+  <sc-if value="{{ briefProduct }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex; flex-direction:column; gap:clamp(36px,5cqi,56px);">
+    <section style="display:flex; flex-direction:column; gap:16px;">
+      <div style="display:flex; flex-direction:column; gap:6px;"><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(28px,3.4cqi,40px); line-height:1;">Suggested journeys</h2><span style="font-size:15px; color:var(--ink2);">Pick one, edit it if you like, and test it.</span></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:14px;">
+        <sc-for list="{{ journeys }}" as="j" hint-placeholder-count="4"><article style="padding:20px; border-radius:18px; border:1.5px solid var(--ink); background:var(--s1); display:flex; flex-direction:column; gap:14px;">
+          <span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3);">0{{ j.n }}</span>
+          <label style="display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Goal</span><input value="{{ j.goal }}" onChange="{{ j.setGoal }}" style="height:46px; padding:0 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--bg); font:600 15px 'Geist',sans-serif; outline:none;" style-focus="border-color:var(--ink);"></label>
+          <label style="display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Success looks like</span><input value="{{ j.success }}" onChange="{{ j.setSuccess }}" style="height:46px; padding:0 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--bg); font:400 15px 'Geist',sans-serif; outline:none;" style-focus="border-color:var(--ink);"></label>
+          <div style="display:flex; flex-direction:column; gap:4px; padding-left:12px; border-left:2px solid var(--line);"><span style="font-size:14px; line-height:1.45; color:var(--ink2);">{{ j.quote }}</span><span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3);">{{ j.src }}</span></div>
+          <button onClick="{{ j.go }}" style="margin-top:auto; height:46px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer;">Test this journey →</button>
+        </article></sc-for>
+      </div>
+    </section>
+
+    <section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:clamp(20px,3cqi,40px); padding-top:28px; border-top:1.5px solid var(--ink);">
+      <p style="margin:0; font:500 clamp(22px,2.6cqi,30px)/1.3 'Geist',sans-serif; text-wrap:pretty;">Taskpond is a project board for small teams that turns tasks into a weekly plan.</p>
+      <dl style="margin:0; display:flex; flex-direction:column;">
+        <sc-for list="{{ overview }}" as="o" hint-placeholder-count="4"><div style="display:flex; flex-direction:column; gap:4px; padding:12px 0; border-bottom:1px solid var(--line);"><dt style="font:500 12px 'Geist Mono',monospace; letter-spacing:.04em; text-transform:uppercase; color:var(--ink3);">{{ o.k }}</dt><dd style="margin:0; font-size:16px; line-height:1.5;">{{ o.v }}</dd></div></sc-for>
+      </dl>
+    </section>
+
+    <section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:14px;">
+      <div style="padding:22px; border-radius:18px; border:1.5px solid var(--ink); background:var(--s1); display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;"><h3 style="margin:0; font:600 19px 'Geist',sans-serif;">Pricing</h3><a href="#" style="font:500 12px 'Geist Mono',monospace; color:var(--ink3); text-decoration:underline; text-underline-offset:3px;">taskpond.app/pricing ↗</a></div>
+        <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3"><div style="display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid var(--line);"><span style="font:600 15px 'Geist',sans-serif;">{{ t.n }}</span><span style="font:500 14px 'Geist Mono',monospace; text-align:right;">{{ t.p }}</span></div></sc-for>
+        <span style="font-size:13px; color:var(--ink3);">If a site doesn't list prices, this card says "Not published" and notes where we looked.</span>
+      </div>
+      <div style="padding:22px; border-radius:18px; border:1.5px solid var(--ink); background:var(--s1); display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;"><h3 style="margin:0; font:600 19px 'Geist',sans-serif;">Business model</h3><span style="height:24px; padding:0 9px; border-radius:999px; background:var(--amber-soft); color:var(--amber-ink); border:1px dashed var(--ink); font:500 11px 'Geist Mono',monospace; text-transform:uppercase; display:flex; align-items:center;">Inferred</span></div>
+        <p style="margin:0; font:500 17px/1.45 'Geist',sans-serif;">Per-seat subscription with a free tier for small teams.</p>
+        <sc-for list="{{ bmEvidence }}" as="e" hint-placeholder-count="2"><div style="display:flex; flex-direction:column; gap:3px; padding-left:12px; border-left:2px solid var(--line);"><span style="font-size:14px; color:var(--ink2);">{{ e.q }}</span><span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3);">{{ e.s }}</span></div></sc-for>
+      </div>
+    </section>
+
+    <section style="display:flex; flex-direction:column; gap:14px;">
+      <h3 style="margin:0; font:600 19px 'Geist',sans-serif;">Claims on the site</h3>
+      <div style="border:1.5px solid var(--ink); border-radius:18px; background:var(--s1); overflow:hidden;">
+        <sc-for list="{{ claims }}" as="c" hint-placeholder-count="4"><div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px 16px; padding:14px 20px; border-top:{{ c.bt }};"><span style="flex:1; min-width:min(100%,220px); font-size:16px; line-height:1.45;">{{ c.t }}</span><span style="display:flex; align-items:center; gap:10px;"><span style="height:24px; padding:0 9px; border-radius:999px; background:{{ c.bg }}; color:{{ c.fg }}; font:600 12px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ c.s }}</span><a href="#" style="font:500 12px 'Geist Mono',monospace; color:var(--ink3); text-decoration:underline; text-underline-offset:3px; white-space:nowrap;">{{ c.src }}</a></span></div></sc-for>
+      </div>
+    </section>
+
+    <section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:14px;">
+      <div style="padding:22px; border-radius:18px; border:1.5px dashed var(--ink3); display:flex; flex-direction:column; gap:10px;"><h3 style="margin:0; font:600 19px 'Geist',sans-serif;">What we couldn't confirm</h3><sc-for list="{{ unknowns }}" as="u" hint-placeholder-count="3"><span style="font-size:15px; line-height:1.5; color:var(--ink2);">· {{ u }}</span></sc-for></div>
+      <div style="padding:22px; border-radius:18px; border:1.5px solid var(--line); background:var(--s1); display:flex; flex-direction:column; gap:10px;"><h3 style="margin:0; font:600 19px 'Geist',sans-serif;">Pages read</h3><div style="display:flex; flex-wrap:wrap; gap:6px;"><sc-for list="{{ pages }}" as="p" hint-placeholder-count="6"><span style="height:30px; padding:0 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); font:500 13px 'Geist Mono',monospace; display:flex; align-items:center; white-space:nowrap;">{{ p }}</span></sc-for></div></div>
+    </section>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ briefFounder }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex; flex-direction:column; gap:clamp(36px,5cqi,56px);">
+    <p style="margin:0; padding:16px 20px; border-radius:14px; border:1.5px solid var(--ink); background:var(--amber-soft); color:var(--amber-ink); font:500 16px/1.5 'Geist',sans-serif;">Built only from the public website. It cannot judge the team, real demand, revenue or retention.</p>
+    <sc-for list="{{ fSections }}" as="s" hint-placeholder-count="3"><section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:12px clamp(20px,3cqi,40px); padding-top:22px; border-top:1.5px solid var(--ink);"><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(26px,3cqi,36px); line-height:1;">{{ s.h }}</h2><p style="margin:0; font-size:17px; line-height:1.55; color:var(--ink2); text-wrap:pretty;">{{ s.t }}</p></section></sc-for>
+    <section style="display:flex; flex-direction:column; gap:14px; padding-top:22px; border-top:1.5px solid var(--ink);">
+      <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(26px,3cqi,36px); line-height:1;">Evidence and risks</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:12px;">
+        <sc-for list="{{ evRisk }}" as="e" hint-placeholder-count="4"><div style="padding:18px; border-radius:16px; border:1.5px {{ e.bs }} var(--ink); background:var(--s1); display:flex; flex-direction:column; gap:10px;"><span style="align-self:flex-start; height:24px; padding:0 9px; border-radius:999px; background:{{ e.bg }}; color:{{ e.fg }}; font:500 11px 'Geist Mono',monospace; letter-spacing:.03em; text-transform:uppercase; display:flex; align-items:center; white-space:nowrap;">{{ e.tag }}</span><span style="font:600 16px/1.45 'Geist',sans-serif;">{{ e.t }}</span><sc-if value="{{ e.hasQ }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px; line-height:1.5; color:var(--ink2); padding-left:12px; border-left:2px solid var(--line);">{{ e.q }}</span></sc-if></div></sc-for>
+      </div>
+    </section>
+    <section style="display:flex; flex-direction:column; gap:14px; padding-top:22px; border-top:1.5px solid var(--ink);">
+      <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(26px,3cqi,36px); line-height:1;">Readiness</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:14px;">
+        <sc-for list="{{ readiness }}" as="r" hint-placeholder-count="6"><article style="padding:20px; border-radius:18px; border:1.5px solid var(--ink); background:var(--s1); display:flex; flex-direction:column; gap:14px;">
+          <h3 style="margin:0; font:600 18px 'Geist',sans-serif;">{{ r.name }}</h3>
+          <div style="display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">What the public evidence shows</span><span style="font-size:15px; line-height:1.5;">{{ r.shows }}</span><span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3);">{{ r.src }}</span></div>
+          <div style="display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Unknown</span><span style="font-size:15px; line-height:1.5; color:var(--ink2);">{{ r.unknown }}</span></div>
+          <div style="margin-top:auto; padding:12px 14px; border-radius:12px; background:var(--acc-soft); border:1px solid var(--ink); font-size:15px; line-height:1.5;"><span style="font-weight:600;">Be ready to answer: </span>{{ r.ask }}</div>
+        </article></sc-for>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+</main>
+</sc-if>
+
+<sc-if value="{{ isJourney }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="Journey" style="padding:clamp(40px,6cqi,64px) clamp(20px,4cqi,48px) clamp(64px,8cqi,104px);">
+  <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">/journey · Building in public</span>
+  <h1 style="margin:16px 0 0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(52px,9cqi,132px); line-height:.86; letter-spacing:-.01em;">Building First User<br>in <span style="display:inline-block; background:var(--acc); color:var(--on-acc); padding:0 12px; border-radius:12px; transform:rotate(-1.5deg);">neatHack</span></h1>
+  <ol style="list-style:none; margin:clamp(48px,6cqi,80px) 0 0; padding:0 0 0 clamp(24px,3.4cqi,44px); border-left:3px solid var(--line); display:flex; flex-direction:column; gap:clamp(28px,4cqi,44px);">
+    <sc-for list="{{ milestones }}" as="m" hint-placeholder-count="7"><li style="position:relative;">
+      <span style="position:absolute; left:calc(-1 * clamp(24px,3.4cqi,44px) - 9.5px); top:6px; width:16px; height:16px; border-radius:50%; background:{{ m.dot }}; border:1.5px solid var(--ink);"></span>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:14px clamp(20px,3cqi,40px);">
+        <div style="display:flex; flex-direction:column; gap:8px;"><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">{{ m.v }}</span><h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:clamp(26px,3.2cqi,40px); line-height:.95;">{{ m.title }}</h2><a href="{{ m.link }}" style="align-self:flex-start; margin-top:4px; font:500 13px 'Geist Mono',monospace; text-decoration:underline; text-underline-offset:3px;">Entire checkpoint ↗</a></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:10px;">
+          <div style="padding:16px; border-radius:14px; background:var(--bad-soft); border:1px solid var(--ink); display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--bad-ink);">What broke</span><span style="font-size:15px; line-height:1.5;">{{ m.broke }}</span></div>
+          <div style="padding:16px; border-radius:14px; background:var(--green-soft); border:1px solid var(--ink); display:flex; flex-direction:column; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--green-ink);">What changed</span><span style="font-size:15px; line-height:1.5;">{{ m.changed }}</span></div>
+        </div>
+      </div>
+    </li></sc-for>
+  </ol>
+  <section style="margin-top:clamp(64px,8cqi,96px); display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:clamp(24px,4cqi,56px); align-items:start;">
+    <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">Lessons<br>learned</h2>
+    <div style="display:flex; flex-direction:column; border-top:1.5px solid var(--ink);"><sc-for list="{{ lessons }}" as="l" hint-placeholder-count="4"><div style="display:flex; flex-direction:column; gap:6px; padding:18px 0; border-bottom:1px solid var(--line);"><span style="font:600 18px/1.35 'Geist',sans-serif;">{{ l.h }}</span><span style="font-size:15px; line-height:1.55; color:var(--ink2);">{{ l.t }}</span></div></sc-for></div>
+  </section>
+  <section style="margin-top:clamp(64px,8cqi,96px);">
+    <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,6cqi,72px); line-height:.88;">On X</h2>
+    <p style="margin:14px 0 0; font-size:16px; color:var(--ink2);">Posts from <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="text-decoration:underline; text-underline-offset:3px;">@devsdv_</a>, grouped by day.</p>
+    <sc-for list="{{ days }}" as="d" hint-placeholder-count="3"><div style="margin-top:36px;">
+      <div style="display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1.5px solid var(--ink);"><span style="height:26px; padding:0 10px; border-radius:999px; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); font:500 12px 'Geist Mono',monospace; text-transform:uppercase; display:flex; align-items:center;">{{ d.day }}</span><span style="font:600 20px 'Geist',sans-serif;">{{ d.date }}</span></div>
+      <div style="margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr)); gap:12px;"><sc-for list="{{ d.posts }}" as="p" hint-placeholder-count="2"><div style="min-height:150px; padding:18px; border-radius:16px; border:1.5px dashed var(--ink3); display:flex; flex-direction:column; justify-content:space-between; gap:12px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">X post · paste link to embed</span><a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font:500 14px 'Geist',sans-serif;">@devsdv_ ↗</a></div></sc-for></div>
+    </div></sc-for>
+  </section>
+</main>
+</sc-if>
+
+<sc-if value="{{ isAbout }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="About" style="padding:clamp(40px,6cqi,64px) clamp(20px,4cqi,48px) clamp(64px,8cqi,104px); display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:clamp(28px,5cqi,64px); align-items:start;">
+  <div style="display:flex; flex-direction:column; gap:24px;"><h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(56px,9cqi,132px); line-height:.86;">First User</h1><p style="margin:0; font-size:clamp(20px,2.4cqi,28px); line-height:1.35;">Built solo by Divyanshu Verma (DV) at #neatHack.</p></div>
+  <div style="display:flex; flex-direction:column; gap:10px;"><sc-for list="{{ aboutLinks }}" as="l" hint-placeholder-count="4"><a href="{{ l.href }}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:16px; min-height:64px; padding:12px 20px; border-radius:16px; background:var(--s1); border:1.5px solid var(--ink);" style-hover="background:var(--acc-soft); color:var(--ink);"><span style="width:76px; flex:none; font:500 12px 'Geist Mono',monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3);">{{ l.label }}</span><span style="flex:1; min-width:0; font:500 18px 'Geist',sans-serif; overflow-wrap:anywhere;">{{ l.text }}</span><span>↗</span></a></sc-for></div>
+</main>
+</sc-if>
+
+<footer style="padding:clamp(48px,6cqi,80px) clamp(20px,4cqi,48px) 0; border-top:1.5px solid var(--ink);">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:28px;">
+    <div style="display:flex; flex-direction:column; gap:10px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">First User</span><span style="font-size:16px; line-height:1.5; color:var(--ink2);">Your first user. Before the real ones.</span><a href="#" onClick="{{ goJourney }}" style="margin-top:6px; align-self:flex-start; height:44px; padding:0 18px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; display:flex; align-items:center;" style-hover="color:var(--on-acc); background:var(--acc-h);">Building in public →</a></div>
+    <div style="display:flex; flex-direction:column; gap:10px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">Pages</span><sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4"><a href="#" onClick="{{ n.go }}" style="font-size:16px;">{{ n.label }}</a></sc-for></div>
+    <div style="display:flex; flex-direction:column; gap:10px;"><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">Elsewhere</span><a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font-size:16px;">X · @devsdv_</a><a href="https://www.linkedin.com/in/dev-divyanshuverma" target="_blank" rel="noopener" style="font-size:16px;">LinkedIn</a><a href="https://github.com/devs-dv/first-user" target="_blank" rel="noopener" style="font-size:16px;">GitHub</a></div>
+  </div>
+  <div aria-hidden="true" style="margin-top:clamp(40px,5cqi,64px); font-family:'Archivo',sans-serif; font-stretch:66%; font-weight:900; text-transform:uppercase; font-size:min(21cqi,268px); line-height:.78; letter-spacing:-.02em; text-align:center; white-space:nowrap; color:var(--off); user-select:none;">First User</div>
+</footer>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;frame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;phone&quot;],&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;'desktop'|'phone'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;run&quot;,&quot;report&quot;,&quot;retest&quot;,&quot;brief&quot;,&quot;founder&quot;,&quot;journey&quot;,&quot;about&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;verdict&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;verified&quot;,&quot;review&quot;,&quot;stuck&quot;,&quot;login&quot;,&quot;bot&quot;,&quot;fail&quot;],&quot;default&quot;:&quot;stuck&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Report&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Motion&quot;}}">
+const LOOP = [
+  {name:'Understand', body:'Reads your public site and works out what the product does, who it is for and which journeys matter.'},
+  {name:'Experience', body:'A first-time visitor attempts one goal in a real browser, one action at a time, with a screenshot of every step.'},
+  {name:'Improve', body:'Each finding comes with evidence and a fix prompt you can paste into your coding agent.'},
+  {name:'Retest', body:'Check again runs the same goal and tells you what is fixed, still present, new, or not reached.'}
+];
+const TRUST = [
+  "An independent check confirms the result. It never sees the agent's reasoning.",
+  'Every finding has a screenshot, a step number and the page it happened on.',
+  'Browser errors hidden from the visitor are captured and listed.',
+  "Our own failures are kept separate from your site's problems.",
+  'When we can\'t confirm something, the report says "couldn\'t confirm" or "not reached".'
+];
+const RESULTS = [
+  {big:'7/7', t:'7 of 7 test journeys completed and independently verified, in two consecutive rounds.'},
+  {big:'0/3', t:'0 of 3 broken sites praised.'},
+  {big:'<1¢', t:'Under 1 cent per run.'}
+];
+const WHO = ['Hackathon builders','Indie founders','Early-stage SaaS teams','Developers shipping a first MVP'];
+const FAQ = [
+  {q:'What if my app needs a login?', a:'There are three ways in: a start link (a demo or guest page), a throwaway test login, or letting the visitor sign up by itself. It never signs in with Google or GitHub.'},
+  {q:'What happens to my test login?', a:'It is never shown to the AI and is deleted after the run.'},
+  {q:'How long does a run take?', a:'About 1–3 minutes. You can watch it live or come back to the report link.'},
+  {q:'What can it not test?', a:'Apps that only allow Google, GitHub or other OAuth sign-in, and sites behind a "verify you are human" check. The report tells you when either stopped the run.'}
+];
+const ACCESS = [
+  {id:'public', t:'Public pages only', d:'No login. It sees what anyone can see.'},
+  {id:'link', t:'Start link', d:'A demo or guest page you share.'},
+  {id:'login', t:'Test login', d:'A throwaway account. Never shown to the AI, deleted after the run.'},
+  {id:'signup', t:'Let it sign up', d:'It creates its own account, like a new user would.'}
+];
+const PHASES = ['Understanding the page','Exploring','Verifying','Writing the report'];
+const RUN = [
+  {ph:0, act:'Reading the homepage', path:'/', title:'Plan the week, together.', rows:['Boards for small teams','Weekly plan'], target:'Start free'},
+  {ph:0, act:'Reading the pricing section', path:'/pricing', title:'Pricing', rows:['Free · up to 3 members','Team · $8 per member'], target:'Start free'},
+  {ph:1, act:'Opening the start link', path:'/start', title:'Welcome to Taskpond', rows:['Demo workspace'], target:'Continue'},
+  {ph:1, act:"Clicking 'New project'", path:'/dashboard', title:'Your projects', rows:['No projects yet'], target:'New project'},
+  {ph:1, act:"Typing 'Launch plan' into Project name", path:'/projects/new', title:'New project', rows:['Project name: Launch plan'], target:'Create project'},
+  {ph:1, act:"Clicking 'Create project'", path:'/projects/new', title:'New project', rows:['Project name: Launch plan'], target:'Create project'},
+  {ph:1, act:"Clicking 'Add task'", path:'/projects/launch-plan', title:'Launch plan', rows:['To do','Doing'], target:'Add task'},
+  {ph:1, act:"Typing 'Write homepage copy'", path:'/projects/launch-plan', title:'Launch plan', rows:['To do · Write homepage copy','Doing'], target:'Save task'},
+  {ph:2, act:'Checking the dashboard for the new project', path:'/dashboard', title:'Your projects', rows:['Launch plan · 1 task'], target:'Launch plan'},
+  {ph:3, act:'Writing the report', path:'/dashboard', title:'Your projects', rows:['Launch plan · 1 task'], target:'Launch plan'}
+];
+const V = {
+  verified:{label:'Verified', chip:'Verified', title:'A first-time visitor got through', body:'The visitor created a project and added a first task in 14 steps.', bg:'var(--acc)', fg:'var(--on-acc)', chipBg:'#0E1320', chipFg:'#C6FF3D', bs:'solid', quote:'"The dashboard lists a project named Launch plan with 1 task."', quoteBy:'Independent check', value:'Yes. A new user can create a project and add a task.', f:[1,2,3]},
+  review:{label:'Needs review', chip:'Needs review', title:"Probably got through, but we couldn't confirm it", body:'The visitor reached the dashboard, but the independent check could not see the project list: it loaded after the final screenshot was taken.', bg:'var(--amber-soft)', fg:'var(--ink)', chipBg:'var(--warn)', chipFg:'#0E1320', bs:'dashed', quote:'"The page shows a loading state. No project list is visible."', quoteBy:"What the check couldn't see", value:'Probably, but the final page could not be confirmed.', f:[1,2,3]},
+  stuck:{label:'Stuck', chip:'Stuck', title:'A first-time visitor got stuck on /projects/new', body:'At step 6 the Create project button showed a spinner, then the form stayed on screen with no message. The visitor tried twice more and stopped.', bg:'var(--bad)', fg:'var(--on-bad)', chipBg:'#0E1320', chipFg:'#FFFFFF', bs:'solid', value:'Not yet. Creating a project fails without a message.', f:[0,1,2,3]},
+  login:{label:'Stopped at login', chip:'Blocked', title:'Stopped at your login', body:'Everything past the homepage needs an account. Choose one of these for a deeper run:', bg:'var(--blue-soft)', fg:'var(--ink)', chipBg:'var(--info)', chipFg:'#0E1320', bs:'solid', login:true, value:"Unknown. The visitor couldn't get past the login.", f:[2,3]},
+  bot:{label:'Bot check', chip:'Blocked', title:"Blocked by a 'verify you are human' check", body:'Your site showed a bot check on the first page, so the visitor stopped there.', bg:'var(--s2)', fg:'var(--ink)', chipBg:'var(--ink)', chipFg:'var(--bg)', bs:'solid', value:'Unknown. The run stopped at a bot check.', noFind:'No findings. A bot check stopped the run before the visitor saw your product.', f:[]},
+  fail:{label:'Our failure', chip:'Our failure', title:'Our run failed, not your site', body:'Our browser lost its connection at step 4. Nothing in this report is blamed on your site. Running it again usually works.', bg:'var(--bg)', fg:'var(--ink)', chipBg:'var(--s2)', chipFg:'var(--ink)', bs:'dashed', fail:true, value:'Unknown. Our run failed before it could tell.', noFind:'No findings. The run failed on our side, so nothing here is about your site.', f:[]}
+};
+const FIND = [
+  {title:"'Create project' does nothing visible on the first click", sev:'High', basis:'Verified', expected:"Clicking 'Create project' opens the new project.", happened:'The button showed a spinner, then the form stayed on screen with no message.', step:6, path:'/projects/new', seen:'step 8, step 11',
+    parts:[['Observed issue','After clicking "Create project", a spinner shows and the form stays. No error is shown. A hidden TypeError is logged.'],['Expected behaviour','The new project opens, or a clear error explains what went wrong.'],['What to change','Only clear the form after the create request succeeds. On failure keep the input and show the error next to the button.'],['Constraints','Do not change the project URL format or the dashboard layout.']],
+    criteria:['One click creates the project','The new project appears in the dashboard','A failed request shows a visible error','No console errors on /projects/new'], retest:'Run "Create a project and add the first task" with the same start link.'},
+  {title:'No message when the project name is too short', sev:'Medium', basis:'Observed', expected:'A hint explaining the name rule.', happened:"The field turned red with no text. The visitor guessed at a longer name.", step:5, path:'/projects/new', seen:'',
+    parts:[['Observed issue','A one-word name turns the field red with no explanation.'],['Expected behaviour','The rule ("at least 3 characters") is shown under the field.'],['What to change','Add a helper message tied to the validation rule.'],['Constraints','Keep current validation rules.']],
+    criteria:['The rule is visible before typing','The error message names the rule','Screen readers announce the error'], retest:'Type "a" as the project name and submit.'},
+  {title:"'Workspace' and 'project' are used for the same thing", sev:'Low', basis:'Our recommendation', expected:'One word for one idea.', happened:'The homepage says "workspace", the dashboard says "project". The visitor paused at step 3.', step:3, path:'/start', seen:'step 4',
+    parts:[['Observed issue','Two names for the same object across the homepage and dashboard.'],['Expected behaviour','The same word everywhere.'],['What to change','Pick "project" and update homepage and onboarding copy.'],['Constraints','Copy changes only.']],
+    criteria:['Homepage uses one term','Onboarding uses the same term','Dashboard uses the same term'], retest:'Run the same goal and check step 3 wording.'},
+  {title:"Pricing doesn't say whether the free plan needs a card", sev:'Low', basis:'Observed', expected:'A clear answer before signing up.', happened:'The free tier lists features only. The visitor hesitated before clicking Start free.', step:2, path:'/pricing', seen:'',
+    parts:[['Observed issue','No payment information on the free tier.'],['Expected behaviour','The free tier says "No card needed" if true.'],['What to change','Add one line under the free tier price.'],['Constraints','Do not change prices.']],
+    criteria:['Free tier states card requirement','Statement matches sign-up behaviour','Visible without scrolling on mobile'], retest:'Run "Start the free trial without a card".'}
+];
+const RETEST = [
+  {f:0, label:'Fixed', pass:'independent visit'},
+  {f:1, label:'Still present', pass:'guided follow-up'},
+  {f:3, label:'Not reached', pass:'guided follow-up', note:"We never got back to that page, so we can't tell."},
+  {f:2, label:'Inconclusive', pass:'independent visit', note:'The wording changed on the homepage but not on the dashboard.'},
+  {title:"Task order isn't saved after dragging", label:'New', pass:'independent visit'}
+];
+const RLAB = {'Fixed':['var(--green-soft)','var(--green-ink)'], 'Still present':['var(--bad-soft)','var(--bad-ink)'], 'Not reached':['var(--s2)','var(--ink3)'], 'Inconclusive':['var(--amber-soft)','var(--amber-ink)'], 'New':['var(--blue-soft)','var(--blue-ink)']};
+const JOURNEYS = [
+  {goal:'Create a project and add the first task', success:'A project appears in the dashboard', quote:'"Spin up a project in seconds."', src:'Homepage hero · /'},
+  {goal:'Start the free plan without a card', success:'The dashboard opens without asking for payment', quote:'"Free for up to 3 members."', src:'Pricing · /pricing'},
+  {goal:'Invite a teammate to a project', success:'The teammate shows as invited', quote:'"Bring your whole team."', src:'Features · /features'},
+  {goal:'Connect Slack to a project', success:'Slack shows as connected in settings', quote:'"Get updates where you already talk."', src:'Integrations · /integrations'}
+];
+const SEV = {High:['var(--bad)','var(--on-bad)'], Medium:['var(--amber-soft)','var(--amber-ink)'], Low:['var(--s2)','var(--ink2)']};
+const CLAIM = {Confirmed:['var(--green-soft)','var(--green-ink)'], Inferred:['var(--amber-soft)','var(--amber-ink)'], Unknown:['var(--s2)','var(--ink3)']};
+const READY = [
+  {name:'Problem and customer clarity', shows:'The homepage names small teams and weekly planning as the focus.', src:'/ · hero, "Who it\'s for"', unknown:'Whether teams see weekly planning as a real pain.', ask:'Who exactly is the first customer, and how do they plan today?'},
+  {name:'Product differentiation', shows:'The weekly plan view is the only feature described as unique.', src:'/features', unknown:'How it compares with tools teams already use.', ask:'Why would a team switch from what they use now?'},
+  {name:'Evidence of demand', shows:'A "2,000+ teams" line with no source or logos.', src:'/ · footer', unknown:'Active usage, waitlist size, or retention.', ask:'How many teams use it weekly?'},
+  {name:'Distribution', shows:'A Slack integration and a referral line on pricing.', src:'/integrations, /pricing', unknown:'Which channel brings users today.', ask:'Where did your last 20 users come from?'},
+  {name:'Traction evidence', shows:'No revenue, growth or customer stories are published.', src:'Pages read: 6', unknown:'Revenue, paying customers, growth rate.', ask:'What has changed in the last three months?'},
+  {name:'Business model clarity', shows:'Per-seat pricing with a free tier and a sales-led top tier.', src:'/pricing', unknown:'Conversion from free to paid.', ask:'What makes a free team start paying?'}
+];
+const MILE = [
+  {v:'v0', title:'The first agent', broke:'0 verified goals. The agent wandered and reported success it could not show.', changed:'Wrote down what "done" has to mean before writing more agent code.'},
+  {v:'v1', title:'The lying click', broke:'The tool said a click succeeded. The page did not change.', changed:'Every click is now followed by a check that the page actually changed, with retries when it did not.'},
+  {v:'v2', title:'The independent verifier', broke:'The agent was grading its own homework.', changed:'A separate check looks at the final page without seeing the agent\'s reasoning.'},
+  {v:'v3', title:'Hidden page errors', broke:'Some failures were the site\'s, some were ours, and the report blamed the site for both.', changed:'Browser errors are captured, and our own failures are reported separately.'},
+  {v:'v4–v5', title:'Reload when a site\'s scripts fail', broke:'Pages whose own scripts failed to load left the visitor on a blank screen.', changed:'The visitor reloads once and notes it in "How this report was made".'},
+  {v:'v6', title:'7 of 7 verified, twice', broke:'Results swung between rounds.', changed:'7 of 7 test journeys completed and independently verified, in two consecutive rounds.'},
+  {v:'Today', title:'Check again, Understand, Founder brief', broke:'A report ended the conversation. There was no way to confirm a fix.', changed:'Check again compares runs. Understand mode suggests journeys. Founder brief reads the public site.'}
+];
+const LESSONS = [
+  {h:'A leaked API key', t:'An API key was captured in a trace. It was rotated, and a redaction mask with tests was added before anything else shipped.'},
+  {h:"Don't trust the tool's own success message", t:'Check the page, not the return value.'},
+  {h:'Separate our failures from yours', t:'A report that blames the site for our crash is worse than no report.'},
+  {h:'Most apps hide behind a login', t:'That led to the three ways in, and to stating plainly when Google or GitHub sign-in stops a run.'}
+];
+const DAYS = [['Day 1','Sat 10 Oct',2],['Day 2','Sun 11 Oct',2],['Day 3','Mon 12 Oct',2]];
+const SCREENS = ['home','run','report','retest','brief','founder','journey','about'];
+
+const HRUN = [
+  {ph:0, path:'/', title:'Plan the week, together.', rows:['Boards for small teams','Weekly plan'], target:'Start free', thought:'A project board for small teams. The main thing is creating a project.', act:'Reading the homepage', res:'ok'},
+  {ph:1, path:'/start', title:'Welcome to Taskpond', rows:['Demo workspace'], target:'Continue', thought:'There is a start link. Using it instead of signing up.', act:'Opening the start link', res:'ok'},
+  {ph:1, path:'/dashboard', title:'Your projects', rows:['No projects yet'], target:'New project', thought:'No projects yet. "New project" looks like the way in.', act:"Clicking 'New project'", res:'ok'},
+  {ph:1, path:'/projects/new', title:'New project', rows:['Launch plan'], target:'Create project', thought:'Named it Launch plan. Creating it.', act:"Clicking 'Create project'", res:'ok'},
+  {ph:1, path:'/projects/new', title:'New project', rows:['Launch plan'], target:'Create project', thought:'The spinner stopped but the form is still here. Trying again.', act:'Waiting, then clicking again', res:'retry'},
+  {ph:1, path:'/projects/launch-plan', title:'Launch plan', rows:['To do','Doing'], target:'Add task', thought:'The project opened. Adding the first task.', act:"Clicking 'Add task'", res:'ok'},
+  {ph:2, path:'/dashboard', title:'Your projects', rows:['Launch plan · 1 task'], target:'Launch plan', thought:'Checking the dashboard shows the new project.', act:'Checking the dashboard', res:'ok'},
+  {ph:3, path:'/dashboard', title:'Your projects', rows:['Launch plan · 1 task'], target:'Launch plan', thought:'Done. Writing up what I found.', act:'Writing the report', res:'done'}
+];
+
+class Component extends DCLogic {
+  state = (() => { let page = 'home'; try { page = localStorage.getItem('fu4_page') || 'home'; } catch(e){} let theme = 'system'; try { theme = localStorage.getItem('fu_theme') || 'system'; } catch(e){}
+    return { page, theme, cw:1280, menuOpen:false, tab:'test', f:{ url:'', goal:'', success:'', access:'public' }, step:6, vstate: this.props.verdict || 'stuck', open:-1, copied:-1, fb:{}, howOpen:false, faq:-1, briefTab:'product', journeys: JOURNEYS.map(j => ({...j})), linkCopied:false, hstep:0 }; })();
+  get rm(){ return (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || this.props.motion === false; }
+  get isDark(){ const t = this.state.theme; return t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); }
+  applyTheme(){ const r = document.documentElement, t = this.state.theme; if (t === 'system') r.removeAttribute('data-fu-theme'); else r.setAttribute('data-fu-theme', t); try { localStorage.setItem('fu_theme', t); } catch(e){} }
+  componentDidMount(){
+    this.applyTheme();
+    this.revealLines(); this.startHero(); setTimeout(() => this.scanReveal(), 50);
+    if (this.props.screen) this.applyScreen(this.props.screen);
+    else if (this.state.page === 'run') this.startRun();
+    this.onDoc = e => { if (this.state.menuOpen && this.barEl && !this.barEl.contains(e.target)) this.setState({ menuOpen:false }); };
+    document.addEventListener('click', this.onDoc);
+  }
+  startHero(){ clearInterval(this.t1); if (this.rm) { this.setState({ hstep:6 }); return; } this.t1 = setInterval(() => this.setState(s => ({ hstep:(s.hstep+1) % HRUN.length })), 2000); }
+  revealLines(){ if (this.rm) return; (this.lines||[]).filter(e => e.isConnected).forEach((el,i) => el.animate && el.animate([{transform:'translateY(105%)'},{transform:'none'}], {duration:900, delay:120 + i*90, easing:'cubic-bezier(.16,1,.3,1)', fill:'backwards'})); }
+  scanReveal(){ if (this.rm || !window.IntersectionObserver) return; this.io = this.io || new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { this.io.unobserve(e.target); e.target.animate([{opacity:0, transform:'translateY(28px)'},{opacity:1, transform:'none'}], {duration:800, easing:'cubic-bezier(.16,1,.3,1)'}); } }), { rootMargin:'0px 0px -10% 0px' }); document.querySelectorAll('[data-reveal]:not([data-rv])').forEach(el => { el.setAttribute('data-rv',''); this.io.observe(el); }); }
+  componentDidUpdate(pp, ps){
+    if (ps && ps.hstep !== this.state.hstep) { const f = this.feedEl; if (f && f.isConnected && f.animate) f.animate([{transform:'translateY(10px)',opacity:.3},{transform:'none',opacity:1}], {duration:450, easing:'cubic-bezier(.2,.8,.2,1)'}); }
+    if (pp.screen !== this.props.screen && this.props.screen) this.applyScreen(this.props.screen);
+    if (pp.verdict !== this.props.verdict && this.props.verdict) this.setState({ vstate:this.props.verdict });
+  }
+  componentWillUnmount(){ clearInterval(this.ti); clearInterval(this.t1); this.io && this.io.disconnect(); this.ro && this.ro.disconnect(); document.removeEventListener('click', this.onDoc); }
+  applyScreen(s){ if (s === 'founder') { this.setState({ briefTab:'founder' }); this.go('brief'); } else { if (s === 'brief') this.setState({ briefTab:'product' }); this.go(s); } }
+  go(page, anchor){
+    clearInterval(this.ti);
+    this.setState({ page, menuOpen:false }, () => {
+      try { localStorage.setItem('fu4_page', page); } catch(e){}
+      if (page === 'run') this.startRun();
+      if (page === 'home') { this.lines = (this.lines||[]).filter(e => e.isConnected); if (!anchor) this.revealLines(); } requestAnimationFrame(() => { this.scanReveal(); const el = anchor && document.getElementById(anchor); window.scrollTo({ top: el ? el.getBoundingClientRect().top + window.scrollY - 80 : 0, behavior: el && !this.rm ? 'smooth' : 'auto' }); if (anchor === 'fu-form' && this.urlInput) setTimeout(() => this.urlInput && this.urlInput.focus({ preventScroll:true }), 300); });
+    });
+  }
+  startRun(){ clearInterval(this.ti); if (this.rm) { this.setState({ step:6 }); return; } this.setState({ step:0 }); this.ti = setInterval(() => { const n = this.state.step + 1; if (n >= RUN.length) { clearInterval(this.ti); return; } this.setState({ step:n }); const s = this.shotEl; if (s && s.animate) s.animate([{opacity:.55},{opacity:1}], {duration:600, easing:'ease-out'}); }, 2400); }
+  setF(k, v){ this.setState(s => ({ f:{ ...s.f, [k]:v } })); }
+  copy(t){ try { navigator.clipboard && navigator.clipboard.writeText(t); } catch(e){} }
+  renderVals(){
+    const s = this.state, phone = this.props.frame === 'phone', cw = s.cw;
+    const r = RUN[s.step], done = s.step === RUN.length - 1;
+    const v = V[s.vstate] || V.stuck;
+    const fl = v.f.map(i => FIND[i]);
+    const findings = fl.map((k, idx) => { const id = FIND.indexOf(k), open = s.open === id, fbv = s.fb[id];
+      const text = k.parts.map(p => p[0] + ':\n' + p[1]).join('\n\n') + '\n\nAcceptance criteria:\n' + k.criteria.map(c => '- [ ] ' + c).join('\n') + '\n\nRetest instruction:\n' + k.retest;
+      return { n: idx+1, title:k.title, sev:k.sev, sevBg:SEV[k.sev][0], sevFg:SEV[k.sev][1], basis:k.basis, basisBs: k.basis === 'Our recommendation' ? 'dashed' : 'solid', expected:k.expected, happened:k.happened, step:k.step, path:k.path, seen:k.seen, hasSeen:!!k.seen,
+        open, copyLabel: s.copied === id ? 'Copied ✓' : (open ? 'Copy fix prompt again' : 'Copy fix prompt'),
+        copy: () => { this.copy(text); this.setState({ open:id, copied:id }); clearTimeout(this.cpT); this.cpT = setTimeout(() => this.setState({ copied:-1 }), 1800); },
+        parts: k.parts.map(([h,t]) => ({ h, t })), criteria:k.criteria, retest:k.retest,
+        fb: ['Useful','Not a real problem','I fixed this'].map(label => { const on = fbv === label; return { label, on, bg: on ? 'var(--ink)' : 'transparent', bc: on ? 'var(--ink)' : 'var(--line)', go: () => this.setState(st => ({ fb:{ ...st.fb, [id]: on ? null : label } })) }; }).map(b => ({ ...b, bg: b.on ? 'var(--acc-soft)' : 'transparent' })) }; });
+    const top = fl[0];
+    const nav = [['How it works','home','fu-how'],['Example report','report'],['Build Journey','journey'],['About','about']];
+    const h = HRUN[s.hstep], hres = {ok:['Done','var(--green-soft)','var(--green-ink)'], retry:['Needed a retry','var(--amber-soft)','var(--amber-ink)'], done:['Report ready','var(--acc)','var(--on-acc)']}[h.res];
+    const a = { n: s.hstep + 1, path:h.path, title:h.title, rows:h.rows, target:h.target, thought:h.thought, act:h.act, cx:30, cy: h.rows.length > 1 ? 56 : 41,
+      ring: h.res === 'retry' ? '#A86400' : '#0E1320', vOp: s.hstep >= 6 ? 1 : 0, vTf: s.hstep >= 6 ? 'none' : 'translateY(8px) scale(.9)', resLabel:hres[0], resBg:hres[1], resColor:hres[2],
+      phases: PHASES.map((name,i) => { const d = i < h.ph || h.res === 'done', on = i === h.ph && !d; return { name, mark: d ? '✓' : String(i+1), bg: on ? 'var(--acc-soft)' : 'var(--s1)', markColor: d ? '#0E1320' : 'var(--ink)', ring: d || on ? 'var(--ink)' : 'var(--off)', fill: d ? 'var(--acc)' : 'var(--s1)', color: d || on ? 'var(--ink)' : 'var(--ink4)' }; }) };
+    return {
+      a, heroBtn: cw >= 560 ? 'Test my website →' : 'Test →',
+      heroGo: () => { this.setState({ tab:'test' }); this.go('home','fu-form'); },
+      tryExample: () => this.setF('url','taskpond.app'),
+      urlRef: el => this.urlInput = el, cardRef: el => this.cardEl = el, feedRef: el => this.feedEl = el,
+      lineRef: el => { if (!el) return; this.lines = this.lines || []; if (!this.lines.includes(el)) this.lines.push(el); },
+      tilt: e => { const c = this.cardEl; if (!c || this.rm) return; const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; c.style.transform = 'rotateY(' + (x*6) + 'deg) rotateX(' + (-y*6) + 'deg)'; },
+      untilt: () => { if (this.cardEl) this.cardEl.style.transform = ''; },
+      rootRef: el => { if (el && el !== this.rootEl) { this.rootEl = el; this.ro && this.ro.disconnect(); this.ro = new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w !== this.state.cw) this.setState({ cw:w, menuOpen: w >= 1000 ? false : this.state.menuOpen }); }); this.ro.observe(el); } },
+      barRef: el => this.barEl = el, shotRef: el => this.shotEl = el, formRef: el => this.formEl = el, verdictRef: el => { if (el && this.lastV !== s.vstate) { if (this.lastV && el.animate && !this.rm) el.animate([{opacity:.4, transform:'translateY(6px)'},{opacity:1, transform:'none'}], {duration:400, easing:'ease-out'}); this.lastV = s.vstate; } },
+      framePad: phone ? '32px 16px' : '0', frameBg: phone ? 'var(--s2)' : 'var(--bg)', frameW: phone ? '390px' : '1280px', frameB: phone ? '1.5px solid var(--ink)' : 'none', frameR: phone ? '28px' : '0',
+      screenLabel: ({home:'Home', run:'Live run', report:'Report', retest:'Retest', brief:'Brief', journey:'Journey', about:'About'})[s.page] || 'Home',
+      wideNav: cw >= 1000, narrowNav: cw < 1000, ctaText: cw >= 560, ctaPadL: cw >= 560 ? '18px' : '6px', menuOpen: s.menuOpen,
+      toggleMenu: e => { e.stopPropagation(); this.setState({ menuOpen: !s.menuOpen }); },
+      burgerA: s.menuOpen ? 'translateY(2.75px) rotate(45deg)' : 'none', burgerB: s.menuOpen ? 'translateY(-2.75px) rotate(-45deg)' : 'none',
+      navItems: nav.map(([label,p,anc]) => { const on = !anc && s.page === p; return { label, color: on ? 'var(--on-acc)' : 'var(--ink)', bg: on ? 'var(--acc)' : 'transparent', go: e => { e.preventDefault(); this.go(p, anc); } }; }),
+      themeIcon: this.isDark ? '☾' : '☀', themeLabel: this.isDark ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setState({ theme: this.isDark ? 'light' : 'dark' }, () => this.applyTheme()),
+      goTry: () => this.go('home','fu-form'), goHome: e => { e.preventDefault(); this.go('home'); }, goJourney: e => { e.preventDefault(); this.go('journey'); },
+      isHome: s.page === 'home', isRun: s.page === 'run', isReport: s.page === 'report', isRetest: s.page === 'retest', isBrief: s.page === 'brief', isJourney: s.page === 'journey', isAbout: s.page === 'about',
+      loop: LOOP.map((l,i) => { const on = i === Math.floor(s.hstep / 2) % 4; return { ...l, n:i+1, arrow: i < 3 ? 'inline' : 'none', card: on ? 'var(--acc-soft)' : 'var(--s1)', dot: on ? 'var(--acc)' : 'transparent', bg: on ? 'var(--acc)' : 'var(--bg)', fg: on ? 'var(--on-acc)' : 'var(--ink)', bc: on ? 'var(--ink)' : 'var(--line)' }; }),
+      tabs: [['test','Test my website'],['understand','Understand this website']].map(([id,label],i) => { const on = s.tab === id; return { label, on, bg: on ? 'var(--s1)' : 'var(--s2)', dot: on ? 'var(--acc)' : 'var(--line)', br: i === 0 ? '1.5px solid var(--ink)' : 'none', go: () => this.setState({ tab:id }) }; }),
+      tabTest: s.tab === 'test', f: { ...s.f, urlShow: s.f.url || 'taskpond.app', goalShow: s.f.goal || 'Create a project and add the first task' },
+      setUrl: e => this.setF('url', e.target.value), setGoal: e => this.setF('goal', e.target.value), setSuccess: e => this.setF('success', e.target.value),
+      access: ACCESS.map(o => { const on = s.f.access === o.id; return { ...o, on, dotOp: on ? 1 : 0, border: on ? '1.5px solid var(--ink)' : '1.5px solid var(--line)', bg: on ? 'var(--acc-soft)' : 'var(--bg)', go: () => this.setF('access', o.id) }; }),
+      accLink: s.f.access === 'link', accLogin: s.f.access === 'login',
+      submitLabel: s.tab === 'test' ? 'Test my website' : 'Understand this website',
+      submit: () => this.go(s.tab === 'test' ? 'run' : 'brief'),
+      trust: TRUST.map((t,i) => ({ t, n:i+1 })), results: RESULTS, who: WHO,
+      faq: FAQ.map((q,i) => { const open = s.faq === i; return { ...q, open, rot: open ? 'rotate(45deg)' : 'none', go: () => this.setState({ faq: open ? -1 : i }) }; }),
+      run: { n: s.step + 1, act: r.act, path: r.path, title: r.title, rows: r.rows, target: r.target, done, status: done ? 'Report ready' : 'Live', liveDot: done ? 'var(--acc)' : 'var(--pass)',
+        phases: PHASES.map((name,i) => { const d = i < r.ph || done, on = i === r.ph && !done; return { name, cur: on ? 'step' : 'false', mark: d ? '✓' : String(i+1), markColor: d ? '#0E1320' : 'var(--ink)', fill: d ? 'var(--acc)' : (on ? 'var(--s1)' : 'var(--s2)'), border: on ? '1.5px solid var(--ink)' : '1.5px solid var(--line)', bg: on ? 'var(--acc-soft)' : 'var(--s1)', color: d || on ? 'var(--ink)' : 'var(--ink3)' }; }) },
+      goReport: () => this.go('report'), goRun: () => this.go('run'), goRetest: () => this.go('retest'),
+      goReportStuck: e => { e.preventDefault(); this.setState({ vstate:'stuck' }); this.go('report'); }, goReportVerified: e => { e.preventDefault(); this.setState({ vstate:'verified' }); this.go('report'); },
+      vStates: Object.keys(V).map(k => { const on = s.vstate === k; return { label: V[k].label, bg: on ? 'var(--ink)' : 'transparent', fg: on ? 'var(--bg)' : 'var(--ink)', go: () => this.setState({ vstate:k, open:-1 }) }; }),
+      v: { ...v, hasQuote: !!v.quote, quote: v.quote || '', quoteBy: v.quoteBy || '', isLogin: !!v.login, isFail: !!v.fail, noFind: v.noFind || '' },
+      ways: [{t:'Start link', d:'Share a demo or guest page that opens inside the product.'},{t:'Test login', d:'A throwaway account. Never shown to the AI, deleted after the run.'},{t:'Let it sign up', d:'The visitor creates its own account. Not possible with Google or GitHub only.'}],
+      shortA: [
+        { q:'Will a new user understand it?', hasChip: !v.noFind, chip:'Partly clear', chipBg:'var(--amber-soft)', chipFg:'var(--amber-ink)', a: v.noFind ? 'Not assessed' : 'The headline says what it is. Two words name the same thing.', hasNote: !v.noFind, note:"'Workspace' on the homepage, 'project' in the dashboard. Pricing doesn't say if a card is needed.", bt:'none' },
+        { q:'Can they get value?', hasChip:false, a: v.value, hasNote:false, bt:'1px solid var(--line)' },
+        { q:'What should you fix first?', hasChip:false, a: top ? top.title : 'Nothing on your site. Run it again.', hasNote:false, bt:'1px solid var(--line)' }],
+      findings, noFindings: findings.length === 0, findCount: findings.length ? findings.length + ' of up to 5' : '',
+      howOpen: s.howOpen, howRot: s.howOpen ? 'rotate(45deg)' : 'none', toggleHow: () => this.setState({ howOpen: !s.howOpen }),
+      made: [['Steps taken','14'],['Clicks that needed recovery', s.vstate === 'stuck' ? "Step 6, 'Create project': 3 tries, none worked" : "Step 6, 'Create project': worked on try 2"],['Our own issues', s.vstate === 'fail' ? 'Browser connection lost at step 4' : 'None'],['Page reloads','1, at step 3 (a site script failed to load)'],['Hidden page errors','2 · TypeError on /projects/new'],['Independent check', v.label + (v.quote ? ' · ' + v.quote : '')],['Cost of the run','$0.008'],['Duration','2m 04s'],['Agent version','v6'],['Trace ID','tr_7f3a9c2e41d8']].map(([k,val],i) => ({ k, v:val, font: i === 9 ? "500 14px 'Geist Mono',monospace" : "400 15px 'Geist',sans-serif" })),
+      linkLabel: s.linkCopied ? 'Link copied ✓' : 'Copy link', copyLink: () => { this.copy(location.href); this.setState({ linkCopied:true }); setTimeout(() => this.setState({ linkCopied:false }), 1600); },
+      retest: RETEST.map((x,i) => ({ title: x.title || FIND[x.f].title, label:x.label, pass:x.pass, bg:RLAB[x.label][0], fg:RLAB[x.label][1], note:x.note || '', hasNote:!!x.note, bt: i ? '1px solid var(--line)' : 'none' })),
+      briefTabs: [['product','Product brief'],['founder','Founder brief']].map(([id,label]) => { const on = s.briefTab === id; return { label, on, bg: on ? 'var(--ink)' : 'transparent', fg: on ? 'var(--bg)' : 'var(--ink)', go: () => this.setState({ briefTab:id }) }; }),
+      briefProduct: s.briefTab === 'product', briefFounder: s.briefTab === 'founder', briefLabel: s.briefTab === 'product' ? 'Product brief' : 'Founder brief',
+      journeys: s.journeys.map((j,i) => ({ ...j, n:i+1,
+        setGoal: e => { const val = e.target.value; this.setState(st => ({ journeys: st.journeys.map((x,k) => k === i ? { ...x, goal:val } : x) })); },
+        setSuccess: e => { const val = e.target.value; this.setState(st => ({ journeys: st.journeys.map((x,k) => k === i ? { ...x, success:val } : x) })); },
+        go: () => { this.setState({ tab:'test', f:{ url:'taskpond.app', goal:j.goal, success:j.success, access:'link' } }); this.go('home','fu-form'); } })),
+      overview: [['What it does','Shared boards where tasks roll into a weekly plan for each person.'],["Who it's for",'Small teams of 3–15 people without a project manager.'],['How it works','Create a project, add tasks, assign them; Taskpond builds each week\'s plan.'],['Primary value','Everyone knows what they are doing this week without a planning meeting.']].map(([k,v]) => ({ k, v })),
+      tiers: [{n:'Free', p:'$0 · up to 3 members'},{n:'Team', p:'$8 / member / month'},{n:'Business', p:'Contact sales'}],
+      bmEvidence: [{q:'"$8 per member, per month"', s:'/pricing'},{q:'"Talk to us about larger teams"', s:'/pricing'}],
+      claims: [['Integrates with Slack','Confirmed','/integrations'],['Used by 2,000+ teams','Unknown','/ · footer'],['Saves a weekly planning meeting','Inferred','/features'],['SOC 2 compliant','Unknown','/about']].map(([t,st,src],i) => ({ t, s:st, src, bg:CLAIM[st][0], fg:CLAIM[st][1], bt: i ? '1px solid var(--line)' : 'none' })),
+      unknowns: ['Whether the free plan needs a card','Who the team is','Any customer names or case studies','Data location and security practices'],
+      pages: ['/','/pricing','/features','/integrations','/about','/login'],
+      fSections: [
+        {h:'Executive summary', t:'Taskpond sells per-seat project boards to small teams, with a free tier for up to 3 members. The site is clear on what it does and light on proof that teams use it.'},
+        {h:'The opportunity', t:'Small teams that plan in chat or spreadsheets. The site positions the weekly plan view as the reason to switch.'},
+        {h:'Product and business model', t:'Projects, tasks and an auto-built weekly plan, with a Slack integration. Free, Team at $8 per member per month, and a sales-led Business tier.'}],
+      evRisk: [
+        {tag:'Stated by the company, not verified', t:'Used by 2,000+ teams', q:'"Trusted by 2,000+ teams" · / footer', hasQ:true},
+        {tag:'Stated by the company, not verified', t:'Saves a weekly planning meeting', q:'"Skip the Monday planning meeting" · /features', hasQ:true},
+        {tag:'Our assessment', t:'Crowded category. The weekly plan view is the only stated difference.', hasQ:false},
+        {tag:'Our assessment', t:'No security or data information for teams that need it to buy.', hasQ:false}].map(e => { const own = e.tag === 'Our assessment'; return { ...e, q:e.q || '', bs: own ? 'dashed' : 'solid', bg: own ? 'var(--s2)' : 'var(--amber-soft)', fg: own ? 'var(--ink2)' : 'var(--amber-ink)' }; }),
+      readiness: READY,
+      milestones: MILE.map((m,i) => ({ ...m, link:'#', dot: i === MILE.length - 1 ? 'var(--pass)' : (i === MILE.length - 2 ? 'var(--acc)' : 'var(--s1)') })),
+      lessons: LESSONS,
+      days: DAYS.map(([day,date,n]) => ({ day, date, posts: Array.from({length:n}, (_,i) => i) })),
+      aboutLinks: [{label:'X', text:'@devsdv_', href:'https://x.com/devsdv_'},{label:'LinkedIn', text:'dev-divyanshuverma', href:'https://www.linkedin.com/in/dev-divyanshuverma'},{label:'GitHub', text:'devs-dv', href:'https://github.com/devs-dv'},{label:'Repo', text:'devs-dv/first-user', href:'https://github.com/devs-dv/first-user'}]
+    };
+  }
+}
+</script>
+</body>
+</html>

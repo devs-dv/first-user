@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<style>
+html,body{margin:0;background:#08090A;color:#ECEEE9;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#ECEEE9;text-decoration:none}
+a:hover{color:#57E38D}
+::selection{background:#57E38D;color:#08090A}
+input::placeholder{color:#6C726E}
+@keyframes fuPulse{0%{box-shadow:0 0 0 0 rgba(87,227,141,.55)}70%{box-shadow:0 0 0 10px rgba(87,227,141,0)}100%{box-shadow:0 0 0 0 rgba(87,227,141,0)}}
+@keyframes fuScan{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+</style>
+</helmet>
+
+<div ref="{{ rootRef }}" style="min-height:100vh; background:#08090A; font-family:'Geist',system-ui,sans-serif; color:#ECEEE9; padding-bottom:96px;">
+<div style="max-width:{{ frameWidth }}; margin:0 auto; container-type:inline-size; position:relative; background:#08090A; border-left:{{ frameBorder }}; border-right:{{ frameBorder }}; min-height:100vh;">
+
+<!-- NAV -->
+<header style="position:sticky; top:0; z-index:50; height:68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 clamp(20px,5cqw,72px); background:rgba(8,9,10,.72); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid rgba(237,240,235,.07);">
+  <a href="#" onClick="{{ goLanding }}" style="display:flex; align-items:center; gap:10px; color:#ECEEE9;">
+    <span style="position:relative; width:28px; height:30px; display:flex; align-items:flex-end; justify-content:center;">
+      <span style="position:absolute; top:0; left:50%; width:5px; height:5px; margin-left:-2.5px; border-radius:50%; background:#57E38D;"></span>
+      <span style="position:absolute; top:4px; left:50%; width:1.5px; height:5px; margin-left:-.75px; background:#57E38D;"></span>
+      <span style="width:28px; height:21px; border-radius:9px; background:#57E38D; display:flex; align-items:center; justify-content:center; gap:5px;">
+        <span style="width:5px; height:8px; border-radius:3px; background:#08090A;"></span>
+        <span style="width:5px; height:8px; border-radius:3px; background:#08090A;"></span>
+      </span>
+    </span>
+    <span style="font-family:'Archivo',sans-serif; font-stretch:80%; font-weight:800; font-size:19px; letter-spacing:.01em; text-transform:uppercase;">First User</span>
+  </a>
+  <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}">
+    <nav style="display:flex; align-items:center; gap:32px; font-size:14px; color:#9BA19D;">
+      <a href="#" onClick="{{ goHow }}" style="color:#9BA19D;" style-hover="color:#ECEEE9">How it works</a>
+      <a href="#" onClick="{{ goReport }}" style="color:#9BA19D;" style-hover="color:#ECEEE9">Example report</a>
+      <a href="#" onClick="{{ goJourney }}" style="color:{{ navJourneyColor }};" style-hover="color:#ECEEE9">Build Journey</a>
+      <a href="#" onClick="{{ goAbout }}" style="color:{{ navAboutColor }};" style-hover="color:#ECEEE9">About</a>
+    </nav>
+  </sc-if>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <button data-magnetic="" onClick="{{ goTry }}" style="height:40px; padding:0 18px; border-radius:999px; border:none; background:#ECEEE9; color:#08090A; font:600 14px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; gap:8px;" style-hover="background:#57E38D">Try it <span>→</span></button>
+    <sc-if value="{{ isNarrow }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ toggleMenu }}" style="height:40px; width:40px; border-radius:999px; border:1px solid rgba(237,240,235,.14); background:transparent; color:#ECEEE9; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;" aria-label="Menu">
+        <span style="width:14px; height:1.5px; background:#ECEEE9;"></span><span style="width:14px; height:1.5px; background:#ECEEE9;"></span>
+      </button>
+    </sc-if>
+  </div>
+</header>
+<sc-if value="{{ menuVisible }}" hint-placeholder-val="{{ false }}">
+  <div style="position:sticky; top:68px; z-index:49; background:#0F1112; border-bottom:1px solid rgba(237,240,235,.08); padding:8px 20px 20px; display:flex; flex-direction:column;">
+    <a href="#" onClick="{{ goHow }}" style="padding:14px 0; border-bottom:1px solid rgba(237,240,235,.07); font-size:17px;">How it works</a>
+    <a href="#" onClick="{{ goReport }}" style="padding:14px 0; border-bottom:1px solid rgba(237,240,235,.07); font-size:17px;">Example report</a>
+    <a href="#" onClick="{{ goJourney }}" style="padding:14px 0; border-bottom:1px solid rgba(237,240,235,.07); font-size:17px;">Build Journey</a>
+    <a href="#" onClick="{{ goAbout }}" style="padding:14px 0; font-size:17px;">About</a>
+  </div>
+</sc-if>
+
+<!-- ================= SCREEN 1: LANDING ================= -->
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<main data-screen-label="01 Landing">
+
+  <section ref="{{ heroRef }}" style="position:relative; overflow:hidden; padding:clamp(56px,9cqw,120px) clamp(20px,5cqw,72px) clamp(72px,9cqw,128px);">
+    <div style="position:absolute; inset:0; pointer-events:none; background-image:linear-gradient(rgba(237,240,235,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(237,240,235,.035) 1px, transparent 1px); background-size:72px 72px; -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 20%, #000 30%, transparent 75%); mask-image:radial-gradient(ellipse 80% 70% at 50% 20%, #000 30%, transparent 75%);"></div>
+    <div data-parallax="-0.08" style="position:absolute; right:-10%; top:-20%; width:70%; aspect-ratio:1; border-radius:50%; background:radial-gradient(circle, rgba(87,227,141,.16), rgba(87,227,141,0) 62%); pointer-events:none;"></div>
+    <div style="position:relative; max-width:1296px; margin:0 auto;">
+      <div data-reveal="" style="display:inline-flex; align-items:center; gap:10px; height:32px; padding:0 14px; border-radius:999px; border:1px solid rgba(237,240,235,.12); font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#9BA19D;">
+        <span style="width:6px; height:6px; border-radius:50%; background:#57E38D;"></span>Built at #neatHack
+      </div>
+      <h1 style="margin:28px 0 0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(64px,13.2cqw,210px); line-height:.84; letter-spacing:-0.015em;">
+        <span data-parallax="0.04" style="display:block; color:#ECEEE9;">Your first user,</span>
+        <span data-parallax="0.09" style="display:block; color:#B9BEB8;">before you</span>
+        <span data-parallax="0.14" style="display:block; background:linear-gradient(180deg,#8E948F,#3A3E3B); -webkit-background-clip:text; background-clip:text; color:transparent;">have any<span style="color:#57E38D; -webkit-text-fill-color:#57E38D;">.</span></span>
+      </h1>
+
+      <div style="margin-top:clamp(40px,5cqw,72px); display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr)); gap:clamp(28px,5cqw,80px); align-items:start;">
+        <div data-reveal="" style="display:flex; flex-direction:column; gap:28px; padding-top:8px;">
+          <p style="margin:0; font-size:clamp(19px,1.9cqw,24px); line-height:1.45; color:#C9CDC7; max-width:30ch; text-wrap:pretty;">Paste your app's link. An AI agent tries it like a brand-new customer and shows you where it got stuck.</p>
+          <div style="display:flex; gap:12px; align-items:flex-start; max-width:44ch;">
+            <span style="flex:none; width:22px; height:22px; border-radius:6px; border:1px solid rgba(87,227,141,.35); display:flex; align-items:center; justify-content:center; color:#57E38D; font-size:11px; margin-top:1px;">✓</span>
+            <p style="margin:0; font-size:14px; line-height:1.55; color:#9BA19D;">We open your site in a browser and click around like a visitor. We never enter payment details.</p>
+          </div>
+        </div>
+
+        <form ref="{{ formRef }}" onSubmit="{{ submitRun }}" data-reveal="" data-delay="120" style="position:relative; padding:12px; border-radius:24px; background:linear-gradient(180deg,#121517,#0C0E0F); border:1px solid rgba(237,240,235,.1); box-shadow:0 40px 120px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.4); display:flex; flex-direction:column; gap:8px;">
+          <label style="display:flex; align-items:center; gap:10px; height:72px; padding:0 20px; border-radius:16px; background:#08090A; border:1px solid {{ urlBorder }};">
+            <span style="font-family:'Geist Mono',monospace; font-size:15px; color:#6C726E;">https://</span>
+            <input ref="{{ urlRef }}" value="{{ url }}" onChange="{{ onUrl }}" placeholder="yourapp.com" aria-label="Your app's link" style="flex:1; min-width:0; height:100%; background:transparent; border:none; outline:none; color:#ECEEE9; font:500 clamp(18px,1.8cqw,22px) 'Geist',sans-serif;">
+          </label>
+          <label style="display:flex; flex-direction:column; justify-content:center; gap:2px; height:64px; padding:0 20px; border-radius:16px; background:#08090A; border:1px solid rgba(237,240,235,.08);">
+            <span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Goal · optional</span>
+            <input value="{{ goal }}" onChange="{{ onGoal }}" placeholder="Sign up and create a first project" style="background:transparent; border:none; outline:none; color:#ECEEE9; font:400 16px 'Geist',sans-serif; padding:0;">
+          </label>
+          <button type="button" onClick="{{ toggleConsent }}" style="display:flex; align-items:center; gap:12px; min-height:52px; padding:10px 14px; border:none; background:transparent; color:#C9CDC7; font:400 14px 'Geist',sans-serif; text-align:left; cursor:pointer;">
+            <span style="flex:none; width:20px; height:20px; border-radius:6px; border:1.5px solid {{ consentBorder }}; background:{{ consentBg }}; color:#08090A; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center;">{{ consentMark }}</span>
+            <span>This is my app or I have permission to test it<span style="color:#57E38D;"> *</span></span>
+          </button>
+          <button type="submit" data-magnetic="" disabled="{{ cantSubmit }}" style="height:60px; border-radius:16px; border:none; background:#57E38D; color:#08090A; font:600 17px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center; gap:10px; cursor:{{ submitCursor }}; opacity:{{ submitOpacity }}; transition:opacity .2s;">Send your first user <span style="font-size:20px;">→</span></button>
+          <div style="height:22px; display:flex; align-items:center; justify-content:center; font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">{{ formHint }}</div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS (pinned) -->
+  <section id="how" ref="{{ howRef }}" style="position:relative; height:440vh; border-top:1px solid rgba(237,240,235,.07);">
+    <div style="position:sticky; top:68px; height:calc(100vh - 68px); display:flex; align-items:center; padding:0 clamp(20px,5cqw,72px); overflow:hidden;">
+      <div style="width:100%; max-width:1296px; margin:0 auto; display:grid; grid-template-columns:{{ howCols }}; gap:clamp(20px,5cqw,80px); align-items:center;">
+        <div style="display:flex; flex-direction:column; gap:clamp(14px,2.4cqw,32px);">
+          <div style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#57E38D;">How it works</div>
+          <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:70%; font-weight:800; text-transform:uppercase; font-size:clamp(36px,5.4cqw,80px); line-height:.9; letter-spacing:-.01em;">Six steps.<br><span style="color:#6C726E;">One honest report.</span></h2>
+          <sc-if value="{{ isNarrow }}" hint-placeholder-val="{{ false }}">
+            <div style="display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px;">
+              <sc-for list="{{ howSteps }}" as="s" hint-placeholder-count="6">
+                <button onClick="{{ s.go }}" style="height:40px; border-radius:10px; border:1px solid {{ s.numColor }}; background:transparent; color:{{ s.rowColor }}; font:500 12px 'Geist Mono',monospace; cursor:pointer;">{{ s.n }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isWide }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex; flex-direction:column; border-top:1px solid rgba(237,240,235,.08);">
+            <sc-for list="{{ howSteps }}" as="s" hint-placeholder-count="6">
+              <button onClick="{{ s.go }}" style="display:flex; align-items:baseline; gap:16px; padding:clamp(7px,1.1cqw,14px) 0; border:none; border-bottom:1px solid rgba(237,240,235,.08); background:transparent; text-align:left; cursor:pointer; color:{{ s.rowColor }}; transition:color .4s;">
+                <span style="font-family:'Geist Mono',monospace; font-size:12px; color:{{ s.numColor }}; width:22px; transition:color .4s;">{{ s.n }}</span>
+                <span style="font:600 clamp(15px,1.5cqw,19px) 'Geist',sans-serif; width:92px;">{{ s.name }}</span>
+                <span style="font-size:15px;">{{ s.short }}</span>
+              </button>
+            </sc-for>
+          </div>
+          </sc-if>
+          <div style="height:2px; background:rgba(237,240,235,.08); border-radius:2px; overflow:hidden;"><div ref="{{ howBarRef }}" style="height:100%; background:#57E38D; transform-origin:left; transform:scaleX(0);"></div></div>
+        </div>
+
+        <div style="position:relative; height:{{ stageH }}; border-radius:28px; background:radial-gradient(120% 90% at 100% 0%, rgba(87,227,141,.09), transparent 55%), linear-gradient(180deg,#111416,#0A0C0D); border:1px solid rgba(237,240,235,.09); box-shadow:0 60px 140px -60px #000; overflow:hidden;">
+          <sc-for list="{{ howSteps }}" as="s" hint-placeholder-count="1">
+            <div style="position:absolute; inset:0; padding:clamp(22px,3cqw,40px); display:flex; flex-direction:column; opacity:{{ s.opacity }}; transform:{{ s.transform }}; transition:opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); pointer-events:none;">
+              <div style="display:flex; justify-content:space-between; font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;"><span>Step {{ s.n }} / 06</span><span style="color:#57E38D;">{{ s.short }}</span></div>
+              <div style="margin-top:auto; font-family:'Archivo',sans-serif; font-stretch:66%; font-weight:850; text-transform:uppercase; font-size:clamp(64px,11cqw,168px); line-height:.82; letter-spacing:-.01em; background:linear-gradient(180deg,#ECEEE9 30%,#5B605C); -webkit-background-clip:text; background-clip:text; color:transparent;">{{ s.name }}</div>
+              <p style="margin:clamp(10px,1.6cqw,20px) 0 0; font-size:clamp(14px,1.4cqw,17px); line-height:1.5; color:#9BA19D; max-width:44ch; text-wrap:pretty;">{{ s.body }}</p>
+              <div style="margin-top:clamp(12px,2cqw,24px); padding:14px 16px; border-radius:14px; background:rgba(0,0,0,.45); border:1px solid rgba(237,240,235,.07); font-family:'Geist Mono',monospace; font-size:clamp(11px,1.1cqw,13px); line-height:1.8; color:#C9CDC7; display:flex; flex-direction:column;">
+                <sc-for list="{{ s.log }}" as="line" hint-placeholder-count="3"><span style="white-space:pre; overflow:hidden; text-overflow:ellipsis;"><span style="color:#57E38D;">›</span> {{ line }}</span></sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE RUN PREVIEW -->
+  <section style="padding:clamp(88px,11cqw,160px) clamp(20px,5cqw,72px); border-top:1px solid rgba(237,240,235,.07);">
+    <div style="max-width:1296px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr)); gap:clamp(36px,6cqw,96px); align-items:center;">
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <div data-reveal="" style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#57E38D;">A run, as it happens</div>
+        <h2 data-reveal="" style="margin:0; font-family:'Archivo',sans-serif; font-stretch:70%; font-weight:800; text-transform:uppercase; font-size:clamp(44px,6.4cqw,96px); line-height:.88; letter-spacing:-.01em;">Watch it<br>think, click<br><span style="color:#6C726E;">and look again.</span></h2>
+        <p data-reveal="" style="margin:0; font-size:18px; line-height:1.55; color:#9BA19D; max-width:40ch; text-wrap:pretty;">Every step arrives with what the agent was thinking, what it did, what happened, and a screenshot of the page at that moment.</p>
+        <div data-reveal="" style="display:flex; flex-wrap:wrap; gap:8px; font-family:'Geist Mono',monospace; font-size:12px; color:#9BA19D;">
+          <span style="display:flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(237,240,235,.1);"><span style="width:6px; height:6px; border-radius:50%; background:#57E38D;"></span>worked</span>
+          <span style="display:flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(237,240,235,.1);"><span style="width:6px; height:6px; border-radius:50%; background:#F5B544;"></span>recovered</span>
+          <span style="display:flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(237,240,235,.1);"><span style="width:6px; height:6px; border-radius:50%; background:#FF6B5B;"></span>stuck</span>
+        </div>
+        <button data-magnetic="" onClick="{{ goReport }}" style="align-self:flex-start; height:52px; padding:0 22px; border-radius:999px; border:1px solid rgba(237,240,235,.18); background:transparent; color:#ECEEE9; font:500 15px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; gap:10px;" style-hover="border-color:#57E38D">See the full example report <span>→</span></button>
+      </div>
+
+      <div ref="{{ previewRef }}" data-reveal="" style="border-radius:28px; background:#0C0E0F; border:1px solid rgba(237,240,235,.09); box-shadow:0 60px 140px -60px #000; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid rgba(237,240,235,.07);">
+          <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+            <span style="width:8px; height:8px; border-radius:50%; background:#57E38D; animation:fuPulse 1.8s infinite;"></span>
+            <span style="font-family:'Geist Mono',monospace; font-size:13px; color:#ECEEE9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">demo-store.app</span>
+          </div>
+          <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E; white-space:nowrap;">Running · step {{ previewShown }} / 8</span>
+        </div>
+        <div style="position:relative; height:clamp(460px,46cqw,600px); padding:16px; display:flex; flex-direction:column; justify-content:flex-end; gap:12px; overflow:hidden; -webkit-mask-image:linear-gradient(180deg, transparent 0, #000 22%); mask-image:linear-gradient(180deg, transparent 0, #000 22%);">
+          <sc-for list="{{ previewSteps }}" as="step" hint-placeholder-count="3">
+            <div data-enter="" style="flex:none; display:flex; flex-wrap:wrap; gap:14px; padding:14px; border-radius:16px; background:#121517; border:1px solid rgba(237,240,235,.07);">
+              <div style="position:relative; flex:none; width:132px; aspect-ratio:16/10; border-radius:9px; overflow:hidden; background:#EEF0EB;">
+                <div style="height:12%; background:#E0E3DD; display:flex; align-items:center; gap:3px; padding:0 6%;"><span style="width:4px; height:4px; border-radius:50%; background:#BFC4BC;"></span><span style="width:4px; height:4px; border-radius:50%; background:#BFC4BC;"></span><span style="width:4px; height:4px; border-radius:50%; background:#BFC4BC;"></span></div>
+                <div style="position:absolute; left:6%; right:6%; top:18%; height:8%; border-radius:3px; background:#DADDD6;"></div>
+                <div style="position:absolute; left:6%; top:32%; width:42%; height:32%; border-radius:4px; background:#D2D7CE;"></div>
+                <div style="position:absolute; left:52%; top:34%; width:40%; height:6%; border-radius:2px; background:#DADDD6;"></div>
+                <div style="position:absolute; left:52%; top:45%; width:28%; height:6%; border-radius:2px; background:#DADDD6;"></div>
+                <div style="position:absolute; left:6%; right:6%; top:70%; height:20%; display:grid; grid-template-columns:repeat(3,1fr); gap:6%;"><span style="background:#DDE1D9; border-radius:3px;"></span><span style="background:#DDE1D9; border-radius:3px;"></span><span style="background:#DDE1D9; border-radius:3px;"></span></div>
+                <div style="position:absolute; top:{{ step.hlT }}; left:{{ step.hlL }}; width:{{ step.hlW }}; height:{{ step.hlH }}; border:2px solid {{ step.color }}; border-radius:4px; box-shadow:0 0 0 3px rgba(0,0,0,.06);"></div>
+              </div>
+              <div style="flex:1 1 200px; min-width:0; display:flex; flex-direction:column; gap:8px;">
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Step {{ step.n }} · {{ step.phase }}</div>
+                <div style="font-size:14px; line-height:1.45; color:#ECEEE9; text-wrap:pretty;">“{{ step.thought }}”</div>
+                <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:{{ step.color }};"><span style="width:6px; height:6px; border-radius:50%; background:{{ step.color }}; flex:none;"></span><span style="color:#9BA19D;"><span style="font-family:'Geist Mono',monospace; color:#C9CDC7;">{{ step.verb }}</span> {{ step.target }} → {{ step.result }}</span></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HONEST BY DESIGN -->
+  <section style="padding:clamp(88px,11cqw,160px) clamp(20px,5cqw,72px); border-top:1px solid rgba(237,240,235,.07);">
+    <div style="max-width:1296px; margin:0 auto;">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:24px;">
+        <h2 data-reveal="" style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(56px,10cqw,160px); line-height:.84; letter-spacing:-.015em;">Honest<br><span style="color:#6C726E;">by design</span></h2>
+        <p data-reveal="" style="margin:0; font-size:18px; line-height:1.55; color:#9BA19D; max-width:34ch;">Three things that are true about First User today.</p>
+      </div>
+      <div style="margin-top:clamp(40px,6cqw,80px); display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:16px;">
+        <div data-reveal="" style="display:flex; flex-direction:column; gap:20px; min-height:380px; padding:clamp(24px,2.8cqw,36px); border-radius:24px; background:linear-gradient(180deg,#111416,#0B0D0E); border:1px solid rgba(237,240,235,.08);">
+          <div style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">01</div>
+          <div style="margin-top:auto; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; font-size:clamp(56px,6.4cqw,96px); line-height:.9; color:#ECEEE9; white-space:nowrap;">0/5 <span style="color:#57E38D;">→</span> 5/5</div>
+          <div style="font:600 19px/1.3 'Geist',sans-serif;">It caught its own clicks failing silently.</div>
+          <p style="margin:0; font-size:15px; line-height:1.55; color:#9BA19D; text-wrap:pretty;">Clicks were reporting success while nothing changed on the page. A recovery ladder took it from 0 of 5 to 5 of 5.</p>
+        </div>
+        <div data-reveal="" data-delay="90" style="display:flex; flex-direction:column; gap:20px; min-height:380px; padding:clamp(24px,2.8cqw,36px); border-radius:24px; background:linear-gradient(180deg,#111416,#0B0D0E); border:1px solid rgba(237,240,235,.08);">
+          <div style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">02</div>
+          <div style="margin-top:auto; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; font-size:clamp(56px,6.4cqw,96px); line-height:.9; color:#ECEEE9;">~½<span style="color:#57E38D;">¢</span></div>
+          <div style="font:600 19px/1.3 'Geist',sans-serif;">A run costs about half a cent.</div>
+          <p style="margin:0; font-size:15px; line-height:1.55; color:#9BA19D; text-wrap:pretty;">Measured per run, with every page read and click traced as its own step.</p>
+        </div>
+        <div data-reveal="" data-delay="180" style="display:flex; flex-direction:column; gap:20px; min-height:380px; padding:clamp(24px,2.8cqw,36px); border-radius:24px; background:linear-gradient(180deg,#111416,#0B0D0E); border:1px solid rgba(237,240,235,.08);">
+          <div style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">03</div>
+          <div style="margin-top:auto; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; font-size:clamp(56px,6.4cqw,96px); line-height:.9; color:#ECEEE9;">Site <span style="color:#57E38D;">/</span> Agent</div>
+          <div style="font:600 19px/1.3 'Geist',sans-serif;">It tells you when a failure was its fault, not your site's.</div>
+          <p style="margin:0; font-size:15px; line-height:1.55; color:#9BA19D; text-wrap:pretty;">Every report keeps problems with your site apart from the agent's own tool failures.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</sc-if>
+
+<!-- ================= SCREEN 2: RUN & REPORT ================= -->
+<sc-if value="{{ isRun }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="02 Run and Report" style="padding:clamp(36px,5cqw,64px) clamp(20px,5cqw,72px) clamp(64px,8cqw,112px);">
+  <div style="max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+    <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px;">
+      <div style="display:flex; flex-direction:column; gap:10px; min-width:0;">
+        <div style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Run · demo-7f3k</div>
+        <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:72%; font-weight:800; font-size:clamp(36px,5cqw,64px); line-height:.95; letter-spacing:-.01em; overflow-wrap:anywhere;">{{ site }}</h1>
+        <div style="font-size:15px; color:#9BA19D;"><span style="color:#6C726E;">Goal</span> · {{ goalText }}</div>
+      </div>
+      <button onClick="{{ startRun }}" style="height:40px; padding:0 16px; border-radius:999px; border:1px solid rgba(237,240,235,.14); background:transparent; color:#C9CDC7; font:500 13px 'Geist',sans-serif; cursor:pointer;" style-hover="border-color:#57E38D; color:#ECEEE9">↻ Run again</button>
+    </div>
+
+    <sc-if value="{{ isRunning }}" hint-placeholder-val="{{ false }}">
+      <div style="position:relative; overflow:hidden; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; padding:22px 24px; border-radius:20px; background:#0F1112; border:1px solid rgba(87,227,141,.25);">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <span style="width:10px; height:10px; border-radius:50%; background:#57E38D; animation:fuPulse 1.6s infinite;"></span>
+          <span style="font:600 18px 'Geist',sans-serif;">Running</span>
+          <span style="font-size:15px; color:#9BA19D;">{{ liveLabel }}</span>
+        </div>
+        <div style="display:flex; gap:20px; font-family:'Geist Mono',monospace; font-size:13px; color:#9BA19D;"><span>Step {{ liveCount }}</span><span>{{ liveElapsed }}</span></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; height:2px; background:rgba(87,227,141,.12); overflow:hidden;"><div style="width:30%; height:100%; background:#57E38D; animation:fuScan 1.6s ease-in-out infinite;"></div></div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isFinished }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        <div style="border-radius:24px; background:linear-gradient(180deg,#111416,#0B0D0E); border:1px solid rgba(237,240,235,.09); overflow:hidden;">
+          <div style="height:4px; background:{{ outcomeColor }};"></div>
+          <div style="padding:clamp(24px,3.4cqw,40px); display:flex; flex-direction:column; gap:18px;">
+            <div style="display:flex; align-items:center; gap:10px; font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:{{ outcomeColor }};"><span style="width:8px; height:8px; border-radius:50%; background:{{ outcomeColor }};"></span>Outcome</div>
+            <div style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(52px,8cqw,104px); line-height:.86; letter-spacing:-.01em;">{{ outcomeLabel }}</div>
+            <p style="margin:0; font-size:clamp(17px,1.8cqw,20px); line-height:1.5; color:#C9CDC7; max-width:56ch; text-wrap:pretty;">{{ outcomeReason }}</p>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid rgba(237,240,235,.08); margin-top:6px; padding-top:20px; gap:12px;">
+              <div><div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Steps</div><div style="margin-top:6px; font:600 clamp(20px,2.6cqw,28px) 'Geist',sans-serif;">8</div></div>
+              <div><div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Time</div><div style="margin-top:6px; font:600 clamp(20px,2.6cqw,28px) 'Geist',sans-serif;">1m 46s</div></div>
+              <div><div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Cost</div><div style="margin-top:6px; font:600 clamp(20px,2.6cqw,28px) 'Geist',sans-serif;">$0.005</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:20px; border-radius:20px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <span style="font:600 15px 'Geist',sans-serif;">Share this report</span>
+            <span style="display:flex; align-items:center; gap:7px; font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#6C726E;"><span style="width:14px; height:10px; border-radius:4px; background:#57E38D; display:flex; align-items:center; justify-content:center; gap:2px;"><span style="width:2px; height:4px; border-radius:1px; background:#08090A;"></span><span style="width:2px; height:4px; border-radius:1px; background:#08090A;"></span></span>First User</span>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div style="flex:1 1 260px; min-width:0; display:flex; align-items:center; height:48px; border-radius:12px; background:#08090A; border:1px solid rgba(237,240,235,.1); overflow:hidden;">
+              <div style="flex:1; min-width:0; padding:0 14px; color:#C9CDC7; font:400 14px 'Geist Mono',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; user-select:all;">{{ shareLink }}</div>
+              <button onClick="{{ copyLink }}" style="height:100%; padding:0 18px; border:none; border-left:1px solid rgba(237,240,235,.1); background:#15181A; color:{{ copyColor }}; font:600 14px 'Geist',sans-serif; cursor:pointer; min-width:92px;">{{ copyLabel }}</button>
+            </div>
+            <a href="{{ xShareUrl }}" target="_blank" rel="noopener" style="flex:0 1 auto; height:48px; padding:0 18px; border-radius:12px; background:#ECEEE9; color:#08090A; font:600 14px 'Geist',sans-serif; display:flex; align-items:center; gap:8px;" style-hover="background:#57E38D; color:#08090A">Share on X</a>
+            <a href="{{ liShareUrl }}" target="_blank" rel="noopener" style="flex:0 1 auto; height:48px; padding:0 18px; border-radius:12px; border:1px solid rgba(237,240,235,.18); color:#ECEEE9; font:600 14px 'Geist',sans-serif; display:flex; align-items:center;" style-hover="border-color:#57E38D; color:#ECEEE9">Share on LinkedIn</a>
+          </div>
+          <div style="font-size:13px; line-height:1.5; color:#6C726E; text-wrap:pretty;">{{ shareText }}</div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 4px; font-size:14px; color:#9BA19D;"><span style="flex:none; width:18px; height:18px; border-radius:50%; border:1px solid #6C726E; display:flex; align-items:center; justify-content:center; font-size:11px; color:#9BA19D;">i</span>This is a simulated user. Treat findings as leads to check.</div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:16px;">
+          <div style="padding:22px; border-radius:20px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font:600 16px 'Geist',sans-serif;">Problems with the site</span><span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">{{ siteCount }}</span></div>
+            <sc-for list="{{ siteIssues }}" as="it" hint-placeholder-count="1">
+              <div style="padding:16px; border-radius:14px; background:#08090A; border:1px solid rgba(237,240,235,.07); display:flex; flex-direction:column; gap:8px;">
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:{{ outcomeColor }};">{{ it.step }}</div>
+                <div style="font:600 15px/1.4 'Geist',sans-serif;">{{ it.title }}</div>
+                <div style="font-size:14px; line-height:1.5; color:#9BA19D;">{{ it.detail }}</div>
+                <button onClick="{{ it.copy }}" style="align-self:flex-start; margin-top:4px; height:34px; padding:0 12px; border-radius:999px; border:1px solid rgba(237,240,235,.14); background:transparent; color:#C9CDC7; font:500 12px 'Geist Mono',monospace; cursor:pointer;" style-hover="border-color:#57E38D">{{ it.copyLabel }}</button>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noSiteIssues }}" hint-placeholder-val="{{ false }}"><div style="padding:16px; border-radius:14px; border:1px dashed rgba(237,240,235,.12); font-size:14px; color:#9BA19D;">None found on this run.</div></sc-if>
+          </div>
+          <div style="padding:22px; border-radius:20px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font:600 16px 'Geist',sans-serif;">Our agent's own issues</span><span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">{{ agentCount }}</span></div>
+            <sc-for list="{{ agentIssues }}" as="it" hint-placeholder-count="1">
+              <div style="padding:16px; border-radius:14px; background:#08090A; border:1px solid rgba(237,240,235,.07); display:flex; flex-direction:column; gap:8px;">
+                <div style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9BA19D;">{{ it.step }}</div>
+                <div style="font:600 15px/1.4 'Geist',sans-serif;">{{ it.title }}</div>
+                <div style="font-size:14px; line-height:1.5; color:#9BA19D;">{{ it.detail }}</div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noAgentIssues }}" hint-placeholder-val="{{ false }}"><div style="padding:16px; border-radius:14px; border:1px dashed rgba(237,240,235,.12); font-size:14px; color:#9BA19D;">The agent had no tool failures on this run.</div></sc-if>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:baseline;">
+      <h2 style="margin:0; font:600 20px 'Geist',sans-serif;">Step by step</h2>
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">{{ timelineCount }} steps</span>
+    </div>
+    <div style="position:relative; display:flex; flex-direction:column; gap:12px;">
+      <sc-for list="{{ timeline }}" as="step" hint-placeholder-count="3">
+        <div data-enter="" style="display:flex; flex-wrap:wrap; gap:20px; padding:16px; border-radius:18px; background:#0F1112; border:1px solid rgba(237,240,235,.07);">
+          <div style="position:relative; flex:1 1 220px; max-width:260px; aspect-ratio:16/10; border-radius:10px; overflow:hidden; background:#EEF0EB;">
+            <div style="height:12%; background:#E0E3DD; display:flex; align-items:center; gap:4px; padding:0 5%;"><span style="width:5px; height:5px; border-radius:50%; background:#BFC4BC;"></span><span style="width:5px; height:5px; border-radius:50%; background:#BFC4BC;"></span><span style="width:5px; height:5px; border-radius:50%; background:#BFC4BC;"></span><span style="margin-left:6px; font:500 8px 'Geist Mono',monospace; color:#8C9289;">{{ step.path }}</span></div>
+            <div style="position:absolute; left:6%; right:6%; top:18%; height:8%; border-radius:3px; background:#DADDD6;"></div>
+            <div style="position:absolute; left:6%; top:32%; width:42%; height:32%; border-radius:4px; background:#D2D7CE;"></div>
+            <div style="position:absolute; left:52%; top:34%; width:40%; height:6%; border-radius:2px; background:#DADDD6;"></div>
+            <div style="position:absolute; left:52%; top:45%; width:28%; height:6%; border-radius:2px; background:#DADDD6;"></div>
+            <div style="position:absolute; left:6%; right:6%; top:70%; height:20%; display:grid; grid-template-columns:repeat(3,1fr); gap:6%;"><span style="background:#DDE1D9; border-radius:3px;"></span><span style="background:#DDE1D9; border-radius:3px;"></span><span style="background:#DDE1D9; border-radius:3px;"></span></div>
+            <div style="position:absolute; top:{{ step.hlT }}; left:{{ step.hlL }}; width:{{ step.hlW }}; height:{{ step.hlH }}; border:2px solid {{ step.color }}; border-radius:4px;"></div>
+          </div>
+          <div style="flex:1 1 300px; min-width:0; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; gap:12px; font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;"><span>Step {{ step.n }} · {{ step.phase }}</span><span style="color:{{ step.color }};">{{ step.statusLabel }}</span></div>
+            <div style="font-size:16px; line-height:1.5; color:#ECEEE9; text-wrap:pretty;">“{{ step.thought }}”</div>
+            <div style="display:grid; grid-template-columns:64px minmax(0,1fr); row-gap:6px; font-size:14px; line-height:1.45;">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E; padding-top:1px;">Action</span><span style="color:#C9CDC7;"><span style="font-family:'Geist Mono',monospace; color:#ECEEE9;">{{ step.verb }}</span> {{ step.target }}</span>
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E; padding-top:1px;">Result</span><span style="color:{{ step.color }};">{{ step.result }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ isRunning }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; align-items:center; gap:12px; padding:20px; border-radius:18px; border:1px dashed rgba(237,240,235,.12); color:#9BA19D; font-size:14px;"><span style="width:8px; height:8px; border-radius:50%; background:#57E38D; animation:fuPulse 1.4s infinite;"></span>Reading the page and deciding what to do next…</div>
+      </sc-if>
+    </div>
+    <div style="margin-top:12px; font-size:13px; color:#6C726E;">This is a simulated user. Treat findings as leads to check.</div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ================= SCREEN 3: ABOUT ================= -->
+<sc-if value="{{ isAbout }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="03 About" style="padding:clamp(56px,8cqw,120px) clamp(20px,5cqw,72px) clamp(64px,8cqw,120px);">
+  <div style="max-width:1296px; margin:0 auto;">
+    <h1 data-reveal="" style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(56px,10.5cqw,168px); line-height:.86; letter-spacing:-.015em;">
+      <span style="display:block; color:#ECEEE9;">First User</span>
+      <span style="display:block; color:#9BA19D;"><span style="color:#57E38D;">·</span> #neatHack</span>
+      <span style="display:block; background:linear-gradient(180deg,#7F857F,#3A3E3B); -webkit-background-clip:text; background-clip:text; color:transparent;">· neatlogs</span>
+    </h1>
+    <div style="margin-top:clamp(48px,7cqw,104px); display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:clamp(28px,5cqw,72px); align-items:start;">
+      <div data-reveal="" style="aspect-ratio:4/5; max-width:420px; border-radius:28px; background:radial-gradient(90% 70% at 30% 20%, rgba(87,227,141,.14), transparent 60%), #0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; justify-content:space-between; padding:28px;">
+        <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Built solo</span>
+        <span style="font-family:'Archivo',sans-serif; font-stretch:66%; font-weight:850; font-size:clamp(120px,16cqw,220px); line-height:.8; color:#ECEEE9;">DV</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:40px; grid-column:span 1;">
+        <p data-reveal="" style="margin:0; font-size:clamp(22px,2.6cqw,34px); line-height:1.35; letter-spacing:-.01em; color:#ECEEE9; text-wrap:pretty;">Built solo by Divyanshu Verma (DV) in one weekend at neatHack. <span style="color:#9BA19D;">I build AI-native web apps and rescue ones that break in front of real users.</span> First User is the tester I always wanted before launch.</p>
+        <div data-reveal="" style="display:flex; flex-direction:column; border-top:1px solid rgba(237,240,235,.1);">
+          <sc-for list="{{ aboutLinks }}" as="l" hint-placeholder-count="4">
+            <a href="{{ l.href }}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:16px; padding:22px 0; border-bottom:1px solid rgba(237,240,235,.1); color:#ECEEE9;" style-hover="color:#57E38D">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E; width:84px; flex:none;">{{ l.label }}</span>
+              <span style="flex:1; min-width:0; font:500 clamp(17px,2cqw,24px) 'Geist',sans-serif; overflow-wrap:anywhere;">{{ l.text }}</span>
+              <span style="font-size:20px;">↗</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ================= SCREEN 4: BUILD JOURNEY ================= -->
+<sc-if value="{{ isJourney }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="04 Build Journey" style="padding:clamp(56px,8cqw,120px) clamp(20px,5cqw,72px) clamp(64px,8cqw,120px);">
+  <div style="max-width:1296px; margin:0 auto;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#57E38D;" data-reveal="">Build Journey</div>
+    <h1 data-reveal="" style="margin:20px 0 0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(56px,10.5cqw,168px); line-height:.86; letter-spacing:-.015em;">Found. Faced.<br><span style="color:#9BA19D;">Asked.</span> <span style="background:linear-gradient(180deg,#7F857F,#3A3E3B); -webkit-background-clip:text; background-clip:text; color:transparent;">Did.</span></h1>
+    <p data-reveal="" style="margin:28px 0 0; font-size:clamp(17px,1.8cqw,20px); line-height:1.5; color:#9BA19D; max-width:46ch;">What happened while building First User, grouped by the tool it happened in.</p>
+    <div data-reveal="" style="margin-top:28px; display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(87,227,141,.4); color:#57E38D; font:500 12px 'Geist Mono',monospace; display:flex; align-items:center;">Found</span>
+      <span style="height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(245,181,68,.4); color:#F5B544; font:500 12px 'Geist Mono',monospace; display:flex; align-items:center;">Faced</span>
+      <span style="height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(138,180,255,.4); color:#8AB4FF; font:500 12px 'Geist Mono',monospace; display:flex; align-items:center;">Asked</span>
+      <span style="height:30px; padding:0 12px; border-radius:999px; border:1px solid rgba(237,240,235,.3); color:#ECEEE9; font:500 12px 'Geist Mono',monospace; display:flex; align-items:center;">Did</span>
+    </div>
+
+    <div ref="{{ journeyRef }}" style="position:relative; margin-top:clamp(56px,8cqw,112px); padding-left:clamp(28px,4cqw,56px);">
+      <div style="position:absolute; left:0; top:0; bottom:0; width:2px; background:rgba(237,240,235,.08); border-radius:2px;">
+        <div ref="{{ railRef }}" style="position:absolute; inset:0; background:linear-gradient(180deg,#57E38D,#2E9E5C); transform-origin:top; transform:scaleY(0); border-radius:2px;"></div>
+      </div>
+
+      <sc-for list="{{ journey }}" as="g" hint-placeholder-count="2">
+        <div style="position:relative; margin-bottom:clamp(56px,7cqw,96px);">
+          <span style="position:absolute; left:calc(-1 * clamp(28px,4cqw,56px) - 5px); top:14px; width:12px; height:12px; border-radius:50%; background:#08090A; border:2px solid #57E38D;"></span>
+          <div data-reveal="" style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding-bottom:20px; border-bottom:1px solid rgba(237,240,235,.08);">
+            <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:72%; font-weight:800; font-size:clamp(36px,4.6cqw,64px); line-height:.95; letter-spacing:-.01em;">{{ g.tool }}</h2>
+            <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E; white-space:nowrap;">{{ g.count }}</span>
+          </div>
+          <div style="margin-top:20px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr)); gap:16px;">
+            <sc-for list="{{ g.cards }}" as="c" hint-placeholder-count="2">
+              <article data-reveal="" style="display:flex; flex-direction:column; gap:14px; padding:24px; border-radius:20px; background:linear-gradient(180deg,#111416,#0C0E0F); border:1px {{ c.borderStyle }} rgba(237,240,235,.09); min-height:240px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                  <span style="height:26px; padding:0 10px; border-radius:999px; border:1px solid {{ c.tagBorder }}; color:{{ c.tagColor }}; font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center;">{{ c.tag }}</span>
+                  <span style="font-family:'Geist Mono',monospace; font-size:11px; color:#6C726E;">{{ c.note }}</span>
+                </div>
+                <sc-if value="{{ c.hasMetric }}" hint-placeholder-val="{{ false }}"><div style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; font-size:clamp(40px,4.4cqw,60px); line-height:.9; color:#ECEEE9;">{{ c.metric }}</div></sc-if>
+                <h3 style="margin:0; font:600 19px/1.3 'Geist',sans-serif;">{{ c.title }}</h3>
+                <p style="margin:0; font-size:15px; line-height:1.55; color:#9BA19D; text-wrap:pretty;">{{ c.body }}</p>
+              </article>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="position:relative; margin-bottom:clamp(72px,9cqw,128px);">
+        <span style="position:absolute; left:calc(-1 * clamp(28px,4cqw,56px) - 5px); top:8px; width:12px; height:12px; border-radius:50%; background:#08090A; border:2px solid #6C726E;"></span>
+        <div data-reveal="" style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#9BA19D;">Also built with</div>
+        <div data-reveal="" style="margin-top:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:1px; background:rgba(237,240,235,.08); border:1px solid rgba(237,240,235,.08); border-radius:18px; overflow:hidden;">
+          <sc-for list="{{ alsoBuilt }}" as="a" hint-placeholder-count="4">
+            <div style="padding:20px; background:#0B0D0E; display:flex; flex-direction:column; gap:6px;"><span style="font:600 17px 'Geist',sans-serif;">{{ a.name }}</span><span style="font-size:14px; color:#9BA19D;">{{ a.role }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="position:relative;">
+        <span style="position:absolute; left:calc(-1 * clamp(28px,4cqw,56px) - 5px); top:20px; width:12px; height:12px; border-radius:50%; background:#57E38D;"></span>
+        <h2 data-reveal="" style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(48px,7.6cqw,120px); line-height:.86; letter-spacing:-.01em;">Building<br><span style="color:#6C726E;">in public</span></h2>
+        <p data-reveal="" style="margin:20px 0 0; font-size:17px; color:#9BA19D;">Posts from <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="color:#ECEEE9;">@devsdv_</a>, day by day.</p>
+        <sc-for list="{{ days }}" as="d" hint-placeholder-count="2">
+          <div style="margin-top:clamp(48px,6cqw,80px);">
+            <div data-reveal="" style="display:flex; flex-wrap:wrap; align-items:baseline; gap:12px 20px; padding-bottom:18px; border-bottom:1px solid rgba(237,240,235,.08);">
+              <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#57E38D;">{{ d.date }}</span>
+              <h3 style="margin:0; font:600 clamp(20px,2.4cqw,28px)/1.25 'Geist',sans-serif; letter-spacing:-.01em; text-wrap:pretty;">{{ d.heading }}</h3>
+            </div>
+            <sc-if value="{{ d.hasPosts }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:20px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); gap:16px;">
+                <sc-for list="{{ d.posts }}" as="p" hint-placeholder-count="2">
+                  <article data-reveal="" style="display:flex; flex-direction:column; gap:14px; padding:20px; border-radius:18px; background:#0F1112; border:1px solid rgba(237,240,235,.09);">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                      <span style="flex:none; width:40px; height:40px; border-radius:50%; background:#1B1F21; border:1px solid rgba(237,240,235,.1); display:flex; align-items:center; justify-content:center; font-family:'Archivo',sans-serif; font-stretch:70%; font-weight:800; font-size:16px;">DV</span>
+                      <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;"><span style="font:600 15px 'Geist',sans-serif;">Divyanshu Verma</span><span style="font-size:13px; color:#6C726E;">@devsdv_ · {{ p.time }}</span></div>
+                      <span style="font:700 17px 'Geist',sans-serif; color:#9BA19D;">𝕏</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px; padding:4px 0;">
+                      <span style="height:10px; width:96%; border-radius:4px; background:#1B1F21;"></span>
+                      <span style="height:10px; width:88%; border-radius:4px; background:#1B1F21;"></span>
+                      <span style="height:10px; width:{{ p.w }}; border-radius:4px; background:#1B1F21;"></span>
+                    </div>
+                    <sc-if value="{{ p.media }}" hint-placeholder-val="{{ false }}"><div style="aspect-ratio:16/9; border-radius:12px; border:1px solid rgba(237,240,235,.07); background:repeating-linear-gradient(135deg,#121517 0 10px,#0E1112 10px 20px); display:flex; align-items:center; justify-content:center; font-family:'Geist Mono',monospace; font-size:11px; color:#6C726E;">post media</div></sc-if>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:12px; border-top:1px solid rgba(237,240,235,.07);">
+                      <span style="font-family:'Geist Mono',monospace; font-size:12px; color:#6C726E;">{{ p.label }}</span>
+                      <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font:500 13px 'Geist',sans-serif; color:#ECEEE9;" style-hover="color:#57E38D">View on X ↗</a>
+                    </div>
+                  </article>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ d.isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div data-reveal="" style="margin-top:20px; padding:clamp(28px,4cqw,48px); border-radius:18px; border:1px dashed rgba(237,240,235,.14); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+                <div style="display:flex; flex-direction:column; gap:6px;"><span style="font:600 17px 'Geist',sans-serif;">No posts yet</span><span style="font-size:15px; color:#9BA19D;">Updates from this day will show up here as they go out.</span></div>
+                <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="height:44px; padding:0 18px; border-radius:999px; border:1px solid rgba(237,240,235,.18); display:flex; align-items:center; font:500 14px 'Geist',sans-serif;" style-hover="border-color:#57E38D">Follow @devsdv_ on X</a>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<!-- ================= HANDOFF ================= -->
+<sc-if value="{{ isHandoff }}" hint-placeholder-val="{{ false }}">
+<main data-screen-label="05 Component list" style="padding:clamp(48px,7cqw,96px) clamp(20px,5cqw,72px);">
+  <div style="max-width:1296px; margin:0 auto;">
+    <div style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#57E38D;">Developer handoff</div>
+    <h1 style="margin:16px 0 0; font-family:'Archivo',sans-serif; font-stretch:70%; font-weight:850; text-transform:uppercase; font-size:clamp(48px,7cqw,104px); line-height:.88;">Components</h1>
+    <div style="margin-top:32px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:16px;">
+      <div style="padding:20px; border-radius:16px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.55; color:#9BA19D;">
+        <span style="font:600 15px 'Geist',sans-serif; color:#ECEEE9;">Colour</span>
+        <div style="display:flex; gap:6px;"><span style="width:36px; height:36px; border-radius:8px; background:#08090A; border:1px solid rgba(237,240,235,.15);"></span><span style="width:36px; height:36px; border-radius:8px; background:#0F1112; border:1px solid rgba(237,240,235,.1);"></span><span style="width:36px; height:36px; border-radius:8px; background:#ECEEE9;"></span><span style="width:36px; height:36px; border-radius:8px; background:#9BA19D;"></span><span style="width:36px; height:36px; border-radius:8px; background:#57E38D;"></span><span style="width:36px; height:36px; border-radius:8px; background:#F5B544;"></span><span style="width:36px; height:36px; border-radius:8px; background:#FF6B5B;"></span></div>
+        <span style="font-family:'Geist Mono',monospace; font-size:12px;">bg #08090A · surface #0F1112 · ink #ECEEE9 · muted #9BA19D · dim #6C726E · accent #57E38D · warn #F5B544 · fail #FF6B5B · line rgba(237,240,235,.08)</span>
+      </div>
+      <div style="padding:20px; border-radius:16px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.55; color:#9BA19D;">
+        <span style="font:600 15px 'Geist',sans-serif; color:#ECEEE9;">Type</span>
+        <span><span style="color:#ECEEE9;">Archivo</span> 800–850, font-stretch 66–72%, uppercase, line-height .84–.9 for display. Lower lines fade to grey.</span>
+        <span><span style="color:#ECEEE9;">Geist</span> 400–600 for UI and body. <span style="color:#ECEEE9;">Geist Mono</span> 12px, tracking .1em, for labels, steps and actions. All on next/font/google.</span>
+      </div>
+      <div style="padding:20px; border-radius:16px; background:#0F1112; border:1px solid rgba(237,240,235,.08); display:flex; flex-direction:column; gap:10px; font-size:14px; line-height:1.55; color:#9BA19D;">
+        <span style="font:600 15px 'Geist',sans-serif; color:#ECEEE9;">Motion defaults</span>
+        <span>Ease <span style="font-family:'Geist Mono',monospace; color:#ECEEE9;">power3.out</span> / cubic-bezier(.2,.7,.2,1). Reveal y 28→0, opacity 0→1, 0.9s, stagger 0.06–0.09, start "top 88%". Lenis lerp 0.1 driving ScrollTrigger via lenis.on('scroll', ScrollTrigger.update). Wrap everything in gsap.matchMedia: under prefers-reduced-motion, skip Lenis, pins scrub to instant states, no parallax or magnet.</span>
+      </div>
+    </div>
+    <div style="margin-top:16px; border-radius:18px; border:1px solid rgba(237,240,235,.08); overflow:hidden;">
+      <sc-for list="{{ components }}" as="c" hint-placeholder-count="6">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:8px 24px; padding:18px 20px; border-bottom:1px solid rgba(237,240,235,.07); background:#0B0D0E;">
+          <div style="display:flex; flex-direction:column; gap:4px;"><span style="font:600 15px 'Geist Mono',monospace; color:#ECEEE9;">{{ c.name }}</span><span style="font-family:'Geist Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#57E38D;">{{ c.screen }}</span></div>
+          <div style="font-family:'Geist Mono',monospace; font-size:12px; line-height:1.6; color:#C9CDC7; overflow-wrap:anywhere;">{{ c.props }}</div>
+          <div style="font-size:14px; line-height:1.55; color:#9BA19D;">{{ c.notes }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</main>
+</sc-if>
+
+<!-- FOOTER -->
+<footer style="position:relative; overflow:hidden; padding:clamp(56px,7cqw,96px) clamp(20px,5cqw,72px) 0; border-top:1px solid rgba(237,240,235,.07);">
+  <div style="max-width:1296px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)); gap:32px;">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Credits</span>
+      <span style="font-size:16px; line-height:1.5; color:#C9CDC7; max-width:30ch;">Built at #neatHack with neatlogs, Entire and cfo.ai</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Pages</span>
+      <a href="#" onClick="{{ goAbout }}" style="font-size:16px;">About</a>
+      <a href="#" onClick="{{ goJourney }}" style="font-size:16px;">Build Journey</a>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <span style="font-family:'Geist Mono',monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#6C726E;">Elsewhere</span>
+      <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font-size:16px;">X · @devsdv_</a>
+      <a href="https://www.linkedin.com/in/dev-divyanshuverma" target="_blank" rel="noopener" style="font-size:16px;">LinkedIn · dev-divyanshuverma</a>
+      <a href="https://github.com/devs-dv" target="_blank" rel="noopener" style="font-size:16px;">GitHub · devs-dv</a>
+    </div>
+  </div>
+  <div data-parallax-footer="" aria-hidden="true" style="margin-top:clamp(48px,6cqw,80px); font-family:'Archivo',sans-serif; font-stretch:66%; font-weight:900; text-transform:uppercase; font-size:21.5cqw; line-height:.78; letter-spacing:-.02em; text-align:center; white-space:nowrap; background:linear-gradient(180deg,#2A2E2C,#08090A 92%); -webkit-background-clip:text; background-clip:text; color:transparent; user-select:none;">First User</div>
+</footer>
+
+</div>
+
+<!-- REVIEW TOOLBAR (not part of the design) -->
+<sc-if value="{{ showToolbar }}" hint-placeholder-val="{{ true }}">
+<div style="position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:100; max-width:calc(100vw - 24px); display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px; padding:6px; border-radius:20px; background:rgba(22,24,26,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(237,240,235,.12); box-shadow:0 20px 60px -10px rgba(0,0,0,.8); font:500 12px 'Geist',sans-serif;">
+  <sc-for list="{{ screenTabs }}" as="t" hint-placeholder-count="5">
+    <button onClick="{{ t.go }}" style="height:32px; padding:0 12px; border-radius:14px; border:none; background:{{ t.bg }}; color:{{ t.color }}; font:inherit; cursor:pointer;">{{ t.label }}</button>
+  </sc-for>
+  <span style="width:1px; height:20px; background:rgba(237,240,235,.15); margin:0 4px;"></span>
+  <sc-for list="{{ deviceTabs }}" as="t" hint-placeholder-count="2">
+    <button onClick="{{ t.go }}" style="height:32px; padding:0 12px; border-radius:14px; border:none; background:{{ t.bg }}; color:{{ t.color }}; font:inherit; cursor:pointer;">{{ t.label }}</button>
+  </sc-for>
+  <sc-if value="{{ isRun }}" hint-placeholder-val="{{ false }}">
+    <span style="width:1px; height:20px; background:rgba(237,240,235,.15); margin:0 4px;"></span>
+    <sc-for list="{{ stateTabs }}" as="t" hint-placeholder-count="4">
+      <button onClick="{{ t.go }}" style="height:32px; padding:0 12px; border-radius:14px; border:none; background:{{ t.bg }}; color:{{ t.color }}; font:inherit; cursor:pointer;">{{ t.label }}</button>
+    </sc-for>
+  </sc-if>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Motion&quot;},&quot;showReviewBar&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Review&quot;}}">
+const RUN_STEPS = [
+  {phase:'Scout', thought:'The homepage sells small desk plants. The main thing a visitor does here is buy one.', verb:'read', target:'homepage', result:'Found the nav, a product grid and a cart icon', status:'ok', path:'/', hl:['18%','6%','88%','8%']},
+  {phase:'Persona', thought:"I'm a first-time visitor who wants a small plant for my desk. I've never been here before.", verb:'become', target:'first-time shopper', result:'Goal set: add a plant to the cart, reach checkout', status:'ok', path:'/', hl:['32%','6%','42%','32%']},
+  {phase:'Browse', thought:'"Pothos, small" is the first product in the grid. I\'ll open it.', verb:'click', target:'"Pothos, small"', result:'Product page loaded', status:'ok', path:'/p/pothos-small', hl:['70%','6%','26%','20%']},
+  {phase:'Browse', thought:"There's an Add to cart button under the price.", verb:'click', target:'"Add to cart"', result:'Reported success, but nothing changed on the page', status:'warn', path:'/p/pothos-small', hl:['44%','52%','30%','8%']},
+  {phase:'Recover', thought:"The cart still shows 0. My click didn't land. Trying another way.", verb:'retry', target:'scroll into view, then click', result:'Cart count went from 0 to 1', status:'ok', path:'/p/pothos-small', hl:['44%','52%','30%','8%']},
+  {phase:'Verify', thought:'I want proof on the page before I move on.', verb:'check', target:'cart drawer', result:'"Pothos, small × 1" is visible', status:'ok', path:'/cart', hl:['18%','70%','24%','8%']},
+  {phase:'Browse', thought:'Now to checkout.', verb:'click', target:'"Checkout"', result:'Sign-up wall: an account is needed to see the total', status:'fail', path:'/checkout', hl:['32%','52%','40%','20%']},
+  {phase:'Report', thought:'A first-time visitor would stop here. Writing it up.', verb:'report', target:'verdict', result:'Got blocked at checkout', status:'fail', path:'/checkout', hl:['32%','6%','86%','58%']}
+];
+const STATUS = {ok:['#57E38D','Worked'], warn:['#F5B544','Recovered next step'], fail:['#FF6B5B','Stuck']};
+const AGENT_CLICK = {step:'Steps 4–5', title:'First "Add to cart" click did not register', detail:'The click reported success with no page change. The recovery ladder retried and the cart updated. Not a problem with your site.'};
+const OUTCOMES = {
+  blocked:{label:'Got blocked', color:'#F5B544', reason:'Checkout asks a first-time visitor to create an account before it shows the total. The agent stopped at step 7.',
+    site:[{step:'Step 7', title:'Checkout requires an account before showing the total', detail:'A first-time visitor can add to cart but cannot see the final price until they sign up.'}], agent:[AGENT_CLICK]},
+  reached:{label:'Reached the goal', color:'#57E38D', reason:'Added "Pothos, small" to the cart and reached checkout as a guest in 8 steps.', site:[], agent:[AGENT_CLICK]},
+  gaveup:{label:'Gave up', color:'#FF6B5B', reason:'The "Add to cart" button never changed the page, even after three recovery attempts.',
+    site:[{step:'Step 4', title:'"Add to cart" does not respond', detail:'Three different ways of clicking produced no change to the cart or the page.'}], agent:[]}
+};
+const HOW = [
+  {name:'Scout', short:'Reads your landing page', body:'Opens your homepage and works out what the product is for and what its main feature is.', log:['open   https://{site}','read   hero, nav, pricing','main   "add to cart"']},
+  {name:'Persona', short:'Becomes your customer', body:'Picks the person your page is written for and takes on their goal.', log:['persona  first-time visitor','goal     add a plant, reach checkout']},
+  {name:'Browse', short:'Real browser, step by step', body:'Drives a real browser one action at a time: read the page, decide, click or type, look again.', log:['click  "Pothos, small"','→ product page loaded','screenshot saved']},
+  {name:'Recover', short:'A click failed? Tries another way', body:'If an action reports success but the page did not change, it climbs a recovery ladder and tries again.', log:['click  "Add to cart"','✕ no page change','retry  scroll + click','✓ cart count 1']},
+  {name:'Verify', short:'Checks proof on the page', body:'Before it claims a step worked, it looks for evidence on the page itself.', log:['check  cart drawer','✓ "Pothos, small × 1"']},
+  {name:'Report', short:'Verdict and fix prompts', body:'Whether it reached the goal, every step with a screenshot, where it got stuck, and prompts you can hand to your coding agent.', log:['verdict       got blocked','site issues   1','agent issues  1']}
+];
+const TAG = {Found:['#57E38D','rgba(87,227,141,.4)'], Faced:['#F5B544','rgba(245,181,68,.4)'], Asked:['#8AB4FF','rgba(138,180,255,.4)'], Did:['#ECEEE9','rgba(237,240,235,.3)']};
+const JOURNEY = [
+  {tool:'neatlogs', cards:[
+    {tag:'Found', title:'The lying click', metric:'0/5 → 5/5', body:'The agent reported "clicked Add to cart" while the cart stayed empty, 0 of 5. Traces showed the tool reporting success with no page change. Fixed with a page-change check and a 3-step recovery ladder: 5 of 5.'},
+    {tag:'Found', title:'The hidden bill', metric:'3¢ → ½¢', body:"94% of run cost was hidden inside the browser library's own model calls. Routed them through the traced client; every page read and click is now its own step. Cost per run fell from about 3 cents to half a cent."},
+    {tag:'Faced', title:'Blank system prompts', body:'System prompts showed blank on model steps when sent as cached blocks. Reported with a repro script; now sent as plain text.'},
+    {tag:'Faced', title:'Traces that never finished', body:'Traces would not finish loading. Cause: connections left open at shutdown. Fixed.'},
+    {tag:'Asked', title:'Talking to the team', body:'Asked the neatlogs team about detections, screenshots in traces and what great usage looks like.'},
+    {tag:'Did', title:'Detections, backfilled', metric:'93 traces', body:'Detections that flag recovered clicks and failed runs, backfilled across 93 existing traces.'}]},
+  {tool:'Entire', cards:[{tag:'Did', title:'Reasoning saved with every fix', body:'Every commit is linked to the coding-agent session behind it, so the reasoning for each fix is saved as a checkpoint.'}]},
+  {tool:'cfo.ai', cards:[{tag:'Did', title:'The numbers, from real cost', body:'Pricing, costs, revenue and runway built from the measured cost per run.', note:'Content coming', dashed:true}]},
+  {tool:'Stagehand', cards:[{tag:'Found', title:'A page could take over the browser', body:'Its default launch setting let any visited page take over the browser. Closed with a guard and a test.'}]}
+];
+const DAYS = [
+  {date:'Day 1 · Sat 10 Oct', heading:'Day 1: the lying click, the hidden bill, and a browser left open', posts:[{time:'Sat',w:'54%',media:true},{time:'Sat',w:'70%',media:false},{time:'Sat',w:'40%',media:false}]},
+  {date:'Day 2 · Sun 11 Oct', heading:'Day 2: summary to add', posts:[{time:'Sun',w:'62%',media:false},{time:'Sun',w:'48%',media:true}]},
+  {date:'Day 3 · Mon 12 Oct', heading:'Day 3: summary to add', posts:[]}
+];
+const COMPONENTS = [
+  ['SiteNav','All','active, onTry','Sticky, 68px, backdrop blur. Under 768px links move into a menu sheet. CTA is a MagneticButton.'],
+  ['MagneticButton','All','variant: primary | ghost, strength = 0.3','gsap.quickTo on x/y within a 40px halo; elastic.out(1,0.4) return on leave. Disabled on coarse pointers and reduced motion.'],
+  ['Reveal','All','as, delay, y = 28, stagger','ScrollTrigger once, start "top 88%". Wrap groups so children stagger.'],
+  ['DisplayHeadline','Landing, About, Journey','lines[], fade = true','Archivo condensed, each line a span. Lines get gentle parallax (yPercent 4/9/14, scrub) in the hero only.'],
+  ['RunForm','Landing','onSubmit({url, goal})','URL required, goal optional, consent checkbox required to enable submit. Normalises https://. POST /api/runs then router.push(/run/[id]).'],
+  ['HowItWorksPinned','Landing','steps[6]','ScrollTrigger pin, end "+=" + 340vh, scrub. onUpdate sets activeStep = floor(progress × 6); progress bar scaleX. Rows are buttons that scroll to that step.'],
+  ['StepStage','Landing','step, active','Six stacked panels, crossfade opacity + y 24 over 0.6s on activeStep change.'],
+  ['RunPreview','Landing','steps[]','Starts when 40% in view (onEnter), appends a StepCard every 1.4s, loops after a pause, pauses offscreen. Top edge masked.'],
+  ['StepCard','Landing, Run','n, phase, thought, verb, target, result, status: ok | warn | fail, screenshotUrl, path','Compact and full sizes. Enter: opacity + y 16 + scale .98, 0.6s. Status colours the highlight ring and result.'],
+  ['ScreenshotThumb','Landing, Run','src, highlight {x,y,w,h}, path','16:10, light page on dark card, ring drawn over the clicked element. Click opens a lightbox (next/image).'],
+  ['FactCard','Landing','index, metric, title, body','Three in a row, stagger 0.09. No count-up: numbers are facts, shown still.'],
+  ['RunStatusBar','Run','status, step, elapsed','Pulse dot and scanning bottom bar. Subscribe to Supabase realtime on run_steps.'],
+  ['OutcomeBanner','Run','outcome: reached | blocked | gaveup, reason, steps, timeMs, costUsd','Colour bar by outcome. No entrance animation beyond a 200ms fade.'],
+  ['SharePanel','Run','link, site','Copy uses navigator.clipboard, label flips to "Copied" for 1.6s. X: x.com/intent/tweet?text=. LinkedIn: linkedin.com/sharing/share-offsite/?url=.'],
+  ['IssueList','Run','kind: site | agent, items[]','Site items get "Copy fix prompt". Empty state copy per kind.'],
+  ['StepTimeline','Run','steps[], live','Live mode appends with StepCard enter and a "thinking" placeholder row. Finished mode renders statically.'],
+  ['LinkRow','About','label, text, href','Full-width row, hover turns text accent.'],
+  ['ScrollProgressRail','Journey','targetRef','2px line, fill scaleY scrubbed to the journey section; dots mark each tool group.'],
+  ['JourneyCard','Journey','tool, tag: Found | Faced | Asked | Did, title, body, metric?, placeholder?','Reveal on scroll. Placeholder cards use a dashed border and a "Content coming" note.'],
+  ['TagChip','Journey','tag','Found green, Faced amber, Asked blue, Did ink.'],
+  ['DayGroup','Journey','date, heading, posts[]','Grid 1 / 2 / 3 columns. Empty state when posts is empty.'],
+  ['XPostCard','Journey','url, text, media?, createdAt','Render with react-tweet (dark theme overrides) or a custom card from the oEmbed payload. Skeleton while loading. "View on X" links to the post.'],
+  ['SiteFooter','All','—','Credits, pages, socials. Giant faded wordmark drifts up slightly on scroll.']
+].map(([name,screen,props,notes])=>({name,screen,props,notes}));
+
+class Component extends DCLogic {
+  state = {
+    screen: (()=>{ try { return localStorage.getItem('fu_screen') || 'landing'; } catch(e){ return 'landing'; } })(),
+    device:'desktop', menuOpen:false,
+    url:'', goal:'', consent:false, site:'demo-store.app', goalText:'Add a plant to the cart and reach checkout',
+    runState:'blocked', liveCount:8, active:0, previewCount:0, copied:false, copiedPrompt:-1
+  };
+  rootRef = React.createRef(); heroRef = React.createRef(); howRef = React.createRef(); howBarRef = React.createRef();
+  previewRef = React.createRef(); journeyRef = React.createRef(); railRef = React.createRef(); urlRef = React.createRef(); formRef = React.createRef();
+
+  get reduced(){ return this.props.reduceMotion || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }
+
+  componentDidMount(){
+    if (!this.reduced && window.Lenis) {
+      try { this.lenis = new window.Lenis({ lerp:0.1 }); const raf = t => { this.lenis && this.lenis.raf(t); this.rafId = requestAnimationFrame(raf); }; this.rafId = requestAnimationFrame(raf); } catch(e){}
+    }
+    this.onScroll = () => { if (!this.ticking) { this.ticking = true; requestAnimationFrame(() => { this.ticking = false; this.updateScroll(); }); } };
+    window.addEventListener('scroll', this.onScroll, { passive:true });
+    window.addEventListener('resize', this.onScroll);
+    this.onMove = e => this.magnet(e);
+    window.addEventListener('mousemove', this.onMove);
+    this.afterScreen();
+  }
+  componentWillUnmount(){
+    window.removeEventListener('scroll', this.onScroll); window.removeEventListener('resize', this.onScroll); window.removeEventListener('mousemove', this.onMove);
+    cancelAnimationFrame(this.rafId); this.lenis && this.lenis.destroy();
+    clearInterval(this.runTimer); clearInterval(this.prevTimer); this.io && this.io.disconnect(); this.pio && this.pio.disconnect();
+  }
+  componentDidUpdate(pp, ps){
+    if (ps.screen !== this.state.screen || ps.device !== this.state.device) {
+      if (this.lenis) this.lenis.scrollTo(0, { immediate:true }); else window.scrollTo(0, 0);
+      if (this.pendingScroll) { const id = this.pendingScroll; this.pendingScroll = null; setTimeout(() => this.scrollToId(id), 60); }
+    }
+    this.afterScreen();
+  }
+  afterScreen(){
+    const root = this.rootRef.current; if (!root) return;
+    const reduced = this.reduced;
+    if (!this.io) this.io = new IntersectionObserver(entries => entries.forEach(en => {
+      if (!en.isIntersecting) return; const el = en.target; this.io.unobserve(el);
+      el.style.transition = `opacity .9s cubic-bezier(.2,.7,.2,1) ${el.dataset.delay||0}ms, transform .9s cubic-bezier(.2,.7,.2,1) ${el.dataset.delay||0}ms`;
+      el.style.opacity = '1'; el.style.transform = 'none';
+    }), { rootMargin:'0px 0px -12% 0px' });
+    root.querySelectorAll('[data-reveal]:not([data-rv])').forEach(el => {
+      el.dataset.rv = '1'; if (reduced) return;
+      el.style.opacity = '0'; el.style.transform = 'translateY(28px)'; this.io.observe(el);
+    });
+    root.querySelectorAll('[data-enter]:not([data-entered])').forEach(el => {
+      el.dataset.entered = '1'; if (reduced || !el.animate) return;
+      el.animate([{opacity:0, transform:'translateY(16px) scale(.98)'},{opacity:1, transform:'none'}], {duration:600, easing:'cubic-bezier(.2,.7,.2,1)'});
+    });
+    const pv = this.previewRef.current;
+    if (pv && pv !== this.observedPreview) {
+      this.observedPreview = pv; this.pio && this.pio.disconnect();
+      this.pio = new IntersectionObserver(([en]) => en.isIntersecting ? this.startPreview() : this.stopPreview(), { threshold:0.35 });
+      this.pio.observe(pv);
+    }
+    if (!pv) { this.observedPreview = null; this.stopPreview(); }
+    if (this.state.screen === 'run' && this.state.runState === 'running' && !this.runTimer) this.tickRun();
+    this.updateScroll();
+  }
+  startPreview(){
+    if (this.prevTimer) return;
+    if (this.reduced) { this.setState({ previewCount:8 }); return; }
+    this.prevTimer = setInterval(() => this.setState(s => ({ previewCount: s.previewCount >= 11 ? 1 : s.previewCount + 1 })), 1400);
+    if (this.state.previewCount === 0) this.setState({ previewCount:1 });
+  }
+  stopPreview(){ clearInterval(this.prevTimer); this.prevTimer = null; }
+  tickRun(){
+    clearInterval(this.runTimer);
+    this.runTimer = setInterval(() => {
+      if (this.state.screen !== 'run' || this.state.runState !== 'running') { clearInterval(this.runTimer); this.runTimer = null; return; }
+      if (this.state.liveCount >= 8) { clearInterval(this.runTimer); this.runTimer = null; this.setState({ runState:'blocked' }); return; }
+      this.setState(s => ({ liveCount: s.liveCount + 1 }));
+    }, 1500);
+  }
+  updateScroll(){
+    const root = this.rootRef.current; if (!root) return;
+    const y = window.scrollY, vh = window.innerHeight, reduced = this.reduced;
+    if (!reduced) root.querySelectorAll('[data-parallax]').forEach(el => { el.style.transform = `translate3d(0,${Math.min(y, 1200) * parseFloat(el.dataset.parallax) * -1}px,0)`; });
+    const how = this.howRef.current;
+    if (how) {
+      const r = how.getBoundingClientRect();
+      const p = Math.max(0, Math.min(1, (68 - r.top) / (r.height - vh)));
+      const a = Math.min(5, Math.floor(p * 6));
+      if (this.howBarRef.current) this.howBarRef.current.style.transform = `scaleX(${p})`;
+      if (a !== this.state.active) this.setState({ active:a });
+    }
+    const j = this.journeyRef.current, rail = this.railRef.current;
+    if (j && rail) { const r = j.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (vh * 0.6 - r.top) / r.height)); rail.style.transform = `scaleY(${p})`; }
+  }
+  magnet(e){
+    const root = this.rootRef.current; if (!root || this.reduced) return;
+    root.querySelectorAll('[data-magnetic]').forEach(el => {
+      const r = el.getBoundingClientRect(); const dx = e.clientX - (r.left + r.width/2), dy = e.clientY - (r.top + r.height/2);
+      const inside = Math.abs(dx) < r.width/2 + 40 && Math.abs(dy) < r.height/2 + 40;
+      if (!el.dataset.mg) { el.dataset.mg = '1'; el.style.transition = (el.style.transition ? el.style.transition + ', ' : '') + 'transform .45s cubic-bezier(.2,.9,.25,1.2)'; }
+      el.style.transform = inside ? `translate(${dx * 0.22}px, ${dy * 0.3}px)` : 'translate(0,0)';
+    });
+  }
+  scrollToId(id){
+    const el = document.getElementById(id); if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 68;
+    if (this.lenis) this.lenis.scrollTo(top, { duration:1.2 }); else window.scrollTo({ top, behavior: this.reduced ? 'auto' : 'smooth' });
+  }
+  go(screen, extra){
+    try { localStorage.setItem('fu_screen', screen); } catch(e){}
+    this.setState(Object.assign({ screen, menuOpen:false }, extra || {}));
+  }
+  nav(fn){ return e => { e && e.preventDefault && e.preventDefault(); fn(); }; }
+  startRun = () => { clearInterval(this.runTimer); this.runTimer = null; this.setState({ runState:'running', liveCount:0, copied:false }, () => this.tickRun()); };
+
+  renderVals(){
+    const s = this.state;
+    const wide = s.device === 'desktop' && (typeof window === 'undefined' || window.innerWidth > 820);
+    const site = s.site;
+    const mk = (st, i) => ({ n: String(i+1).padStart(2,'0'), ...st, color: STATUS[st.status][0], statusLabel: STATUS[st.status][1], hlT:st.hl[0], hlL:st.hl[1], hlW:st.hl[2], hlH:st.hl[3] });
+    const allSteps = RUN_STEPS.map(mk);
+    const running = s.runState === 'running';
+    const o = OUTCOMES[running ? 'blocked' : s.runState];
+    const shareLink = 'https://first-user.vercel.app/r/demo-7f3k';
+    const shareText = `First User just tried ${site} like a first-time customer. Here's where it got stuck: ${shareLink} #neatHack via @devsdv_`;
+    const copy = txt => { try { navigator.clipboard.writeText(txt); } catch(e){} };
+    const tab = (active) => ({ bg: active ? '#ECEEE9' : 'transparent', color: active ? '#08090A' : '#9BA19D' });
+    const validUrl = s.url.trim().length > 3 && s.url.includes('.');
+    const prevShown = Math.min(Math.max(s.previewCount,0), 8);
+    return {
+      rootRef:this.rootRef, heroRef:this.heroRef, howRef:this.howRef, howBarRef:this.howBarRef, previewRef:this.previewRef, journeyRef:this.journeyRef, railRef:this.railRef, urlRef:this.urlRef, formRef:this.formRef,
+      frameWidth: s.device === 'mobile' ? '390px' : '100%',
+      frameBorder: s.device === 'mobile' ? '1px solid rgba(237,240,235,.1)' : '0',
+      isWide: wide, isNarrow: !wide, menuVisible: !wide && s.menuOpen,
+      showToolbar: this.props.showReviewBar ?? true,
+      isLanding: s.screen === 'landing', isRun: s.screen === 'run', isAbout: s.screen === 'about', isJourney: s.screen === 'journey', isHandoff: s.screen === 'handoff',
+      navAboutColor: s.screen === 'about' ? '#ECEEE9' : '#9BA19D', navJourneyColor: s.screen === 'journey' ? '#ECEEE9' : '#9BA19D',
+      toggleMenu: () => this.setState({ menuOpen: !s.menuOpen }),
+      goLanding: this.nav(() => this.go('landing')),
+      goHow: this.nav(() => { if (s.screen === 'landing') { this.setState({menuOpen:false}); this.scrollToId('how'); } else { this.pendingScroll = 'how'; this.go('landing'); } }),
+      goReport: this.nav(() => this.go('run', { runState:'blocked', liveCount:8 })),
+      goAbout: this.nav(() => this.go('about')), goJourney: this.nav(() => this.go('journey')),
+      goTry: this.nav(() => { const f = () => { this.lenis ? this.lenis.scrollTo(0) : window.scrollTo({top:0, behavior:'smooth'}); setTimeout(() => this.urlRef.current && this.urlRef.current.focus({preventScroll:true}), 400); }; if (s.screen !== 'landing') { this.go('landing'); setTimeout(f, 80); } else f(); }),
+      url:s.url, goal:s.goal,
+      onUrl: e => this.setState({ url: e.target.value.replace(/^https?:\/\//,'') }), onGoal: e => this.setState({ goal: e.target.value }),
+      toggleConsent: () => this.setState({ consent: !s.consent }),
+      consentBorder: s.consent ? '#57E38D' : '#6C726E', consentBg: s.consent ? '#57E38D' : 'transparent', consentMark: s.consent ? '✓' : '',
+      urlBorder: validUrl ? 'rgba(87,227,141,.35)' : 'rgba(237,240,235,.08)',
+      cantSubmit: !(validUrl && s.consent), submitOpacity: validUrl && s.consent ? 1 : .4, submitCursor: validUrl && s.consent ? 'pointer' : 'not-allowed',
+      formHint: !validUrl ? 'Takes about two minutes' : (!s.consent ? 'Tick the permission box to continue' : 'Ready'),
+      submitRun: e => { e.preventDefault(); if (!(validUrl && s.consent)) return; this.go('run', { site: s.url.replace(/\/$/,''), goalText: s.goal.trim() || 'Try the main feature like a first-time visitor', runState:'running', liveCount:0 }); },
+      howSteps: HOW.map((h, i) => ({ ...h, n:String(i+1).padStart(2,'0'), log: h.log.map(l => l.replace('{site}', site)),
+        rowColor: i === s.active ? '#ECEEE9' : '#6C726E', numColor: i === s.active ? '#57E38D' : '#6C726E',
+        opacity: i === s.active ? 1 : 0, transform: i === s.active ? 'none' : (i < s.active ? 'translateY(-24px)' : 'translateY(24px)'),
+        go: () => { const el = this.howRef.current; if (!el) return; const r = el.getBoundingClientRect(); const top = window.scrollY + r.top - 68 + (r.height - window.innerHeight) * ((i + 0.5) / 6); this.lenis ? this.lenis.scrollTo(top) : window.scrollTo({ top, behavior:'smooth' }); } })),
+      previewSteps: allSteps.slice(0, prevShown), previewShown: Math.max(prevShown, 1),
+      site, goalText: s.goalText,
+      startRun: this.startRun,
+      isRunning: running, isFinished: !running,
+      liveLabel: s.liveCount < 8 ? (RUN_STEPS[Math.min(s.liveCount, 7)].phase + '…') : 'Writing the report…',
+      liveCount: Math.max(s.liveCount, 1), liveElapsed: `0:${String(Math.min(59, s.liveCount * 13)).padStart(2,'0')}`,
+      timeline: running ? allSteps.slice(0, s.liveCount) : allSteps, timelineCount: running ? s.liveCount : 8,
+      outcomeLabel:o.label, outcomeColor:o.color, outcomeReason:o.reason,
+      siteIssues: o.site.map((it, i) => ({ ...it, copyLabel: s.copiedPrompt === i ? 'Copied' : 'Copy fix prompt', copy: () => { copy(`On ${site}: ${it.title}. ${it.detail} Fix this so a first-time visitor can continue.`); this.setState({ copiedPrompt:i }); setTimeout(() => this.setState({ copiedPrompt:-1 }), 1600); } })),
+      agentIssues: o.agent, siteCount: o.site.length, agentCount: o.agent.length, noSiteIssues: o.site.length === 0, noAgentIssues: o.agent.length === 0,
+      shareLink, shareText,
+      xShareUrl: 'https://x.com/intent/tweet?text=' + encodeURIComponent(shareText),
+      liShareUrl: 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareLink),
+      copyLabel: s.copied ? 'Copied' : 'Copy', copyColor: s.copied ? '#57E38D' : '#ECEEE9',
+      copyLink: () => { copy(shareLink); this.setState({ copied:true }); setTimeout(() => this.setState({ copied:false }), 1600); },
+      aboutLinks: [
+        { label:'X', text:'@devsdv_', href:'https://x.com/devsdv_' },
+        { label:'LinkedIn', text:'dev-divyanshuverma', href:'https://www.linkedin.com/in/dev-divyanshuverma' },
+        { label:'GitHub', text:'devs-dv', href:'https://github.com/devs-dv' },
+        { label:'Repo', text:'github.com/devs-dv/first-user', href:'https://github.com/devs-dv/first-user' }],
+      journey: JOURNEY.map(g => ({ tool:g.tool, count: g.cards.length + (g.cards.length === 1 ? ' card' : ' cards'),
+        cards: g.cards.map(c => ({ ...c, note: c.note || '', hasMetric: !!c.metric, metric: c.metric || '', tagColor: TAG[c.tag][0], tagBorder: TAG[c.tag][1], borderStyle: c.dashed ? 'dashed' : 'solid' })) })),
+      alsoBuilt: [{name:'Claude', role:"The agent's brain"},{name:'Supabase', role:'Job queue and screenshots'},{name:'Vercel', role:'Site'},{name:'AWS', role:'Worker'}],
+      days: DAYS.map(d => ({ ...d, hasPosts: d.posts.length > 0, isEmpty: d.posts.length === 0, posts: d.posts.map(p => ({ ...p, label: 'Embedded post' })) })),
+      components: COMPONENTS,
+      screenTabs: [['landing','Landing'],['run','Run & Report'],['about','About'],['journey','Build Journey'],['handoff','Components']].map(([id,label]) => ({ label, ...tab(s.screen === id), go: () => this.go(id) })),
+      deviceTabs: [['desktop','Desktop'],['mobile','Mobile']].map(([id,label]) => ({ label, ...tab(s.device === id), go: () => this.setState({ device:id, menuOpen:false }) })),
+      stateTabs: [['running','Running'],['reached','Reached'],['blocked','Blocked'],['gaveup','Gave up']].map(([id,label]) => ({ label, ...tab(s.runState === id), go: () => id === 'running' ? this.startRun() : (clearInterval(this.runTimer), this.runTimer = null, this.setState({ runState:id, liveCount:8 })) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

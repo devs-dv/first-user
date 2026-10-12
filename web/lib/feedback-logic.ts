@@ -43,3 +43,64 @@ export function parseFeedback(body: unknown):
   }
   return { ok: true, value: { findingId, verdict } };
 }
+
+// ------------------------------------------------------------------------------ the report page's buttons
+
+export const VERDICT_LABELS: Record<FeedbackVerdict, string> = {
+  useful: "Useful",
+  not_a_problem: "Not a real problem",
+  fixed: "I fixed this",
+};
+
+// The buttons show on a finished report that has findings. A bot check or a failure on our side says
+// nothing about the site, so its report has no findings to vote on.
+export function feedbackShown(run: {
+  status: string;
+  findings: unknown[] | null;
+  verdict?: { kind: string } | null;
+  entry?: { bot_check?: unknown } | null;
+}): boolean {
+  if (run.status !== "done") return false;
+  if (run.verdict?.kind === "bot_check" || run.verdict?.kind === "our_failure") return false;
+  if (run.entry?.bot_check) return false;
+  return (run.findings?.length ?? 0) > 0;
+}
+
+// The visitor's own votes, remembered in the browser so a reload keeps the selection. Only a vote the
+// server accepted is written here; the server's table stays the record. Storage can be missing or throw
+// (private windows, blocked site data), so every access is guarded and a failure means "nothing remembered".
+type VoteStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function feedbackStorageKey(runId: string): string {
+  return `feedback:${runId}`;
+}
+
+export function readStoredVotes(storage: VoteStorage | null | undefined, runId: string): Record<string, FeedbackVerdict> {
+  const votes: Record<string, FeedbackVerdict> = {};
+  try {
+    const raw = storage?.getItem(feedbackStorageKey(runId));
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return votes;
+    for (const [findingId, verdict] of Object.entries(parsed)) {
+      if (isFindingId(findingId) && isVerdict(verdict)) votes[findingId] = verdict;
+    }
+  } catch {
+    // Nothing remembered.
+  }
+  return votes;
+}
+
+export function storeVote(
+  storage: VoteStorage | null | undefined,
+  runId: string,
+  findingId: string,
+  verdict: FeedbackVerdict,
+): void {
+  try {
+    if (!storage) return;
+    const votes = { ...readStoredVotes(storage, runId), [findingId]: verdict };
+    storage.setItem(feedbackStorageKey(runId), JSON.stringify(votes));
+  } catch {
+    // The vote is saved on the server; only the reminder in this browser is lost.
+  }
+}

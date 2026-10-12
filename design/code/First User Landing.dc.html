@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F3F5F9;--s1:#FFFFFF;--s2:#F7F8FB;--line:#DDE2EB;--ink:#0E1320;--ink2:#343D4F;--ink3:#4F596C;--ink4:#7A8396;--off:#CDD3DF;--acc:#C6FF3D;--acc-h:#B4F01F;--acc-soft:#F4FFD9;--on-acc:#0E1320;--deep:#0E1320;--deep2:#1A2235;--hard:#0E1320;--shadow:#0E1320;--blue-soft:#DCE6FF;--amber-soft:#FFF1D6;--green-soft:#E3F4E8;--amber-line:#E8C27A;--amber-ink:#7A4A00;--green-ink:#0F6B3A;--pass:#138A4B;--info:#2F5BFF;--bad:#C93424;--bad-soft:#FDE3DF;--on-bad:#FFFFFF;--warn:#A86400;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-fu-theme="light"]){--bg:#0B0F18;--s1:#131A29;--s2:#182033;--line:#263049;--ink:#EEF1F7;--ink2:#C3CAD8;--ink3:#9AA3B5;--ink4:#828BA0;--off:#3A4460;--acc:#C6FF3D;--acc-h:#D6FF6E;--acc-soft:#232E10;--on-acc:#0E1320;--deep:#1D2640;--deep2:#0B0F18;--hard:#C6FF3D;--shadow:#000000;--blue-soft:#1A2754;--amber-soft:#33270E;--green-soft:#102B1C;--amber-line:#7A5A20;--amber-ink:#F5C46A;--green-ink:#6FE3A0;--pass:#57E38D;--info:#8AA4FF;--bad:#FF7A6B;--bad-soft:#3A1714;--on-bad:#0E1320;--warn:#F5B544;color-scheme:dark}}
+:root[data-fu-theme="dark"]{--bg:#0B0F18;--s1:#131A29;--s2:#182033;--line:#263049;--ink:#EEF1F7;--ink2:#C3CAD8;--ink3:#9AA3B5;--ink4:#828BA0;--off:#3A4460;--acc:#C6FF3D;--acc-h:#D6FF6E;--acc-soft:#232E10;--on-acc:#0E1320;--deep:#1D2640;--deep2:#0B0F18;--hard:#C6FF3D;--shadow:#000000;--blue-soft:#1A2754;--amber-soft:#33270E;--green-soft:#102B1C;--amber-line:#7A5A20;--amber-ink:#F5C46A;--green-ink:#6FE3A0;--pass:#57E38D;--info:#8AA4FF;--bad:#FF7A6B;--bad-soft:#3A1714;--on-bad:#0E1320;--warn:#F5B544;color-scheme:dark}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased;transition:background-color .3s}
+*{box-sizing:border-box}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--ink3)}
+input::placeholder{color:var(--ink4)}
+input{color:var(--ink)}
+::selection{background:var(--acc);color:var(--on-acc)}
+@keyframes fuBlink{50%{opacity:0}}
+@keyframes fuLook{0%,30%{transform:translateX(0)}36%,52%{transform:translateX(-6px)}58%,74%{transform:translateX(6px)}80%,100%{transform:translateX(0)}88%{transform:translateX(0) scaleY(.15)}92%{transform:translateX(0) scaleY(1)}}
+@keyframes fuNudge{0%,70%,100%{transform:translateX(0)}80%{transform:translateX(3px)}90%{transform:translateX(-1px)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+@keyframes fuPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--pass) 45%, transparent)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+</style>
+</helmet>
+<div data-screen-label="Landing" style="max-width:1280px; margin:0 auto; background:var(--bg); color:var(--ink); overflow:clip;">
+
+    <header ref="{{ headerRef }}" style="position:sticky; top:0; z-index:50; padding:14px clamp(12px,2.4vw,28px) 0;">
+      <div ref="{{ barRef }}" style="position:relative; display:flex; flex-wrap:nowrap; gap:12px; align-items:center; justify-content:space-between; padding:8px 8px 8px 14px; border-radius:999px; border:1.5px solid transparent; background:transparent; transition:background .35s, border-color .35s, box-shadow .35s, padding .35s;">
+        <a href="#" onClick="{{ goHome }}" aria-label="First User home" style="display:flex; align-items:center; gap:10px; color:var(--ink);" style-hover="color:var(--ink);">
+          <span style="width:30px; height:22px; border-radius:9px; background:var(--acc); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; overflow:hidden; transition:transform .4s cubic-bezier(.3,1.6,.5,1);" style-hover="transform:rotate(-8deg) scale(1.08);"><span style="width:6px; height:6px; border-radius:50%; background:#0E1320; animation:fuLook 6s ease-in-out infinite;"></span></span>
+          <span style="font:800 19px 'Archivo',sans-serif; font-stretch:75%; text-transform:uppercase; letter-spacing:.01em;">First User</span>
+        </a>
+        <sc-if value="{{ wideNav }}" hint-placeholder-val="{{ true }}"><nav ref="{{ navRef }}" onMouseLeave="{{ navLeave }}" style="position:relative; display:flex; align-items:center; gap:2px; padding:4px; border-radius:999px; border:1.5px solid var(--line); background:color-mix(in srgb, var(--s1) 70%, transparent);">
+          <span ref="{{ pillRef }}" aria-hidden="true" style="position:absolute; top:4px; left:0; height:36px; width:0; border-radius:999px; background:var(--s2); border:1.5px solid var(--ink); opacity:0; transition:left .35s cubic-bezier(.3,1.3,.5,1), width .35s cubic-bezier(.3,1.3,.5,1), opacity .2s; pointer-events:none;"></span>
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4"><a href="#" data-nav="" onClick="{{ n.go }}" onMouseEnter="{{ navEnter }}" style="position:relative; z-index:1; height:36px; padding:0 14px; border-radius:999px; display:flex; align-items:center; gap:7px; white-space:nowrap; font-size:15px; color:{{ n.color }}; background:{{ n.bg }}; transition:background .25s, color .25s;" style-hover="color:{{ n.color }};"><span style="width:6px; height:6px; border-radius:50%; background:#0E1320; display:{{ n.dot }};"></span>{{ n.label }}</a></sc-for>
+        </nav></sc-if>
+        <div style="display:flex; align-items:center; gap:8px; flex:none;">
+          <sc-if value="{{ narrowNav }}" hint-placeholder-val="{{ false }}"><button onClick="{{ toggleMenu }}" aria-label="Menu" aria-expanded="{{ menuOpen }}" style="height:44px; padding:0 16px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); color:var(--ink); font:600 14px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; gap:8px; white-space:nowrap;"><span style="display:flex; flex-direction:column; gap:4px;"><span style="width:14px; height:1.5px; background:var(--ink); transform:{{ burgerA }}; transition:transform .3s;"></span><span style="width:14px; height:1.5px; background:var(--ink); transform:{{ burgerB }}; transition:transform .3s;"></span></span>Menu</button></sc-if>
+          <button onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" title="{{ themeLabel }}" style="width:44px; height:44px; flex:none; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;" style-hover="background:var(--s2);">
+            <span style="position:absolute; font-size:18px; line-height:1; transform:{{ sunTf }}; opacity:{{ sunOp }}; transition:transform .5s cubic-bezier(.3,1.4,.5,1), opacity .3s;">☀</span>
+            <span style="position:absolute; font-size:17px; line-height:1; transform:{{ moonTf }}; opacity:{{ moonOp }}; transition:transform .5s cubic-bezier(.3,1.4,.5,1), opacity .3s;">☾</span>
+          </button>
+          <button onClick="{{ goTry }}" style="height:44px; padding:0 6px 0 20px; border-radius:999px; border:1.5px solid var(--ink); background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:10px; transition:transform .2s, box-shadow .2s;" style-hover="transform:translateY(-2px); box-shadow:0 5px 0 var(--hard);">Test my website<span style="width:32px; height:32px; border-radius:50%; background:#0E1320; color:#C6FF3D; display:flex; align-items:center; justify-content:center; font-size:15px; animation:fuNudge 2.4s ease-in-out infinite;">→</span></button>
+        </div>
+        <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}"><div ref="{{ menuRef }}" style="position:absolute; right:0; top:calc(100% + 8px); width:min(280px, 90vw); padding:8px; border-radius:20px; border:1.5px solid var(--ink); background:var(--bg); box-shadow:8px 8px 0 var(--hard); display:flex; flex-direction:column; gap:2px; z-index:5;">
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="4"><a href="#" onClick="{{ n.go }}" style="height:48px; padding:0 16px; border-radius:14px; display:flex; align-items:center; gap:8px; font:500 16px 'Geist',sans-serif; color:{{ n.color }}; background:{{ n.bg }};" style-hover="background:var(--s1); color:var(--ink);"><span style="width:6px; height:6px; border-radius:50%; background:#0E1320; display:{{ n.dot }};"></span>{{ n.label }}</a></sc-for>
+        </div></sc-if>
+        <span aria-hidden="true" style="position:absolute; left:24px; right:24px; bottom:-1.5px; height:2px; border-radius:2px; overflow:hidden; pointer-events:none;"><span ref="{{ progRef }}" style="display:block; height:100%; background:var(--acc); transform-origin:left; transform:scaleX(0);"></span></span>
+      </div>
+    </header>
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+
+    <div style="position:relative; isolation:isolate;">
+    <div aria-hidden="true" style="position:absolute; inset:0; z-index:-1; background-image:radial-gradient(var(--off) 1.2px, transparent 1.2px); background-size:22px 22px; -webkit-mask-image:radial-gradient(ellipse 70% 80% at 70% 45%, #000 20%, transparent 75%); mask-image:radial-gradient(ellipse 70% 80% at 70% 45%, #000 20%, transparent 75%); opacity:.9;"></div>
+    <div aria-hidden="true" style="position:absolute; right:6%; top:12%; width:480px; height:480px; z-index:-1; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--acc) 45%, transparent), transparent 65%); filter:blur(30px);"></div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr)); gap:64px; padding:48px clamp(20px,4vw,48px) 104px; align-items:center;">
+      <div style="display:flex; flex-direction:column; gap:28px;">
+        <span style="align-self:flex-start; display:flex; align-items:center; gap:8px; height:32px; padding:0 14px; border-radius:999px; background:var(--s1); border:1px solid var(--line); font:500 13px 'Geist Mono',monospace; color:var(--ink2); white-space:nowrap;"><span style="width:7px; height:7px; border-radius:50%; background:var(--pass); animation:fuPulse 1.8s infinite;"></span>Built at #neatHack</span>
+        <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(64px,9vw,120px); line-height:.86; letter-spacing:-.01em; display:flex; flex-direction:column;">
+          <span style="display:block; overflow:hidden; padding-bottom:.04em;"><span ref="{{ lineRef }}" style="display:block;">Your first user,</span></span>
+          <span style="display:block; overflow:hidden; padding:.06em 0;"><span ref="{{ lineRef }}" style="display:block;"><span style="display:inline-block; background:var(--acc); padding:0 12px; margin-left:-4px; border-radius:12px; transform:rotate(-1.5deg); color:var(--on-acc);">before</span> you</span></span>
+          <span style="display:block; overflow:hidden; padding-bottom:.04em;"><span ref="{{ lineRef }}" style="display:block;">have any.</span></span>
+        </h1>
+        <p style="margin:0; font:500 clamp(20px,1.9vw,24px)/1.4 'Geist',sans-serif; color:var(--ink); max-width:500px; text-wrap:pretty;">Find out whether a stranger can actually use your product—before you spend money acquiring users.</p>
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 8px 8px 20px; background:var(--s1); border:1.5px solid var(--ink); border-radius:999px; box-shadow:0 6px 0 var(--hard); max-width:540px;">
+          <span style="font:500 15px 'Geist Mono',monospace; color:var(--ink4);">https://</span>
+          <input ref="{{ heroInputRef }}" placeholder="your-app.com" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font:500 16px 'Geist Mono',monospace; color:var(--ink);">
+          <button style="height:48px; padding:0 22px; border-radius:999px; border:none; background:var(--acc); color:var(--on-acc); font:600 15px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; transition:background .2s;" style-hover="background:var(--acc-h);">Test my website →</button>
+        </div>
+        <p style="margin:-12px 0 0 20px; font-size:15px; line-height:1.5; color:var(--ink3); max-width:480px;">Choose a user goal. First User opens your site and attempts it in a real browser.</p>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; font:500 13px 'Geist Mono',monospace; color:var(--ink3);">
+          <button onClick="{{ tryExample }}" style="height:32px; padding:0 12px; border-radius:999px; border:1px dashed var(--ink3); background:transparent; color:var(--ink); font:500 13px 'Geist Mono',monospace; cursor:pointer; white-space:nowrap; transition:all .2s;" style-hover="border-style:solid; background:var(--s1);">Try demo-store.app</button>
+          <span style="display:flex; align-items:center; gap:18px;"><span>1–2 min</span><span style="width:4px; height:4px; border-radius:50%; background:var(--ink4);"></span><span>Real browser</span><span style="width:4px; height:4px; border-radius:50%; background:var(--ink4);"></span><span>Watch it live</span></span>
+        </div>
+      </div>
+
+      <!-- live run card -->
+      <div onMouseMove="{{ tilt }}" onMouseLeave="{{ untilt }}" style="position:relative; perspective:1200px;">
+        <div style="position:absolute; right:-18px; top:-22px; z-index:4; display:flex; align-items:center; gap:8px; height:40px; padding:0 14px 0 8px; border-radius:999px; background:var(--acc); color:var(--on-acc); border:1.5px solid #0E1320; font:600 14px 'Geist',sans-serif; white-space:nowrap; box-shadow:0 10px 24px color-mix(in srgb, var(--shadow) 20%, transparent); opacity:{{ a.vOp }}; transform:{{ a.vTf }}; transition:opacity .4s, transform .5s cubic-bezier(.3,1.6,.5,1);"><span style="width:24px; height:24px; border-radius:50%; background:#0E1320; color:#C6FF3D; display:flex; align-items:center; justify-content:center; font-size:13px;">✓</span>Goal reached · verified</div>
+        <div ref="{{ cardRef }}" style="transition:transform .25s ease-out; transform-style:preserve-3d;">
+        <div style="background:var(--s1); border:1.5px solid var(--ink); border-radius:18px; overflow:hidden; box-shadow:12px 12px 0 var(--hard);">
+          <div style="display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--s2);">
+            <span style="display:flex; gap:6px;"><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span><span style="width:10px; height:10px; border-radius:50%; background:var(--line);"></span></span>
+            <span style="flex:1; height:28px; border-radius:8px; background:var(--s1); border:1px solid var(--line); display:flex; align-items:center; padding:0 12px; font:500 12px 'Geist Mono',monospace; color:var(--ink3);">demo-store.app{{ a.path }}</span>
+            <span style="display:flex; align-items:center; gap:6px; height:26px; padding:0 10px; border-radius:999px; background:var(--deep); color:var(--acc); font:500 11px 'Geist Mono',monospace; white-space:nowrap;"><span style="width:6px; height:6px; border-radius:50%; background:var(--acc); animation:fuBlink 1s infinite;; color:var(--on-acc)"></span>LIVE · step {{ a.n }}</span>
+          </div>
+          <!-- fake store -->
+          <div style="position:relative; height:300px; padding:18px 20px; background:#FFFFFF;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <span style="font:700 15px 'Geist',sans-serif; color:#1F3A2A;">Leaf &amp; Pot</span>
+              <span style="display:flex; gap:14px; align-items:center; font-size:12px; color:#4F596C;">Shop · About <span style="display:flex; align-items:center; gap:5px; height:24px; padding:0 9px; border-radius:6px; border:1px solid {{ a.cartBorder }}; background:{{ a.cartBg }}; transition:all .3s;">Cart {{ a.cart }}</span></span>
+            </div>
+            <div style="height:70px; border-radius:10px; background:#E7F0E6; display:flex; align-items:center; padding:0 18px; font:600 17px 'Geist',sans-serif; color:#1F3A2A; margin-bottom:14px;">House plants, delivered.</div>
+            <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
+              <div style="border-radius:10px; border:2px solid {{ a.ring1 }}; padding:8px; transition:border-color .3s;"><div style="height:62px; border-radius:6px; background:#CFE3CF;"></div><div style="font-size:12px; margin-top:6px; color:#1F3A2A;">Pothos, small · $18</div><div style="margin-top:6px; height:22px; border-radius:5px; background:{{ a.addBg }}; border:2px solid {{ a.ring2 }}; color:#FFFFFF; font-size:11px; display:flex; align-items:center; justify-content:center; transition:all .3s;">Add to cart</div></div>
+              <div style="border-radius:10px; border:2px solid transparent; padding:8px;"><div style="height:62px; border-radius:6px; background:#D9E6D3;"></div><div style="font-size:12px; margin-top:6px; color:#1F3A2A;">Snake plant · $24</div><div style="margin-top:6px; height:22px; border-radius:5px; background:#2F5C3F; color:#FFFFFF; font-size:11px; display:flex; align-items:center; justify-content:center;">Add to cart</div></div>
+              <div style="border-radius:10px; border:2px solid transparent; padding:8px;"><div style="height:62px; border-radius:6px; background:#E3EAD7;"></div><div style="font-size:12px; margin-top:6px; color:#1F3A2A;">Fern · $16</div><div style="margin-top:6px; height:22px; border-radius:5px; background:#2F5C3F; color:#FFFFFF; font-size:11px; display:flex; align-items:center; justify-content:center;">Add to cart</div></div>
+            </div>
+            <!-- cursor -->
+            <div style="position:absolute; left:{{ a.cx }}%; top:{{ a.cy }}%; transition:left 1.1s cubic-bezier(.6,0,.3,1), top 1.1s cubic-bezier(.6,0,.3,1); pointer-events:none; z-index:2;">
+              <span ref="{{ pingRef }}" style="position:absolute; left:-14px; top:-14px; width:28px; height:28px; border-radius:50%; border:2px solid #0E1320; opacity:0;"></span>
+              <svg width="22" height="22" viewBox="0 0 22 22" style="display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));"><path d="M2 2l7 18 2.6-7.4L19 10z" fill="#0E1320" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"></path></svg>
+              <div style="position:absolute; left:20px; top:18px; width:230px; padding:10px 12px; border-radius:12px 12px 12px 4px; background:#0E1320; color:#FFFFFF; font-size:13px; line-height:1.4; box-shadow:0 10px 24px rgba(14,19,32,.25);"><span style="display:block; font:500 10px 'Geist Mono',monospace; color:#C6FF3D; margin-bottom:3px; letter-spacing:.06em;">THINKING</span>{{ a.thought }}</div>
+            </div>
+          </div>
+          <!-- phases -->
+          <div style="display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); border-top:1px solid var(--line);">
+            <sc-for list="{{ a.phases }}" as="p" hint-placeholder-count="6">
+              <div style="padding:12px 0 14px; display:flex; flex-direction:column; align-items:center; gap:7px; background:{{ p.bg }}; transition:background .4s;">
+                <span style="width:20px; height:20px; border-radius:50%; border:1.5px solid {{ p.ring }}; background:{{ p.fill }}; color:{{ p.markColor }}; font:600 11px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center; transition:all .4s;">{{ p.mark }}</span>
+                <span style="font:500 12px 'Geist',sans-serif; color:{{ p.color }}; white-space:nowrap;">{{ p.name }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </div>
+        <!-- floating feed card -->
+        <div ref="{{ feedRef }}" style="position:absolute; left:-24px; bottom:-40px; width:min(300px,80%); background:var(--s1); border:1.5px solid var(--ink); border-radius:14px; padding:14px 16px; box-shadow:0 18px 40px color-mix(in srgb, var(--shadow) 18%, transparent); display:flex; flex-direction:column; gap:6px; z-index:3;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font:500 11px 'Geist Mono',monospace; color:var(--ink3); letter-spacing:.05em;">STEP {{ a.n }}</span>
+            <span style="height:22px; padding:0 9px; border-radius:999px; background:{{ a.resBg }}; color:{{ a.resColor }}; font:600 11px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ a.resLabel }}</span>
+          </div>
+          <div style="font:500 14px 'Geist Mono',monospace; color:var(--ink);">{{ a.act }}</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+    <!-- report -->
+    <div id="report-a" data-screen-label="Sample report" style="padding:96px clamp(20px,4vw,48px); background:var(--s1); border-top:1.5px solid var(--ink); border-bottom:1.5px solid var(--ink);">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:24px 40px; margin-bottom:40px;">
+        <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(44px,6vw,72px); line-height:.88;">Two minutes later,<br>this lands.</h2>
+        <div style="display:flex; flex-direction:column; gap:14px; align-items:flex-start;">
+          <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Sample report · see both outcomes</span>
+          <div style="display:flex; gap:4px; padding:4px; border-radius:999px; border:1.5px solid var(--ink); background:var(--bg);">
+            <sc-for list="{{ rModes }}" as="m" hint-placeholder-count="2"><button onClick="{{ m.go }}" style="height:40px; padding:0 18px; border-radius:999px; border:none; background:{{ m.bg }}; color:{{ m.color }}; font:600 14px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; transition:background .25s, color .25s;">{{ m.label }}</button></sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--bg); border:1.5px solid var(--ink); border-radius:22px; box-shadow:12px 12px 0 var(--hard); overflow:hidden;">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 24px; padding:14px 22px; border-bottom:1.5px solid var(--ink); background:var(--s1);">
+          <span style="font:500 14px 'Geist Mono',monospace;">demo-store.app</span>
+          <span style="font-size:14px; color:var(--ink2);">Goal · <span style="color:var(--ink); font-weight:600;">Add a plant to the cart</span></span>
+          <span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">{{ r.meta }}</span>
+        </div>
+
+        <div style="padding:24px 28px 26px; border-bottom:1.5px solid var(--ink); background:var(--bg);">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px;">
+            <div style="display:flex; align-items:baseline; gap:14px;"><span style="font:600 20px 'Geist',sans-serif;">Step by step</span><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">{{ r.meta }}</span></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:13px; color:var(--ink3);">Pick a step to see its screenshot</span>
+              <button onClick="{{ togglePlay }}" aria-label="{{ playLabel }}" title="{{ playLabel }}" style="width:36px; height:36px; flex:none; border-radius:50%; border:1.5px solid var(--ink); background:var(--s1); color:var(--ink); font:600 12px 'Geist',sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center;" style-hover="background:var(--acc); color:var(--on-acc);">{{ playIcon }}</button>
+            </div>
+          </div>
+          <div style="padding:6px 0 10px;">
+              <div style="display:grid; grid-template-columns:{{ r.cols }}; gap:22px 14px;">
+                <sc-for list="{{ r.steps }}" as="st" hint-placeholder-count="6">
+                  <button onClick="{{ st.pick }}" aria-label="{{ st.aria }}" style="position:relative; display:flex; flex-direction:column; align-items:stretch; gap:12px; padding:0; border:none; background:transparent; color:var(--ink); cursor:{{ st.cursor }}; text-align:left; opacity:{{ st.op }}; transition:opacity .3s;">
+                    <span aria-hidden="true" style="position:absolute; top:13px; left:50%; width:calc(100% + 14px); height:3px; border-radius:3px; background:var(--line); display:{{ st.connShow }}; overflow:hidden;"><span style="display:block; height:100%; width:{{ st.connW }}; background:{{ st.connColor }}; transition:width .5s cubic-bezier(.6,0,.3,1);"></span></span>
+                    <span style="position:relative; align-self:center; width:29px; height:29px; border-radius:50%; background:{{ st.dot }}; border:1.5px solid var(--ink); color:{{ st.markColor }}; font:700 12px 'Geist',sans-serif; display:flex; align-items:center; justify-content:center; transform:{{ st.nodeTf }}; transition:transform .35s cubic-bezier(.3,1.6,.5,1), background .3s;">{{ st.mark }}</span>
+                    <span style="display:flex; flex-direction:column; border-radius:12px; border:{{ st.border }}; background:var(--s1); overflow:hidden; transform:{{ st.cardTf }}; box-shadow:{{ st.shadow }}; transition:transform .3s, box-shadow .3s;">
+                      <span style="display:block; aspect-ratio:16/10; background:#FFFFFF; padding:7px; position:relative; border-bottom:1px solid var(--line);">
+                        <span style="display:block; height:20%; border-radius:3px; background:#E7F0E6;"></span>
+                        <span style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-top:5px;"><span style="height:26px; border-radius:2px; background:#CFE3CF; outline:2px solid {{ st.ring }}; outline-offset:1px;"></span><span style="height:26px; border-radius:2px; background:#D9E6D3;"></span><span style="height:26px; border-radius:2px; background:#E3EAD7;"></span></span>
+                      </span>
+                      <span style="display:flex; flex-direction:column; gap:6px; padding:10px 11px 12px;">
+                        <span style="display:flex; justify-content:space-between; align-items:center; gap:6px;"><span style="font:500 11px 'Geist Mono',monospace; color:var(--ink3);">0{{ st.n }}</span><span style="height:20px; padding:0 7px; border-radius:999px; background:{{ st.chipBg }}; color:{{ st.chipColor }}; font:600 10px 'Geist',sans-serif; display:flex; align-items:center; white-space:nowrap;">{{ st.status }}</span></span>
+                        <span style="font:600 14px/1.25 'Geist',sans-serif;">{{ st.label }}</span>
+                        <span style="font:400 11px/1.35 'Geist Mono',monospace; color:var(--ink3); overflow-wrap:anywhere;">{{ st.act }}</span>
+                      </span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));">
+          <div style="padding:28px; display:flex; flex-direction:column; gap:28px; border-right:1.5px solid var(--ink);">
+            <div ref="{{ verdictRef }}" style="padding:24px; border-radius:16px; border:1.5px solid var(--ink); background:{{ r.vBg }}; color:{{ r.vColor }}; display:flex; flex-direction:column; gap:14px; transition:background .35s;">
+              <div style="display:flex; align-items:center; gap:10px;"><span style="width:32px; height:32px; flex:none; border-radius:50%; background:#0E1320; color:{{ r.vIconColor }}; display:flex; align-items:center; justify-content:center; font-weight:700;">{{ r.vIcon }}</span><span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; ">{{ r.vTag }}</span></div>
+              <div style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,4.4vw,56px); line-height:.9;">{{ r.vTitle }}</div>
+              <p style="margin:0; font-size:16px; line-height:1.5; max-width:46ch;">{{ r.vBody }}</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3);">Screenshot evidence · step 0{{ r.ev.n }}</span>
+              <div ref="{{ evRef }}" style="border-radius:14px; border:1.5px solid var(--ink); overflow:hidden; background:#FFFFFF;">
+                <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#F7F8FB; border-bottom:1px solid #DDE2EB; font:500 11px 'Geist Mono',monospace; color:#4F596C;"><span style="width:8px; height:8px; border-radius:50%; background:#DDE2EB;"></span>demo-store.app{{ r.ev.path }}</div>
+                <div style="position:relative; padding:14px; height:200px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><span style="font:700 13px 'Geist',sans-serif; color:#1F3A2A;">Leaf &amp; Pot</span><span style="height:22px; padding:0 8px; border-radius:5px; border:2px solid {{ r.ev.cartRing }}; font-size:11px; color:#1F3A2A; display:flex; align-items:center;">Cart {{ r.ev.cart }}</span></div>
+                  <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px;">
+                    <div style="border-radius:8px; padding:6px; border:1px solid #E6EAE3;"><div style="height:64px; border-radius:5px; background:#CFE3CF;"></div><div style="font-size:11px; margin-top:5px; color:#1F3A2A;">Pothos, small · $18</div><div style="margin-top:5px; height:22px; border-radius:4px; background:#2F5C3F; outline:2.5px solid {{ r.ev.addRing }}; outline-offset:2px; color:#FFFFFF; font-size:10px; display:flex; align-items:center; justify-content:center;">{{ r.ev.addLabel }}</div></div>
+                    <div style="border-radius:8px; padding:6px; border:1px solid #E6EAE3;"><div style="height:64px; border-radius:5px; background:#D9E6D3;"></div><div style="font-size:11px; margin-top:5px; color:#1F3A2A;">Snake plant · $24</div></div>
+                    <div style="border-radius:8px; padding:6px; border:1px solid #E6EAE3;"><div style="height:64px; border-radius:5px; background:#E3EAD7;"></div><div style="font-size:11px; margin-top:5px; color:#1F3A2A;">Fern · $16</div></div>
+                  </div>
+                </div>
+              </div>
+              <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink2);"><span style="font-family:'Geist Mono',monospace; color:var(--ink);">{{ r.ev.act }}</span> · {{ r.ev.result }}</p>
+            </div>
+          </div>
+
+          <div style="padding:28px; display:flex; flex-direction:column; gap:28px;">
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px;"><span style="height:26px; padding:0 10px; border-radius:999px; background:var(--green-soft); color:var(--green-ink); border:1.5px solid var(--ink); font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; gap:6px; white-space:nowrap;">✓ Verified</span><span style="font-size:14px; color:var(--ink3);">Seen on the page and confirmed</span></div>
+              <sc-for list="{{ r.verified }}" as="f" hint-placeholder-count="2">
+                <div style="padding:18px; border-radius:14px; background:var(--s1); border:1.5px solid var(--ink); display:flex; flex-direction:column; gap:8px; transition:transform .25s, box-shadow .25s;" style-hover="transform:translate(-3px,-3px); box-shadow:5px 5px 0 var(--hard);">
+                  <div style="display:flex; justify-content:space-between; gap:12px;"><span style="font:600 17px/1.35 'Geist',sans-serif;">{{ f.title }}</span><span style="flex:none; font:500 12px 'Geist Mono',monospace; color:var(--ink3); white-space:nowrap;">{{ f.ref }}</span></div>
+                  <span style="font-size:14px; line-height:1.5; color:var(--ink2);">{{ f.body }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px;"><span style="height:26px; padding:0 10px; border-radius:999px; background:var(--amber-soft); color:var(--amber-ink); border:1.5px dashed var(--ink); font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; gap:6px; white-space:nowrap;">? Uncertain</span><span style="font-size:14px; color:var(--ink3);">The visitor's impression. Worth a look</span></div>
+              <sc-for list="{{ r.uncertain }}" as="f" hint-placeholder-count="2">
+                <div style="padding:16px 18px; border-radius:14px; border:1.5px dashed var(--ink3); display:flex; justify-content:space-between; gap:12px;"><span style="font-size:15px; line-height:1.45;">{{ f.title }}</span><span style="flex:none; font:500 12px 'Geist Mono',monospace; color:var(--ink3); white-space:nowrap;">{{ f.ref }}</span></div>
+              </sc-for>
+            </div>
+            <div style="margin-top:auto; border-radius:16px; background:#0E1320; color:#FFFFFF; border:1.5px solid var(--ink); overflow:hidden;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px 12px 18px; border-bottom:1px solid #263049;">
+                <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:#C6FF3D;">Fix prompt · for your coding agent</span>
+                <button onClick="{{ copyPrompt }}" style="height:34px; padding:0 14px; border-radius:999px; border:none; background:#C6FF3D; color:#0E1320; font:600 13px 'Geist',sans-serif; cursor:pointer; white-space:nowrap; transition:transform .2s;" style-hover="transform:scale(1.05);">{{ copyLabel }}</button>
+              </div>
+              <div style="padding:16px 18px; font:400 13px/1.65 'Geist Mono',monospace; color:#D6DCE8; white-space:pre-wrap;">{{ prompt }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- how -->
+    <div id="how-a" style="padding:88px clamp(20px,4vw,48px);">
+      <h2 style="margin:0 0 40px; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(44px,6vw,72px); line-height:.88;">Six stages.<br><span style="color:var(--ink4);">One honest report.</span></h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px;">
+        <sc-for list="{{ how }}" as="h" hint-placeholder-count="6">
+          <div style="background:var(--s1); border:1.5px solid var(--ink); border-radius:16px; padding:22px; display:flex; flex-direction:column; gap:10px; min-height:180px; transition:transform .3s, box-shadow .3s;" style-hover="transform:translate(-4px,-4px); box-shadow:6px 6px 0 var(--hard);">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3);">0{{ h.n }}</span><span style="width:10px; height:10px; border-radius:50%; background:{{ h.dot }}; transition:background .4s;"></span></div>
+            <div style="font-family:'Archivo',sans-serif; font-stretch:75%; font-weight:800; text-transform:uppercase; font-size:30px; line-height:1;">{{ h.name }}</div>
+            <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink2); text-wrap:pretty;">{{ h.body }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- honest -->
+    <div id="honest-a" style="padding:0 clamp(20px,4vw,48px) 88px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:16px;">
+        <div style="padding:26px; border-radius:16px; background:var(--blue-soft); border:1.5px solid var(--ink);"><div style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; margin-bottom:28px;">HONEST · 01</div><div style="font:600 21px 'Geist',sans-serif; line-height:1.3;">An independent check confirms the goal. The visitor can't grade its own homework.</div></div>
+        <div style="padding:26px; border-radius:16px; background:var(--amber-soft); border:1.5px solid var(--ink);"><div style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; margin-bottom:28px;">HONEST · 02</div><div style="font:600 21px 'Geist',sans-serif; line-height:1.3;">It notices when a click says "done" but the page didn't change, and tries again.</div></div>
+        <div style="padding:26px; border-radius:16px; background:var(--green-soft); border:1.5px solid var(--ink);"><div style="font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; margin-bottom:28px;">HONEST · 03</div><div style="font:600 21px 'Geist',sans-serif; line-height:1.3;">It tells you when a failure was its own fault, kept apart from your site's problems.</div></div>
+      </div>
+    </div>
+
+    <!-- cta -->
+    <div style="margin:0 clamp(20px,4vw,48px) 48px; padding:clamp(32px,5vw,64px); border-radius:24px; background:var(--acc); border:1.5px solid var(--ink); display:flex; flex-direction:column; align-items:center; gap:28px; text-align:center;; color:var(--on-acc)">
+      <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(56px,8vw,96px); line-height:.86;">Meet your<br>first user.</h2>
+      <div style="display:flex; align-items:center; gap:8px; padding:8px 8px 8px 20px; background:#FFFFFF; border:1.5px solid #0E1320; border-radius:999px; box-shadow:0 6px 0 #0E1320; width:100%; max-width:540px;">
+        <span style="font:500 15px 'Geist Mono',monospace; color:#4F596C;">https://</span>
+        <input placeholder="your-app.com" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font:500 16px 'Geist Mono',monospace; color:#0E1320;">
+        <button style="height:48px; padding:0 22px; border-radius:999px; border:none; background:#0E1320; color:var(--acc); font:600 15px 'Geist',sans-serif; cursor:pointer; white-space:nowrap;">Test my website →</button>
+      </div>
+    </div>
+  </sc-if>
+
+<sc-if value="{{ isAbout }}" hint-placeholder-val="{{ false }}">
+  <main data-screen-label="About" style="padding:56px clamp(20px,4vw,48px) 104px; position:relative; isolation:isolate;">
+    <div aria-hidden="true" style="position:absolute; inset:0; z-index:-1; background-image:radial-gradient(var(--off) 1.2px, transparent 1.2px); background-size:22px 22px; -webkit-mask-image:radial-gradient(ellipse 60% 50% at 30% 10%, #000 20%, transparent 75%); mask-image:radial-gradient(ellipse 60% 50% at 30% 10%, #000 20%, transparent 75%);"></div>
+    <h1 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(64px,11vw,168px); line-height:.84; letter-spacing:-.015em; display:flex; flex-direction:column;">
+      <span style="display:block; overflow:hidden;"><span ref="{{ lineRef }}" style="display:block;">First User</span></span>
+      <span style="display:block; overflow:hidden; padding:.06em 0;"><span ref="{{ lineRef }}" style="display:block;"><span style="display:inline-block; background:var(--acc); color:var(--on-acc); padding:0 14px; border-radius:14px; transform:rotate(-1.5deg);">#neatHack</span></span></span>
+      <span style="display:block; overflow:hidden;"><span ref="{{ lineRef }}" style="display:block; color:var(--ink4);">· neatlogs</span></span>
+    </h1>
+    <div style="margin-top:72px; display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:clamp(28px,5vw,64px); align-items:start;">
+      <div style="aspect-ratio:4/5; max-width:420px; border-radius:24px; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); box-shadow:12px 12px 0 var(--hard); display:flex; flex-direction:column; justify-content:space-between; padding:28px; transform:rotate(-2deg); transition:transform .4s cubic-bezier(.3,1.4,.5,1);" style-hover="transform:rotate(0deg) translateY(-6px);">
+        <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase;">Built solo · one weekend</span>
+        <span style="font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(140px,17vw,230px); line-height:.8;">DV</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:40px;">
+        <p style="margin:0; font-size:clamp(24px,2.8vw,36px); line-height:1.3; letter-spacing:-.01em; text-wrap:pretty;">Built solo by Divyanshu Verma (DV) in one weekend.</p>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <sc-for list="{{ aboutLinks }}" as="l" hint-placeholder-count="4">
+            <a href="{{ l.href }}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:16px; min-height:72px; padding:14px 22px; border-radius:16px; background:var(--s1); border:1.5px solid var(--ink); color:var(--ink); transition:transform .25s, box-shadow .25s, background .25s;" style-hover="transform:translate(-4px,-4px); box-shadow:6px 6px 0 var(--hard); background:var(--acc-soft);">
+              <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink3); width:84px; flex:none;">{{ l.label }}</span>
+              <span style="flex:1; min-width:0; font:500 clamp(17px,2vw,22px) 'Geist',sans-serif; overflow-wrap:anywhere;">{{ l.text }}</span>
+              <span style="width:36px; height:36px; flex:none; border-radius:50%; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:16px;">↗</span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </main>
+</sc-if>
+
+<sc-if value="{{ isJourney }}" hint-placeholder-val="{{ false }}">
+  <main data-screen-label="Build Journey" style="padding:56px clamp(20px,4vw,48px) 104px;">
+    <span style="display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 14px; border-radius:999px; background:var(--s1); border:1px solid var(--line); font:500 13px 'Geist Mono',monospace; color:var(--ink2); white-space:nowrap;"><span style="width:7px; height:7px; border-radius:50%; background:var(--pass); animation:fuPulse 1.8s infinite;"></span>Build Journey</span>
+    <h1 style="margin:22px 0 0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(64px,11vw,168px); line-height:.84; letter-spacing:-.015em; display:flex; flex-direction:column;">
+      <span style="display:block; overflow:hidden;"><span ref="{{ lineRef }}" style="display:block;">Found. Faced.</span></span>
+      <span style="display:block; overflow:hidden; padding:.06em 0;"><span ref="{{ lineRef }}" style="display:block;"><span style="color:var(--ink4);">Asked.</span> <span style="display:inline-block; background:var(--acc); color:var(--on-acc); padding:0 14px; border-radius:14px; transform:rotate(-1.5deg);">Did.</span></span></span>
+    </h1>
+    <p style="margin:28px 0 0; font-size:19px; line-height:1.5; color:var(--ink2); max-width:46ch;">What happened while building First User, grouped by the tool it happened in.</p>
+    <div style="margin-top:22px; display:flex; flex-wrap:wrap; gap:8px;">
+      <sc-for list="{{ tagKey }}" as="t" hint-placeholder-count="4"><span style="flex:none; white-space:nowrap; height:32px; padding:0 14px; border-radius:999px; border:1.5px solid var(--ink); background:{{ t.bg }}; color:var(--ink); font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center;">{{ t.tag }}</span></sc-for>
+    </div>
+
+    <div ref="{{ journeyRef }}" style="position:relative; margin-top:80px; padding-left:clamp(28px,4vw,56px);">
+      <div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--line); border-radius:3px;"><div ref="{{ railRef }}" style="position:absolute; inset:0; background:var(--acc); border:1px solid var(--ink); transform-origin:top; transform:scaleY(0); border-radius:3px;"></div></div>
+      <sc-for list="{{ journey }}" as="g" hint-placeholder-count="2">
+        <div style="position:relative; margin-bottom:80px;">
+          <span style="position:absolute; left:calc(-1 * clamp(28px,4vw,56px) - 6px); top:16px; width:15px; height:15px; border-radius:50%; background:var(--acc); border:1.5px solid var(--ink);"></span>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding-bottom:18px; border-bottom:1.5px solid var(--ink);">
+            <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(40px,5vw,68px); line-height:.9;">{{ g.tool }}</h2>
+            <span style="font:500 13px 'Geist Mono',monospace; color:var(--ink3); white-space:nowrap;">{{ g.count }}</span>
+          </div>
+          <div style="margin-top:22px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr)); gap:18px;">
+            <sc-for list="{{ g.cards }}" as="c" hint-placeholder-count="2">
+              <article data-jcard="" style="display:flex; flex-direction:column; gap:14px; padding:24px; border-radius:18px; background:{{ c.bg }}; border:1.5px solid var(--ink); min-height:240px; transition:transform .3s, box-shadow .3s;" style-hover="transform:translate(-4px,-4px); box-shadow:6px 6px 0 var(--hard);">
+                <span style="flex:none; white-space:nowrap; align-self:flex-start; height:26px; padding:0 10px; border-radius:999px; background:var(--deep); color:#FFFFFF; font:500 11px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; gap:6px;"><span style="width:6px; height:6px; border-radius:50%; background:{{ c.dot }};"></span>{{ c.tag }}</span>
+                <sc-if value="{{ c.hasMetric }}" hint-placeholder-val="{{ false }}"><div style="margin-top:auto; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(44px,4.6vw,64px); line-height:.9; white-space:nowrap;">{{ c.metric }}</div></sc-if>
+                <h3 style="margin:0; font:600 19px/1.3 'Geist',sans-serif;">{{ c.title }}</h3>
+                <p style="margin:0; font-size:15px; line-height:1.55; color:var(--ink2); text-wrap:pretty;">{{ c.body }}</p>
+              </article>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="position:relative; margin-bottom:96px;">
+        <span style="position:absolute; left:calc(-1 * clamp(28px,4vw,56px) - 6px); top:4px; width:15px; height:15px; border-radius:50%; background:var(--s1); border:1.5px solid var(--ink);"></span>
+        <div style="font:500 13px 'Geist Mono',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3);">Also built with</div>
+        <div style="margin-top:20px; display:flex; flex-wrap:wrap; gap:10px;">
+          <sc-for list="{{ alsoBuilt }}" as="a" hint-placeholder-count="4"><span style="flex:none; white-space:nowrap; height:52px; padding:0 22px; border-radius:999px; border:1.5px solid var(--ink); background:var(--s1); font:600 17px 'Geist',sans-serif; display:flex; align-items:center; transition:transform .2s;" style-hover="transform:rotate(-3deg) scale(1.05);">{{ a }}</span></sc-for>
+        </div>
+      </div>
+
+      <div style="position:relative;">
+        <span style="position:absolute; left:calc(-1 * clamp(28px,4vw,56px) - 6px); top:20px; width:15px; height:15px; border-radius:50%; background:var(--pass); border:1.5px solid var(--ink); animation:fuPulse 1.8s infinite;"></span>
+        <h2 style="margin:0; font-family:'Archivo',sans-serif; font-stretch:68%; font-weight:850; text-transform:uppercase; font-size:clamp(52px,8vw,120px); line-height:.86;">Building<br><span style="color:var(--ink4);">in public</span></h2>
+        <p style="margin:20px 0 0; font-size:17px; color:var(--ink2);">Posts from <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="text-decoration:underline; text-underline-offset:3px;">@devsdv_</a>, day by day.</p>
+        <sc-for list="{{ days }}" as="d" hint-placeholder-count="3">
+          <div style="margin-top:56px;">
+            <div style="display:flex; align-items:baseline; gap:16px; padding-bottom:16px; border-bottom:1.5px solid var(--ink);">
+              <span style="height:26px; padding:0 10px; border-radius:999px; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); font:500 12px 'Geist Mono',monospace; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; white-space:nowrap;">{{ d.day }}</span>
+              <h3 style="margin:0; font:600 clamp(20px,2.4vw,28px) 'Geist',sans-serif;">{{ d.date }}</h3>
+            </div>
+            <div style="margin-top:20px; display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr)); gap:16px;">
+              <sc-for list="{{ d.posts }}" as="p" hint-placeholder-count="2">
+                <article style="display:flex; flex-direction:column; gap:14px; padding:20px; border-radius:18px; background:var(--s1); border:1.5px solid var(--ink); transition:transform .3s, box-shadow .3s;" style-hover="transform:translate(-4px,-4px); box-shadow:6px 6px 0 var(--hard);">
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="flex:none; width:40px; height:40px; border-radius:50%; background:var(--acc); color:var(--on-acc); border:1.5px solid var(--ink); display:flex; align-items:center; justify-content:center; font:800 16px 'Archivo',sans-serif; font-stretch:70%;">DV</span>
+                    <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;"><span style="font:600 15px 'Geist',sans-serif;">Divyanshu Verma</span><span style="font-size:13px; color:var(--ink3);">@devsdv_</span></div>
+                    <span style="font:700 17px 'Geist',sans-serif;">𝕏</span>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:8px; padding:4px 0;"><span style="height:10px; width:96%; border-radius:4px; background:var(--s2); border:1px solid var(--line);"></span><span style="height:10px; width:88%; border-radius:4px; background:var(--s2); border:1px solid var(--line);"></span><span style="height:10px; width:{{ p.w }}; border-radius:4px; background:var(--s2); border:1px solid var(--line);"></span></div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; padding-top:12px; border-top:1px solid var(--line);"><span style="font:500 12px 'Geist Mono',monospace; color:var(--ink3);">Embedded post</span><a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font:500 13px 'Geist',sans-serif;">View on X ↗</a></div>
+                </article>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </main>
+</sc-if>
+
+    <footer style="position:relative; overflow:hidden; padding:clamp(56px,7vw,96px) clamp(20px,4vw,48px) 0; border-top:1.5px solid var(--ink);">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:32px;">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">Credits</span>
+          <span style="font-size:16px; line-height:1.5; color:var(--ink2); max-width:30ch;">Built at #neatHack with neatlogs, Entire and cfo.ai</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">Pages</span>
+          <a href="#" onClick="{{ goReportA }}" style="font-size:16px;">Example report</a>
+          <a href="#" onClick="{{ goJourney }}" style="font-size:16px;">Build Journey</a>
+          <a href="#" onClick="{{ goAbout }}" style="font-size:16px;">About</a>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <span style="font:500 12px 'Geist Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--ink4);">Elsewhere</span>
+          <a href="https://x.com/devsdv_" target="_blank" rel="noopener" style="font-size:16px;">X · @devsdv_</a>
+          <a href="https://www.linkedin.com/in/dev-divyanshuverma" target="_blank" rel="noopener" style="font-size:16px;">LinkedIn · dev-divyanshuverma</a>
+          <a href="https://github.com/devs-dv/first-user" target="_blank" rel="noopener" style="font-size:16px;">GitHub · devs-dv/first-user</a>
+        </div>
+      </div>
+      <div aria-hidden="true" style="margin-top:clamp(48px,6vw,80px); font-family:'Archivo',sans-serif; font-stretch:66%; font-weight:900; text-transform:uppercase; font-size:min(21.5vw,272px); line-height:.78; letter-spacing:-.02em; text-align:center; white-space:nowrap; background:linear-gradient(180deg, var(--off), var(--bg) 92%); -webkit-background-clip:text; background-clip:text; color:transparent; user-select:none;">First User</div>
+    </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;motion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Motion&quot;}}">
+const HOW = [
+  {name:'Read', short:'Read the landing page', body:'Opens your site in a real browser and works out what the product does, who it is for and what the main feature is.', log:'open    https://demo-store.app\nread    "House plants, delivered."\nfound   main feature: buy a plant'},
+  {name:'Get in', short:'Get in', body:'Uses the way in you chose: public pages only, your demo link, a throwaway test account, or its own sign-up.', log:'access  public pages\nlogin   not needed to shop\n✓ in'},
+  {name:'Try', short:'Try the main feature', body:'Works toward the goal one action at a time like a first-time customer: read the page, decide, click or type, look again.', log:'click   "Pothos, small"\nclick   "Add to cart"\nlook    cart badge'},
+  {name:'Recover', short:'Recover when a click fails', body:'If a click reports success but the page did not change, it climbs a 4-step recovery ladder and tries again.', log:'check   cart still 0\nretry   scroll, wait, click\n✓ cart 1'},
+  {name:'Verify', short:'Verify the result', body:'An independent check looks at the final page and confirms whether the goal was really reached.', log:'verify  cart page\n✓ item and total present'},
+  {name:'Report', short:'Write the report', body:'A verdict, a first-impression review, what to fix first with prompts for your coding agent, and every step with a screenshot.', log:'verdict      reached, 1 snag\nfindings     3\nfix prompts  ready'}
+];
+const RUN = [
+  {ph:0, path:'/', thought:'A plant shop. The main thing here is buying a plant.', act:'open  demo-store.app', cx:30, cy:30, res:'ok'},
+  {ph:1, path:'/', thought:'No login needed to shop. Staying on public pages.', act:'access  public pages', cx:72, cy:6, res:'ok'},
+  {ph:2, path:'/', thought:'The small pothos looks like a good first buy.', act:'click  "Pothos, small"', cx:14, cy:58, res:'ok'},
+  {ph:2, path:'/', thought:'Pressing Add to cart.', act:'click  "Add to cart"', cx:16, cy:82, res:'ok', add:true},
+  {ph:3, path:'/', thought:'It said added, but the cart still shows 0. Trying again.', act:'retry  scroll, wait, click', cx:16, cy:82, res:'retry', add:true},
+  {ph:3, path:'/', thought:'Cart shows 1 now. Moving on.', act:'look  cart badge', cx:76, cy:6, res:'ok', cart:1},
+  {ph:4, path:'/cart', thought:'Checking the cart page has the item and a total.', act:'verify  cart page', cx:50, cy:40, res:'ok', cart:1},
+  {ph:5, path:'/cart', thought:'Done. Writing up what I found.', act:'report  ready', cx:50, cy:40, res:'done', cart:1}
+];
+const THOUGHTS = ['What does this do?', 'Is that big green button the main thing?', 'I clicked Add to cart. Nothing changed. Trying again.', 'Okay, the cart shows 1. Checking out.'];
+const BRUN = [
+  {act:'read  "House plants, delivered."', cx:50, cy:18},
+  {act:'click  "Pothos, small"', cx:28, cy:62},
+  {act:'click  "Add to cart"', cx:28, cy:82},
+  {act:'verify  cart page', cx:74, cy:62}
+];
+const TAGS = {Found:['var(--green-soft)','var(--pass)'], Faced:['var(--amber-soft)','var(--warn)'], Asked:['var(--blue-soft)','var(--info)'], Did:['var(--s1)','var(--acc)']};
+const JOURNEY = [
+  {tool:'neatlogs', cards:[
+    {tag:'Found', title:'The lying click', metric:'0/5 → 5/5', body:'The agent reported "clicked Add to cart" while the cart stayed empty, 0 of 5. Fixed with a page-change check and a 4-step recovery ladder: 5 of 5.'},
+    {tag:'Found', title:'The hidden bill', metric:'3¢ → ½¢', body:"94% of run cost was hidden inside the browser library's own model calls. Routed through the traced client; cost per run fell from about 3 cents to about half a cent."},
+    {tag:'Did', title:'An independent verifier', metric:'0 → 5/7', body:'Goals verified went from 0 to 5 of 7 on a 10-site test set, with 0 false praise on 3 broken sites.'},
+    {tag:'Did', title:'Detections, backfilled', body:'Detections that flag recovered clicks and failed runs, backfilled across existing traces.'},
+    {tag:'Faced', title:'Three trace problems, reported', body:'Blank system prompts, traces that failed to process, and an API key captured in a trace. Each reported; the key was rotated and a redaction mask with tests was added.'},
+    {tag:'Asked', title:'Asking the team', body:'Asked the team about detections, screenshots in traces and what great usage looks like.'}]},
+  {tool:'Entire', cards:[{tag:'Did', title:'Every commit, with its session', body:'Every commit linked to the coding-agent session behind it.'}]},
+  {tool:'cfo.ai', cards:[{tag:'Did', title:'Pricing from the measured cost', metric:'$19 · $49', body:'Pricing at $19 and $49 a month with margins above 90%, break-even at 5 paying customers, built from the measured cost per run.'}]},
+  {tool:'Stagehand', cards:[{tag:'Found', title:'A page could take over the browser', body:'Its default launch setting let any visited page take over the browser. Closed with a guard and a test.'}]},
+  {tool:'Real apps', cards:[{tag:'Found', title:'Most apps hide behind Google login', body:"A real team's app showed that most apps hide behind Google login, which led to the three ways in and the first-impression review."}]}
+];
+const DAYS = [['Day 1','Sat 10 Oct',['62%','48%','70%']],['Day 2','Sun 11 Oct',['54%','66%']],['Day 3','Mon 12 Oct',['58%','44%']]];
+const RSTEPS = [
+  {label:'Open home', act:'open  demo-store.app', path:'/', result:'Homepage loaded. Shop is about house plants.', cart:0},
+  {label:'Read offer', act:'read  hero and nav', path:'/', result:'Main feature looks like buying a plant.', cart:0},
+  {label:'Pick pothos', act:'click  "Pothos, small"', path:'/', result:'Product card selected.', cart:0},
+  {label:'Add to cart', act:'click  "Add to cart"', path:'/', result:'Button said "Added". The cart badge stayed at 0.', cart:0, add:true, flag:true},
+  {label:'Retry', act:'retry  scroll, wait, click', path:'/', result:'', cart:1, add:true},
+  {label:'Cart page', act:'verify  /cart', path:'/cart', result:'Cart lists 1 pothos with a $18 total.', cart:1}
+];
+const RMODE = {
+  done: { tag:'Goal completed · independent check', title:'Completed, with one snag.', body:'The visitor added a pothos to the cart. The first click said "added" but the cart stayed at 0. A retry worked.', meta:'6 steps · 1m 38s', bad:-1, retry:'Second click worked. Cart shows 1.' },
+  blocked: { tag:'Goal blocked · independent check', title:'Blocked at step 05.', body:'After the recovery ladder the cart still showed 0, so the visitor could not reach checkout. A real customer would likely leave here.', meta:'5 steps · 1m 12s', bad:4, retry:'Four recovery attempts. Cart still shows 0.' }
+};
+const PROMPT = 'In the product card, update the cart count only after the add-to-cart request succeeds, and show an error if it fails.\nCheck: one click on "Add to cart" changes the cart badge from 0 to 1 without a reload.';
+const MARQ = ['Real browser','Thinks out loud','Every step screenshotted','Fix prompts for your coding agent','1 to 2 minutes','Independent check'];
+
+class Component extends DCLogic {
+  state = { step:0, chars:0, thought:0, bstep:0, stage:0, vw: window.innerWidth, menuOpen:false, rmode:'done', rsel:3, rplay:true, copied:false, page:(()=>{ try { return localStorage.getItem('fu_page') || 'home'; } catch(e){ return 'home'; } })(), theme:(()=>{ try { return localStorage.getItem('fu_theme') || 'system'; } catch(e){ return 'system'; } })() };
+  applyTheme(){ const r = document.documentElement, t = this.state.theme; if (t === 'system') r.removeAttribute('data-fu-theme'); else r.setAttribute('data-fu-theme', t); try { localStorage.setItem('fu_theme', t); } catch(e){} }
+  get isDark(){ const t = this.state.theme; return t === 'dark' || (t === 'system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); }
+  componentDidMount(){
+    this.applyTheme();
+    this.revealLines();
+    if ((this.props.motion ?? true) && this.headerEl && this.headerEl.animate) { this.headerEl.animate([{transform:'translateY(-120%)',opacity:0},{transform:'none',opacity:1}], {duration:700, easing:'cubic-bezier(.16,1,.3,1)'}); (this.navEl ? [...this.navEl.querySelectorAll('[data-nav]')] : []).forEach((el,i) => el.animate([{transform:'translateY(-8px)',opacity:0},{transform:'none',opacity:1}], {duration:500, delay:250 + i*60, easing:'ease-out', fill:'backwards'})); }
+    this.onScroll = () => { this.onHeader(); const j = this.journeyEl, r = this.railEl; if (!j || !r || !j.isConnected) return; const b = j.getBoundingClientRect(), vh = window.innerHeight; const p = Math.min(1, Math.max(0, (vh*.6 - b.top) / b.height)); r.style.transform = 'scaleY(' + p + ')'; };
+    window.addEventListener('scroll', this.onScroll, { passive:true });
+    this.onResize = () => this.setState({ vw: window.innerWidth, menuOpen: window.innerWidth >= 1080 ? false : this.state.menuOpen }); window.addEventListener('resize', this.onResize);
+    this.onDocClick = e => { if (this.state.menuOpen && this.barEl && !this.barEl.contains(e.target)) this.setState({ menuOpen:false }); }; document.addEventListener('click', this.onDocClick);
+    this.motion = this.props.motion ?? true;
+    if (!this.motion) { this.setState({ step:6, chars:999, bstep:2 }); return; }
+    this.t4 = setInterval(() => { const st = this.state; if (!st.rplay || (this.held && Date.now() - this.held < 10000)) return; const max = st.rmode === 'blocked' ? 4 : 5; this.setState({ rsel: st.rsel >= max ? 0 : st.rsel + 1 }); }, 2600);
+    this.t1 = setInterval(() => this.setState(s => ({ step:(s.step+1) % RUN.length })), 1900);
+  }
+  go(page, anchor){ this.lines = (this.lines||[]).filter(e => e.isConnected); this.setState({ page }, () => { try { localStorage.setItem('fu_page', page); } catch(e){} this.lines = (this.lines||[]).filter(e => e.isConnected); this.revealLines(); requestAnimationFrame(() => { const el = anchor && document.getElementById(anchor); window.scrollTo({ top: el ? el.getBoundingClientRect().top + window.scrollY - 16 : 0, behavior: el ? 'smooth' : 'auto' }); this.onScroll(); }); }); }
+  onHeader(){ const b = this.barEl, p = this.progEl; if (!b) return; const y = window.scrollY, on = y > 24;
+    if (on !== this.hdrOn) { this.hdrOn = on; b.style.background = on ? 'color-mix(in srgb, var(--bg) 78%, transparent)' : 'transparent'; b.style.borderColor = on ? 'var(--ink)' : 'transparent'; b.style.boxShadow = on ? '0 10px 30px color-mix(in srgb, var(--shadow) 14%, transparent)' : 'none'; b.style.backdropFilter = b.style.webkitBackdropFilter = on ? 'blur(14px) saturate(1.4)' : 'none'; }
+    if (p) { const h = document.documentElement.scrollHeight - window.innerHeight; p.style.transform = 'scaleX(' + (h > 0 ? Math.min(1, y / h) : 0) + ')'; } }
+  movePill(el){ const p = this.pillEl, n = this.navEl; if (!p || !n) return; if (!el) { p.style.opacity = 0; return; } const a = el.getBoundingClientRect(), b = n.getBoundingClientRect(); p.style.left = (a.left - b.left) + 'px'; p.style.width = a.width + 'px'; p.style.opacity = 1; }
+  revealLines(){ if (!(this.props.motion ?? true)) return; (this.lines||[]).forEach((el,i) => el.isConnected && el.animate && el.animate([{transform:'translateY(105%)'},{transform:'none'}], {duration:900, delay:120 + i*90, easing:'cubic-bezier(.16,1,.3,1)', fill:'backwards'})); }
+  componentWillUnmount(){ window.removeEventListener('scroll', this.onScroll); window.removeEventListener('resize', this.onResize); document.removeEventListener('click', this.onDocClick); clearInterval(this.t1); clearInterval(this.t4); clearTimeout(this.pt); }
+  componentDidUpdate(){
+    if (this.lastR !== this.state.rmode) { const v = this.verdictEl; if (this.lastR && v && v.animate) v.animate([{transform:'scale(.97)',opacity:.4},{transform:'none',opacity:1}], {duration:450, easing:'cubic-bezier(.3,1.4,.5,1)'}); this.lastR = this.state.rmode; }
+    if (this.lastSel !== this.state.rsel) { const v = this.evEl; if (this.lastSel != null && v && v.animate) v.animate([{opacity:.3, transform:'translateY(6px)'},{opacity:1, transform:'none'}], {duration:350, easing:'ease-out'}); this.lastSel = this.state.rsel; }
+    if (this.lastStep !== this.state.step) {
+      this.lastStep = this.state.step;
+      clearTimeout(this.pt); this.pt = setTimeout(() => { const p = this.pingEl; if (p && p.isConnected && p.animate) p.animate([{transform:'scale(.4)',opacity:.9},{transform:'scale(2.2)',opacity:0}], {duration:600, easing:'ease-out'}); }, 1000);
+      const f = this.feedEl; if (f && f.isConnected && f.animate) f.animate([{transform:'translateY(10px)',opacity:.3},{transform:'none',opacity:1}], {duration:450, easing:'cubic-bezier(.2,.8,.2,1)'});
+    }
+  }
+  renderVals(){
+    const s = this.state, r = RUN[s.step];
+    const res = {ok:['Done','var(--green-soft)','var(--green-ink)'], retry:['Needed a retry','var(--amber-soft)','var(--amber-ink)'], done:['Report ready','var(--acc)','var(--on-acc)']}[r.res];
+    const cart = r.cart || 0;
+    const a = {
+      n: s.step + 1, path: r.path, thought: r.thought, act: r.act, cx: r.cx, cy: r.cy,
+      cart, cartBg: cart ? '#C6FF3D' : '#FFFFFF', cartBorder: cart ? '#0E1320' : '#DDE2EB',
+      ring1: r.ph === 2 && !r.add ? '#0E1320' : 'transparent',
+      ring2: r.add ? (r.res === 'retry' ? '#A86400' : '#0E1320') : 'transparent',
+      addBg: '#2F5C3F', vOp: s.step >= 6 ? 1 : 0, vTf: s.step >= 6 ? 'translateY(0) scale(1)' : 'translateY(8px) scale(.9)', resLabel: res[0], resBg: res[1], resColor: res[2],
+      phases: HOW.map((h,i) => {
+        const done = i < r.ph || r.res === 'done', on = i === r.ph && !done;
+        return { name:h.name, mark: done ? '✓' : String(i+1), bg: on ? 'var(--acc-soft)' : 'var(--s1)', markColor: done ? 'var(--on-acc)' : 'var(--ink)',
+          ring: done || on ? 'var(--ink)' : 'var(--off)', fill: done ? 'var(--acc)' : 'var(--s1)', color: done || on ? 'var(--ink)' : 'var(--ink4)' };
+      })
+    };
+    const how = HOW.map((h,i) => {
+      const on = i === s.stage;
+      return { n:i+1, name:h.name, short:h.short, body:h.body, dot: i <= r.ph ? 'var(--acc)' : 'var(--line)',
+      };
+    });
+    return { a, how,
+      rModes: [['done','Completed'],['blocked','Blocked']].map(([id,label]) => { const on = s.rmode === id; return { label, bg: on ? (id === 'done' ? 'var(--acc)' : 'var(--bad)') : 'transparent', color: on ? (id === 'done' ? 'var(--on-acc)' : 'var(--on-bad)') : 'var(--ink)', go: () => this.setState({ rmode:id, rsel: id === 'done' ? 3 : 4 }) }; }),
+      r: (() => { const M = RMODE[s.rmode], blocked = s.rmode === 'blocked', cols = s.vw >= 1100 ? 6 : s.vw >= 560 ? 3 : 2;
+        const steps = RSTEPS.map((st,i) => { const reached = !blocked || i <= M.bad, isBad = i === M.bad, flag = st.flag && !isBad, sel = i === s.rsel;
+          const status = isBad ? 'Blocked' : flag ? 'Snag' : reached ? (i === 5 ? 'Verified' : 'Done') : 'Not reached';
+          const chip = isBad ? ['var(--bad-soft)','var(--bad)'] : flag ? ['var(--amber-soft)','var(--amber-ink)'] : reached ? ['var(--green-soft)','var(--green-ink)'] : ['var(--s2)','var(--ink3)'];
+          return { n:i+1, label: i === 4 && blocked ? 'Retry ×4' : st.label, act: st.act, aria:'Show step ' + (i+1), op: reached ? 1 : .45, cursor: reached ? 'pointer' : 'default',
+            status, chipBg: chip[0], chipColor: chip[1],
+            border: sel ? '2px solid var(--ink)' : (reached ? '1.5px solid var(--line)' : '1.5px dashed var(--ink4)'),
+            shadow: sel ? '5px 5px 0 var(--hard)' : 'none', cardTf: sel ? 'translateY(-4px)' : 'none', nodeTf: sel ? 'scale(1.18)' : 'scale(1)',
+            ring: st.add ? (isBad ? 'var(--bad)' : '#A86400') : 'transparent',
+            dot: isBad ? 'var(--bad)' : flag ? 'var(--warn)' : reached ? 'var(--pass)' : 'var(--s1)', markColor: reached ? '#0E1320' : 'var(--ink3)', mark: isBad ? '!' : flag ? '↻' : reached ? '✓' : String(i+1),
+            connShow: (i + 1) % cols === 0 ? 'none' : 'block', connW: i < s.rsel ? '100%' : '0%', connColor: blocked && i >= 3 ? 'var(--bad)' : 'var(--pass)',
+            pick: () => { if (!reached) return; this.held = Date.now(); this.setState({ rsel:i }); } }; });
+        const fill = (s.rsel / 5) * 100, fillColor = blocked && s.rsel >= 4 ? 'var(--bad)' : 'var(--pass)';
+        const e = RSTEPS[s.rsel], cart = blocked && s.rsel >= 4 ? 0 : e.cart;
+        const ev = { n:s.rsel+1, path:e.path, act:e.act, result: s.rsel === 4 ? M.retry : e.result, cart, addLabel: e.add ? 'Added ✓' : 'Add to cart',
+          addRing: e.add ? (blocked && s.rsel === 4 ? 'var(--bad)' : '#A86400') : 'transparent', cartRing: e.add ? (cart ? '#138A4B' : (blocked && s.rsel === 4 ? '#C93424' : '#A86400')) : 'transparent' };
+        const verified = [{ title:'"Add to cart" shows success before the cart updates.', ref:'Step 04', body:'The button changed to "Added" while the cart badge stayed at 0.' }];
+        verified.push(blocked ? { title:'The cart never updated, even after four attempts.', ref:'Step 05', body:'Checkout could not be reached, so the goal failed.' } : { title:'A second click added the item.', ref:'Step 05', body:'The cart page listed 1 pothos with an $18 total.' });
+        return { cols: 'repeat(' + cols + ',minmax(0,1fr))', fill, fillColor, meta:M.meta, vTag:M.tag, vTitle:M.title, vBody:M.body, vBg: blocked ? 'var(--bad)' : 'var(--acc)', vColor: blocked ? 'var(--on-bad)' : 'var(--on-acc)', vIcon: blocked ? '!' : '✓', vIconColor: blocked ? '#FF7A6B' : '#C6FF3D', steps, ev, verified,
+          uncertain:[{ title:'Two homepage buttons look equally important.', ref:'Step 02' }, (blocked ? { title:'The product card doesn\'t show whether the item is in stock.', ref:'Step 03' } : { title:'Shipping cost isn\'t shown before checkout.', ref:'Step 06' })] }; })(),
+      togglePlay: () => this.setState({ rplay: !s.rplay }), playIcon: s.rplay ? '❚❚' : '▶', playLabel: s.rplay ? 'Pause step playback' : 'Play steps',
+      prompt: PROMPT, copyLabel: s.copied ? 'Copied ✓' : 'Copy',
+      copyPrompt: () => { try { navigator.clipboard && navigator.clipboard.writeText(PROMPT.replace(/\\n/g,'\n')); } catch(e){} this.setState({ copied:true }); clearTimeout(this.cpT); this.cpT = setTimeout(() => this.setState({ copied:false }), 1600); },
+      verdictRef: el => this.verdictEl = el, evRef: el => this.evEl = el,
+      isHome: s.page === 'home', isAbout: s.page === 'about', isJourney: s.page === 'journey',
+      navItems: [['How it works','home','how-a'],['Example report','home','report-a'],['Build Journey','journey'],['About','about']].map(([label,p,anc]) => { const on = !anc && s.page === p; return { label, dot: on ? 'block' : 'none', color: on ? 'var(--on-acc)' : 'var(--ink)', bg: on ? 'var(--acc)' : 'transparent', go: e => { e.preventDefault(); this.setState({ menuOpen:false }); this.go(p, anc); } }; }),
+      headerRef: el => this.headerEl = el, barRef: el => { this.barEl = el; }, navRef: el => this.navEl = el, pillRef: el => this.pillEl = el, progRef: el => this.progEl = el,
+      wideNav: s.vw >= 1080, narrowNav: s.vw < 1080, menuOpen: s.menuOpen, toggleMenu: () => this.setState({ menuOpen: !s.menuOpen }),
+      burgerA: s.menuOpen ? 'translateY(2.75px) rotate(45deg)' : 'none', burgerB: s.menuOpen ? 'translateY(-2.75px) rotate(-45deg)' : 'none', menuRef: el => { if (el && el.animate && !el._in) { el._in = 1; el.animate([{opacity:0, transform:'translateY(-8px) scale(.97)'},{opacity:1, transform:'none'}], {duration:280, easing:'cubic-bezier(.2,.9,.3,1.2)'}); } },
+      navEnter: e => this.movePill(e.currentTarget), navLeave: () => this.movePill(null),
+      sunTf: this.isDark ? 'rotate(-90deg) scale(.4)' : 'rotate(0) scale(1)', sunOp: this.isDark ? 0 : 1, moonTf: this.isDark ? 'rotate(0) scale(1)' : 'rotate(90deg) scale(.4)', moonOp: this.isDark ? 1 : 0,
+      goTry: () => { const go = () => { const i = this.heroInput; if (i) { window.scrollTo({ top: 0, behavior:'smooth' }); setTimeout(() => i.focus({ preventScroll:true }), 400); } }; if (s.page !== 'home') this.go('home'); setTimeout(go, 60); },
+      goHome: e => { e.preventDefault(); this.go('home'); }, goAbout: e => { e.preventDefault(); this.go('about'); }, goJourney: e => { e.preventDefault(); this.go('journey'); }, goReportA: e => { e.preventDefault(); this.go('home','report-a'); },
+      aboutLinks: [
+        { label:'X', text:'@devsdv_', href:'https://x.com/devsdv_' },
+        { label:'LinkedIn', text:'dev-divyanshuverma', href:'https://www.linkedin.com/in/dev-divyanshuverma' },
+        { label:'GitHub', text:'devs-dv', href:'https://github.com/devs-dv' },
+        { label:'Repo', text:'github.com/devs-dv/first-user', href:'https://github.com/devs-dv/first-user' }],
+      tagKey: Object.keys(TAGS).map(tag => ({ tag, bg: TAGS[tag][0] })),
+      journey: JOURNEY.map(g => ({ tool:g.tool, count: g.cards.length + (g.cards.length === 1 ? ' entry' : ' entries'), cards: g.cards.map(c => ({ ...c, hasMetric: !!c.metric, metric: c.metric || '', bg: TAGS[c.tag][0], dot: TAGS[c.tag][1] })) })),
+      alsoBuilt: ['Claude','Supabase','Vercel','AWS'],
+      days: DAYS.map(([day, date, ws]) => ({ day, date, posts: ws.map(w => ({ w })) })),
+      journeyRef: el => this.journeyEl = el, railRef: el => this.railEl = el,
+      toggleTheme: () => this.setState({ theme: this.isDark ? 'light' : 'dark' }, () => this.applyTheme()),
+      themeLabel: this.isDark ? 'Switch to light theme' : 'Switch to dark theme',
+      lineRef: el => { if (!el) return; this.lines = this.lines || []; if (!this.lines.includes(el)) this.lines.push(el); },
+      heroInputRef: el => this.heroInput = el, cardRef: el => this.cardEl = el,
+      tryExample: () => { const i = this.heroInput; if (i) { i.value = 'demo-store.app'; i.focus(); } },
+      tilt: e => { const c = this.cardEl; if (!c || !(this.props.motion ?? true)) return; const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; c.style.transform = 'rotateY(' + (x*6) + 'deg) rotateX(' + (-y*6) + 'deg)'; },
+      untilt: () => { if (this.cardEl) this.cardEl.style.transform = ''; },
+      pingRef: el => this.pingEl = el, feedRef: el => this.feedEl = el };
+  }
+}
+</script>
+</body>
+</html>

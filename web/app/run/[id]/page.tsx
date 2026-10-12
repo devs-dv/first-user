@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RunPage({ params }: PageProps<"/run/[id]">) {
   return (
-    <Suspense fallback={<p className="text-muted">Loading the run…</p>}>
+    <Suspense fallback={<main className="fu-page"><p className="m-0 font-code text-[13px] text-ink3">Loading the report…</p></main>}>
       {params.then(({ id }) => (
         <RunView id={id} />
       ))}

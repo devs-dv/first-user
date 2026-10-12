@@ -8,6 +8,7 @@
 //   NEXT_PUBLIC_REPORT_V2_FACTS     the "How this report was made" panel
 //   NEXT_PUBLIC_REPORT_V2_SUCCESS   the success-condition line
 //   NEXT_PUBLIC_CHECK_AGAIN         the "Check again" button, its API and the comparison on a retest
+//   NEXT_PUBLIC_FEEDBACK            the Useful / Not a real problem / I fixed this buttons on each finding
 //
 // All on by default. These are not secrets (they only hide parts of a page), so they are NEXT_PUBLIC_
 // variables, read when the app is built. For an immediate switch with no rebuild, add `?report=basic` to
@@ -21,6 +22,7 @@ export type ReportFlags = {
   facts: boolean;
   success: boolean;
   checkAgain: boolean;
+  feedback: boolean;
 };
 
 const OFF = new Set(["off", "false", "0", "no", "hide", "hidden"]);
@@ -39,6 +41,7 @@ export function flagsFrom(
     facts?: string;
     success?: string;
     checkAgain?: string;
+    feedback?: string;
   },
   search = "",
 ): ReportFlags {
@@ -51,6 +54,7 @@ export function flagsFrom(
     facts: master && on(env.facts),
     success: master && on(env.success),
     checkAgain: master && on(env.checkAgain),
+    feedback: master && on(env.feedback),
   };
 }
 
@@ -66,6 +70,7 @@ export function readReportFlags(search = ""): ReportFlags {
       facts: process.env.NEXT_PUBLIC_REPORT_V2_FACTS,
       success: process.env.NEXT_PUBLIC_REPORT_V2_SUCCESS,
       checkAgain: process.env.NEXT_PUBLIC_CHECK_AGAIN,
+      feedback: process.env.NEXT_PUBLIC_FEEDBACK,
     },
     search,
   );

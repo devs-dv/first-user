@@ -9,14 +9,25 @@ export function displayUrl(url: string): string {
   }
 }
 
+// The page part of a source address ("/pricing"), or the host for the homepage.
+export function sourceLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname === "/" ? `${parsed.host}/` : parsed.pathname;
+  } catch {
+    return url;
+  }
+}
+
 // Only http(s) addresses become links: a page's own text never gets to write a javascript: link.
 export function SourceLink({ url, label }: { url: string; label?: string }) {
   const href = safeHref(url);
-  const text = label ?? displayUrl(url);
-  if (!href) return <span className="break-all text-subtle">{text}</span>;
+  const text = label ?? sourceLabel(url);
+  const className = "font-code text-[12px] font-medium text-ink3 [overflow-wrap:anywhere]";
+  if (!href) return <span className={className}>{text}</span>;
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-accent hover:underline">
-      {text}
+    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className={`${className} fu-link hover:text-ink`}>
+      {text} ↗
     </a>
   );
 }

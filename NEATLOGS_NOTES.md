@@ -133,3 +133,13 @@ feedback for the neatlogs team, and a nice specific example:
 - **Fix:** `evals/run.py` `main()` is an explicit `@neatlogs.span(kind="WORKFLOW", name="first-user-evals")`. With it the root exports with status OK, and all judge calls share one trace.
 - **General rule:** any script that makes traced or wrapped-client calls outside `first_visit` should open its own WORKFLOW root, or its auto-created root will read as an error.
 - **Local span log:** `NEATLOGS_LOG_SPANS` writes nothing when `mask` is set (see above), so this check ran without the mask.
+
+
+
+## Monday 12 Oct
+
+- **PII redaction replaces ordinary words.** In Understand-mode brief outputs, the model name "claude haiku" became `<PERSON haiku`, "Google Analytics" became `<ORGANIZATION`, "EU companies" became `<NRP companies`, and the plan name "Starter" became `<PERSON`. Same pattern as the "Finish" button label becoming `<NRP>` on Saturday. Suggestion: let projects allow-list terms, or lower sensitivity for span outputs.
+- **No way to attach feedback to an existing trace from the Python SDK (1.4.26).** We record founder votes ("Useful", "Not a real problem", "I fixed this") in our own table with the trace ID, so they can be joined later. A score or annotation call on a trace ID would close the loop inside neatlogs.
+- **`neatlogs.span()` has no metadata argument.** We set `metadata.environment` (production / eval / development) as a span attribute so test and eval traces can be filtered out.
+- **Detections:** editing an existing detection still returns 422, and preview fails. We create new ones instead.
+- **Test traces:** our test suite was exporting to the real project. Fixed on our side by routing tests to a local sink. A per-environment project or an ingest-side environment filter would help others avoid this.
