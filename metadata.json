@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4QMG3XZ2Q7T0RCFFPVDTW4M",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "NEATLOGS_NOTES.md",
     "evidence/2026-10-11-final/links.md",
@@ -18,6 +18,7 @@
     "web/app/page.tsx",
     "web/app/run-form.tsx",
     "web/app/run/[id]/check-again.tsx",
+    "web/app/run/[id]/finding-feedback.tsx",
     "web/app/run/[id]/page.tsx",
     "web/app/run/[id]/report-v2.tsx",
     "web/app/run/[id]/run-view.tsx",
@@ -41,13 +42,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 392,
-    "cache_creation_tokens": 622004,
-    "cache_read_tokens": 64198883,
-    "output_tokens": 234917,
-    "api_call_count": 196
+    "input_tokens": 442,
+    "cache_creation_tokens": 703157,
+    "cache_read_tokens": 66541761,
+    "output_tokens": 248290,
+    "api_call_count": 221
   }
 }
