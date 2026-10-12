@@ -1,0 +1,223 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4Q2BN3EBKQEPB42KC7NPQWZ",
+  "session_id": "225c0e86-6abd-4bc8-88dc-e3a2fc4683a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T03:26:35.538654Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "evals/run.py",
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-logic.test.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/types.ts",
+    "worker/browse.py",
+    "worker/db.py",
+    "worker/report_writer.py",
+    "worker/test_broken_load.py",
+    "worker/test_server_mode.py",
+    "worker/tools.py",
+    "worker/verifier.py",
+    "worker/worker_loop.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5-5",
+  "turn_id": "4b3eab9aa92d",
+  "checkpoint_transcript_start": 7506,
+  "transcript_lines_at_start": 7506,
+  "compact_transcript_start": 1021,
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 70567,
+    "cache_read_tokens": 15643669,
+    "output_tokens": 50810,
+    "api_call_count": 28
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_013kMS35BQ5cDu1tvSGibbrr",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "neathack"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 106,
+        "end": 107,
+        "entry_ids": [
+          "d5d75114-d7c8-4b1e-8a05-2508cf34c1b7"
+        ],
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: neathack",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01V3E2EwWcZ6125BhUUVnk2e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 203,
+        "end": 204,
+        "entry_ids": [
+          "43368411-b9af-456e-977c-eb42c2a57641"
+        ],
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01F3gTXSsUEyTFNu2RWeGAo6",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 783,
+        "end": 784,
+        "entry_ids": [
+          "8235cce7-6252-430b-8c3d-d02f0759eae8"
+        ],
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_019PL2tgUQwAD2VjGnNzKQ6m",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase-postgres-best-practices"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 845,
+        "end": 846,
+        "entry_ids": [
+          "952fbb7c-d6ca-4060-b3d2-feb13d99a799"
+        ],
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase-postgres-best-practices",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 88
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T03:26:34.8443275Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 621,
+    "human_removed": 583,
+    "total_committed": 56,
+    "total_lines_changed": 1204,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2124,
+      "user_lines_removed": 583,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "evals/results/v6.json": 267,
+        "evals/results/v6.md": 74,
+        "evals/results/v6b.json": 267,
+        "evals/results/v6b.md": 74,
+        "evals/run.py": 445,
+        "supabase/schema.sql": 34,
+        "web/app/run/[id]/run-view.tsx": 9,
+        "web/lib/report-logic.test.ts": 10,
+        "web/lib/report-logic.ts": 1,
+        "web/lib/types.ts": 2,
+        "worker/bot_check.py": 67,
+        "worker/browse.py": 5,
+        "worker/db.py": 36,
+        "worker/element_state.py": 215,
+        "worker/report_writer.py": 5,
+        "worker/test_broken_load.py": 176,
+        "worker/test_element_state.py": 373,
+        "worker/test_server_mode.py": 2,
+        "worker/tools.py": 53,
+        "worker/verifier.py": 5,
+        "worker/worker_loop.py": 4
+      },
+      "user_removed_per_file": {
+        "evals/run.py": 407,
+        "web/app/run/[id]/run-view.tsx": 1,
+        "worker/browse.py": 1,
+        "worker/db.py": 5,
+        "worker/test_broken_load.py": 167,
+        "worker/test_server_mode.py": 1,
+        "worker/worker_loop.py": 1
+      }
+    }
+  ]
+}
