@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 import { pageMeta } from "../../meta";
 
-import { LiveRun } from "./live-run";
+import { RunLoading } from "./run-loading";
 import { RunView } from "./run-view";
 
 // The title and share card carry the site and the verdict. Reading the run can fail (a mistyped id, an older
@@ -30,11 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/run/[id]">): Prom
 export default function RunPage({ params }: PageProps<"/run/[id]">) {
   return (
     <Suspense
-      fallback={
-        <main className="fu-page" style={{ gap: "var(--block-gap)" }}>
-          <LiveRun run={null} steps={[]} />
-        </main>
-      }
+      fallback={<RunLoading />}
     >
       {params.then(({ id }) => (
         <RunView id={id} />

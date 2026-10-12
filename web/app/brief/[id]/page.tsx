@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { pageMeta } from "../../meta";
 
 import { BriefView } from "./brief-view";
+import { BriefLoading } from "./brief-waiting";
 
 // The title and share card name the site. If the brief cannot be read the page gets a plain title and still renders.
 export async function generateMetadata({ params }: PageProps<"/brief/[id]">): Promise<Metadata> {
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/brief/[id]">): Pr
 
 export default function BriefPage({ params }: PageProps<"/brief/[id]">) {
   return (
-    <Suspense fallback={<main className="fu-page"><p className="m-0 font-code text-[13px] text-ink3">Loading the brief…</p></main>}>
+    <Suspense fallback={<BriefLoading />}>
       {params.then(({ id }) => (
         <BriefView id={id} />
       ))}

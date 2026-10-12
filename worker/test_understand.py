@@ -253,6 +253,25 @@ class PageCap(unittest.IsolatedAsyncioTestCase):
         for kind in ("home", "pricing", "product", "features", "about", "docs", "faq", "customers", "blog"):
             self.assertIn(kind, kinds)
 
+    async def test_the_waiting_page_hears_each_page_read_then_the_writing(self):
+        heard: list[dict] = []
+
+        async def progress(state):
+            heard.append(state)
+
+        async with Site(self.crowded_routes()) as site:
+            await understand_with(site, FakeModel(raw_brief()), max_pages=3, progress=progress)
+        self.assertEqual(heard, [{"status": "reading", "pages_read": n} for n in (1, 2, 3)]
+                         + [{"status": "writing", "pages_read": 3}])
+
+    async def test_a_progress_update_that_fails_does_not_stop_the_brief(self):
+        async def progress(state):
+            raise RuntimeError("database away")
+
+        async with Site(self.crowded_routes()) as site:
+            result = await understand_with(site, FakeModel(raw_brief()), max_pages=3, progress=progress)
+        self.assertEqual(len(result["brief"]["pages"]), 3)
+
     async def test_a_smaller_cap_holds_and_a_blog_post_is_never_taken_for_the_index(self):
         async with Site(self.crowded_routes()) as site:
             result = await understand_with(site, FakeModel(raw_brief()), max_pages=3)
@@ -609,7 +628,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         self.updates.append({"id": run_id, **update})
 
     async def test_a_brief_is_saved_on_the_run_as_done(self):
-        async def fake(url, run_id):
+        async def fake(url, run_id, **_):
             return {"brief": {"claims": [], "suggested_journeys": []}, "usage": {"calls": 1}, "cost_usd": 0.002}
 
         await self.understand_run.execute_understand(
@@ -618,8 +637,20 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((saved["status"], saved["cost_usd"]), ("done", 0.002))
         self.assertIn("brief", saved)
 
+    async def test_progress_is_saved_in_the_brief_column_before_the_finished_brief(self):
+        async def fake(url, run_id, progress):
+            await progress({"status": "reading", "pages_read": 1})
+            await progress({"status": "writing", "pages_read": 1})
+            return {"brief": {"claims": [], "suggested_journeys": []}, "usage": {}, "cost_usd": 0.001}
+
+        await self.understand_run.execute_understand(
+            {"id": "r4", "url": "https://x.example/"}, "v", understand=fake, update=self._update)
+        self.assertEqual([u["brief"].get("status") for u in self.updates], ["reading", "writing", None])
+        self.assertNotIn("status", self.updates[0])  # a progress write never touches the run's status
+        self.assertEqual(self.updates[-1]["status"], "done")
+
     async def test_an_unreadable_site_fails_the_run_with_a_message_for_the_page(self):
-        async def fake(url, run_id):
+        async def fake(url, run_id, **_):
             raise understand.SiteUnreadable("The homepage could not be read: the site answered 404.")
 
         await self.understand_run.execute_understand(

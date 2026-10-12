@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  briefProgress,
   briefShareText,
   hiddenTextNote,
   isBrief,
@@ -19,6 +20,7 @@ test("a journey opens the test form with the url, the goal, the success conditio
   const href = testJourneyHref(BRIEF_ID, "https://acme.example/", "Start a free trial", "A welcome page appears");
   const params = new URL(href, "https://first-user.example").searchParams;
   assert.equal(href.startsWith("/?"), true);
+  assert.equal(href.endsWith("#fu-form"), true, "it lands on the form, not the top of the page");
   assert.equal(params.get("mode"), "test");
   assert.equal(params.get("url"), "https://acme.example/");
   assert.equal(params.get("goal"), "Start a free trial");
@@ -108,4 +110,20 @@ test("the brief's share text names the site and the link, per tab", () => {
     briefShareText("example.com", "https://fu.test/brief/1?tab=founder", "founder"),
     "First User wrote a founder brief for example.com from its public pages: https://fu.test/brief/1?tab=founder #neatHack via @devsdv_",
   );
+});
+
+test("the waiting page's phase follows the run, with the page count only when the worker gives one", () => {
+  assert.deepEqual(briefProgress({ status: "queued", brief: null }), { phase: "queued", pagesRead: null });
+  assert.deepEqual(briefProgress({ status: "running", brief: null }), { phase: "reading", pagesRead: null });
+  assert.deepEqual(briefProgress({ status: "running", brief: { status: "reading", pages_read: 3 } }), { phase: "reading", pagesRead: 3 });
+  assert.deepEqual(briefProgress({ status: "running", brief: { status: "writing", pages_read: 7 } }), { phase: "writing", pagesRead: 7 });
+  assert.deepEqual(briefProgress({ status: "done", brief: null }), { phase: "done", pagesRead: null });
+});
+
+test("an odd progress value is read as plain reading, never as a count", () => {
+  const odd = (value: unknown) => briefProgress({ status: "running", brief: value as never });
+  assert.deepEqual(odd({ status: "reading", pages_read: -1 }), { phase: "reading", pagesRead: null });
+  assert.deepEqual(odd({ status: "reading", pages_read: 2.5 }), { phase: "reading", pagesRead: null });
+  assert.deepEqual(odd({ status: "reading", pages_read: "4" }), { phase: "reading", pagesRead: null });
+  assert.deepEqual(odd({ status: "something", pages_read: 4 }), { phase: "reading", pagesRead: null });
 });

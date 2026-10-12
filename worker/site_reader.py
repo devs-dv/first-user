@@ -701,8 +701,10 @@ class SiteDiscovery:
 
     def __init__(self, home_url: str, guard: EgressGuard, *, renderer=None, delay: float = REQUEST_DELAY_SECONDS,
                  max_pages: int = MAX_PAGES, max_bytes: int = MAX_PAGE_BYTES, max_seconds: float = MAX_SECONDS,
-                 sleep=asyncio.sleep, clock=time.monotonic):
+                 sleep=asyncio.sleep, clock=time.monotonic, on_page=None):
         self.home_url = home_url
+        # Called with the number of pages read so far, after each one; for the waiting page's count.
+        self.on_page = on_page
         self.max_pages, self.max_seconds, self.clock = max_pages, max_seconds, clock
         self.reader = SiteReader(guard, delay=delay, max_bytes=max_bytes, sleep=sleep, clock=clock)
         self.renderer = renderer
@@ -802,6 +804,7 @@ class SiteDiscovery:
             if home is None:
                 return self._finish()
             self.result.pages.append(home)
+            await self._page_read()
             if not same_site(home.url, self.home_url):
                 # The homepage moved to another address (example.com to example.io): the site is that one now.
                 self.home_url = home.url
@@ -819,11 +822,20 @@ class SiteDiscovery:
                 await fetch_page(self, url, kind)
                 if self.last is not None and all(page.url != self.last.url for page in self.result.pages):
                     self.result.pages.append(self.last)
+                    await self._page_read()
             return self._finish()
         finally:
             await self.reader.close()
             if self.renderer is not None:
                 await self.renderer.close()
+
+    async def _page_read(self) -> None:
+        if self.on_page is None:
+            return
+        try:
+            await self.on_page(len(self.result.pages))
+        except Exception as error:  # the count is for show; it never stops the read
+            print(f"[understand] progress update failed: {type(error).__name__}", flush=True)
 
     def _finish(self) -> SiteRead:
         self.result.seconds = round(self.clock() - self._started, 2)

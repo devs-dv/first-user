@@ -56,11 +56,15 @@ export type Brief = {
 // A site that could not be read: the run is "failed" and the brief says why, in words for the visitor.
 export type BriefFailure = { status: "could_not_read"; message: string };
 
+// While the run works, the worker keeps where it is in the same column: reading the site's pages (with how many
+// it has read so far), then writing the brief. The finished brief or a failure replaces it.
+export type BriefProgress = { status: "reading" | "writing"; pages_read: number };
+
 export type BriefRun = {
   id: string;
   url: string;
   status: "queued" | "running" | "done" | "failed";
-  brief: Brief | BriefFailure | null;
+  brief: Brief | BriefFailure | BriefProgress | null;
   cost_usd: number | string | null;
   created_at: string;
   started_at: string | null;

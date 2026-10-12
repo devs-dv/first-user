@@ -16,9 +16,9 @@ test("spaces around the address are dropped", () => {
   assert.equal(cleanUrlInput("   "), "");
 });
 
-test("www. goes only when it came with a protocol", () => {
-  assert.equal(cleanUrlInput("https://www.example.com"), "example.com");
-  assert.equal(cleanUrlInput("http://WWW.example.com/a"), "example.com/a");
+test("www. is always kept, with or without a protocol", () => {
+  assert.equal(cleanUrlInput("https://www.example.com"), "www.example.com");
+  assert.equal(cleanUrlInput("http://WWW.example.com/a"), "WWW.example.com/a");
   assert.equal(cleanUrlInput("www.example.com"), "www.example.com");
   assert.equal(cleanUrlInput("  www.example.com "), "www.example.com");
 });
@@ -36,7 +36,7 @@ test("nothing else is changed", () => {
 });
 
 test("a paste replaces the selection, then the whole value is cleaned", () => {
-  assert.equal(valueAfterPaste("", "https://www.example.com/app", 0, 0), "example.com/app");
+  assert.equal(valueAfterPaste("", "https://www.example.com/app", 0, 0), "www.example.com/app");
   assert.equal(valueAfterPaste("old.com", " https://new.com ", 0, 7), "new.com");
   assert.equal(valueAfterPaste("example.com", "/pricing", 11, 11), "example.com/pricing");
   assert.equal(valueAfterPaste("abc", "https://x.com", null, null), "abchttps://x.com");

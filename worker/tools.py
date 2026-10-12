@@ -316,6 +316,8 @@ async def look() -> dict:
         if url := await publish_image(ctx, image, "look", "png"):
             # The exported trace shows this URL in place of the inline image (trace_media.py).
             trace_media.register_url(ctx.pending_image, url)
+            # Linked to the look step (browse.py _record); the model never sees it.
+            result["screenshot_url"] = url
     try:
         # The sweep runs first, so the stored text (used by Check again) never holds hidden injected text.
         await hidden_text.sweep(page, ctx.tool_calls, "look")

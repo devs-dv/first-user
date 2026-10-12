@@ -1,30 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { briefShareText, hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import { briefProgress, briefShareText, hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 import { grid } from "@/lib/css";
 import { founderBriefEnabled } from "@/lib/founder-flag";
 import { runForJourney, type BriefTestRun } from "@/lib/journey-progress";
 import { siteName } from "@/lib/report-view";
+import { parsePendingRun, pendingRunSnapshot } from "@/lib/pending-run";
 import { useBriefRuns } from "@/lib/use-brief-runs";
 
 import { RunStatusChip } from "../../run-status-chip";
 import { SharePanel } from "../../share-panel";
 
+import { BriefWaiting } from "./brief-waiting";
 import { FounderView } from "./founder-view";
 import { HiddenTextNotice } from "./hidden-text-notice";
 import { SourceLink } from "./source-link";
 
 const POLL_MS = 2000;
 
+// The address the form remembered never changes while the page is open, so nothing needs to subscribe.
+const noSubscription = () => () => {};
+
 type State = { kind: "loading" } | { kind: "not_found" } | { kind: "ready"; run: BriefRun };
 
 export function BriefView({ id }: { id: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [connectionTrouble, setConnectionTrouble] = useState(false);
+  const pending = parsePendingRun(useSyncExternalStore(noSubscription, () => pendingRunSnapshot(id), () => null));
 
   useEffect(() => {
     let cancelled = false;
@@ -58,13 +64,12 @@ export function BriefView({ id }: { id: string }) {
     };
   }, [id]);
 
+  // Until the first response, the waiting state shows at once: every new brief starts queued.
   if (state.kind === "loading") {
     return (
-      <main className="fu-page gap-4">
-        <p role="status" className="m-0 font-code text-[13px] text-ink3">
-          Loading the brief…
-        </p>
+      <main className="fu-page" style={{ gap: "clamp(28px,4cqi,40px)" }}>
         {connectionTrouble && <ConnectionNotice />}
+        <BriefWaiting url={pending?.url ?? ""} phase="queued" pagesRead={null} />
       </main>
     );
   }
@@ -83,6 +88,15 @@ export function BriefView({ id }: { id: string }) {
 
   const { run } = state;
   const ready = isBrief(run.brief) && run.status === "done";
+  if (!ready && (run.status === "queued" || run.status === "running")) {
+    const { phase, pagesRead } = briefProgress(run);
+    return (
+      <main className="fu-page" style={{ gap: "clamp(28px,4cqi,40px)" }}>
+        {connectionTrouble && <ConnectionNotice />}
+        <BriefWaiting url={run.url} phase={phase} pagesRead={pagesRead} />
+      </main>
+    );
+  }
   return (
     <main className="fu-page" style={{ gap: "clamp(36px,5cqi,56px)" }}>
       {ready ? (
@@ -91,11 +105,7 @@ export function BriefView({ id }: { id: string }) {
         <>
           <BriefHeader run={run} />
           {connectionTrouble && <ConnectionNotice />}
-          {run.status === "queued" || run.status === "running" ? (
-            <InProgress queued={run.status === "queued"} />
-          ) : (
-            <Failed message={isFailure(run.brief) ? run.brief.message : null} />
-          )}
+          <Failed message={isFailure(run.brief) ? run.brief.message : null} />
         </>
       )}
     </main>
@@ -126,21 +136,6 @@ function ConnectionNotice() {
     <p role="status" className="fu-notice m-0">
       We lost the connection for a moment. Still trying.
     </p>
-  );
-}
-
-function InProgress({ queued }: { queued: boolean }) {
-  return (
-    <section role="status" className="fu-card-sm flex flex-col gap-3 p-6">
-      <span className="flex items-center gap-2 font-code text-[12px] font-medium uppercase tracking-[.06em] text-ink3">
-        <span aria-hidden className="size-2 rounded-full" style={{ background: queued ? "var(--ink4)" : "var(--pass)", animation: "fuBlink 1.6s ease-in-out infinite" }} />
-        {queued ? "Waiting for a free worker" : "Reading the site now"}
-      </span>
-      <p className="m-0 text-[16px] leading-normal text-ink2">
-        We read the homepage and a few more public pages, then write the brief. This usually takes under a minute. This page
-        updates by itself, and you can come back to this link later.
-      </p>
-    </section>
   );
 }
 

@@ -8,7 +8,7 @@ import { grid } from "@/lib/css";
 import { rememberPendingRun } from "@/lib/pending-run";
 import { recentSite } from "@/lib/journey-progress";
 import { rememberRecent } from "@/lib/recent-runs";
-import { clearDraft, readDraft, saveDraft } from "@/lib/test-draft";
+import { clearDraft, formStart, hasPrefill, readDraft, saveDraft } from "@/lib/test-draft";
 import { FORM_ANCHOR } from "@/lib/site";
 import type { ApiError } from "@/lib/types";
 
@@ -19,6 +19,13 @@ import { urlFieldHandlers } from "./url-field";
 
 type Field = "url" | "goal" | "startUrl" | "credentials" | "permission" | "success" | "form";
 type FormError = { field: Field; title?: string; message: string };
+// While a run is being started: the request is out, it is taking a while, or the run is queued and its page opens.
+type Sending = "idle" | "sending" | "slow" | "opening";
+
+// After this long the form says it is still checking; after the longer one it stops waiting and says so.
+const SLOW_MS = 2500;
+const GIVE_UP_MS = 30_000;
+const SERVER_ERROR = "Something went wrong on our side. Please try again in a minute.";
 
 const TITLES: Record<string, string> = {
   queue_full: "The queue is full",
@@ -40,7 +47,16 @@ function withoutHttps(url: string): string {
   return url.replace(/^https:\/\//i, "");
 }
 
-export function StartSection({ initial }: { initial: HomeParams }) {
+// Scrolls the form into view (at once under reduced motion) and puts the cursor where the visitor goes next.
+function bringIntoView(card: HTMLElement | null, target: HTMLElement | null) {
+  if (!card) return;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  card.scrollIntoView({ behavior: reduced ? "instant" : "smooth", block: "start" });
+  target?.focus({ preventScroll: true });
+}
+
+// `ready` is false for the stand-in shown before the page's address is read: it shows the form and changes nothing.
+export function StartSection({ initial, ready = true }: { initial: HomeParams; ready?: boolean }) {
   const router = useRouter();
   const url = useHome((s) => s.url);
   const tab = useHome((s) => s.tab);
@@ -48,48 +64,67 @@ export function StartSection({ initial }: { initial: HomeParams }) {
   const [goal, setGoal] = useState(initial.goal);
   const [success, setSuccess] = useState(initial.success);
   const [access, setAccess] = useState<Access>("public");
-  const [submitting, setSubmitting] = useState(false);
+  const [sending, setSending] = useState<Sending>("idle");
   const [error, setError] = useState<FormError | null>(null);
+  const card = useRef<HTMLDivElement>(null);
   const urlInput = useRef<HTMLInputElement>(null);
+  const permissionInput = useRef<HTMLInputElement>(null);
+  const submitButton = useRef<HTMLButtonElement>(null);
   const draftRead = useRef(false);
 
-  // A reload keeps what was typed (goal, success, way in) unless the address fills the form in. The test
-  // login and the start link are never kept. Read after the first render so the server and browser agree.
+  // What the form opens with (lib/test-draft.ts formStart): a prefill from the address always wins over the saved
+  // draft, for every field, and drops it; the draft comes back only when the address prefills nothing. Applied
+  // again whenever the prefill changes and whenever the page is shown again (Next keeps the home page's state
+  // between visits), so an old draft or an old journey never stands in for the one just picked. The test login
+  // and the start link are never kept. Read after the first render so the server and browser agree.
   useEffect(() => {
-    if (!initial.goal && !initial.success && !initial.brief) {
-      const draft = readDraft();
-      if (draft) {
-        /* eslint-disable react-hooks/set-state-in-effect -- sessionStorage is only readable after hydration */
-        setGoal(draft.goal);
-        setSuccess(draft.success);
-        setAccess(draft.access);
-        /* eslint-enable react-hooks/set-state-in-effect */
-      }
-    }
+    if (!ready) return;
+    const prefill = { url: initial.url, goal: initial.goal, success: initial.success, brief: initial.brief };
+    const prefilled = hasPrefill(prefill);
+    const opening = formStart(prefill, prefilled ? null : readDraft());
+    if (opening.dropDraft) clearDraft();
+    /* eslint-disable react-hooks/set-state-in-effect -- the prefill and sessionStorage are applied after hydration */
+    setGoal(opening.goal);
+    setSuccess(opening.success);
+    setAccess(opening.access);
+    setError(null);
+    // Coming back to a kept page after starting a run: the button is free again, and permission is asked anew.
+    setSending("idle");
+    /* eslint-enable react-hooks/set-state-in-effect */
+    if (permissionInput.current) permissionInput.current.checked = false;
+    const patch: { url?: string; tab: Tab } = { tab: initial.mode };
+    if (initial.url) patch.url = withoutHttps(initial.url);
+    setHome(patch);
     draftRead.current = true;
-  }, [initial.goal, initial.success, initial.brief]);
+
+    // Sent here to start a run (a journey, "Test another journey", any link to #fu-form): go straight to the form.
+    // Two frames, so the prefilled fields are on the page before the first empty one is chosen.
+    if (!prefilled && window.location.hash !== `#${FORM_ANCHOR}`) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const input = urlInput.current;
+        const permission = permissionInput.current;
+        const target = !input?.value.trim() ? input : permission && !permission.checked ? permission : submitButton.current;
+        bringIntoView(card.current, target);
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready, initial.mode, initial.url, initial.goal, initial.success, initial.brief]);
 
   useEffect(() => {
     if (draftRead.current) saveDraft({ goal, success, access });
   }, [goal, success, access]);
 
-  // Filled in from the address (a suggested journey on a product brief, or "Run it again").
-  useEffect(() => {
-    const patch: { url?: string; tab: Tab } = { tab: initial.mode };
-    if (initial.url) patch.url = withoutHttps(initial.url);
-    setHome(patch);
-  }, [initial.mode, initial.url]);
-
   // "Test my website" anywhere on the page lands here, on the test tab, ready to type.
   useEffect(() => {
+    if (!ready) return;
     const focus = () => {
       setHome({ tab: "test" });
       setTimeout(() => urlInput.current?.focus({ preventScroll: true }), 300);
     };
     window.addEventListener(START_TEST_EVENT, focus);
-    if (window.location.hash === `#${FORM_ANCHOR}`) focus();
     return () => window.removeEventListener(START_TEST_EVENT, focus);
-  }, []);
+  }, [ready]);
 
   const testing = tab === "test";
   const accessLabel = (ACCESS.find((option) => option.id === access) ?? ACCESS[0]).t.toLowerCase();
@@ -137,71 +172,82 @@ export function StartSection({ initial }: { initial: HomeParams }) {
     if (!permission) {
       return setError({ field: "permission", message: "Please confirm you're allowed to test this app." });
     }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: address,
-          goal: goal.trim(),
-          briefId: initial.brief || undefined,
-          permission,
-          successCondition: success.trim() || undefined,
-          access,
-          startUrl: startUrl || undefined,
-          testEmail: testEmail || undefined,
-          testPassword: testPassword || undefined,
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as { id?: string } | ApiError | null;
-      if (response.ok && body && "id" in body && body.id) {
-        rememberPendingRun(body.id, { url: address, goal: goal.trim() });
-        rememberRecent({ id: body.id, kind: "test", site: recentSite(address), at: new Date().toISOString() });
+    const sentGoal = goal.trim();
+    return send(
+      "/api/runs",
+      {
+        url: address,
+        goal: sentGoal,
+        briefId: initial.brief || undefined,
+        permission,
+        successCondition: success.trim() || undefined,
+        access,
+        startUrl: startUrl || undefined,
+        testEmail: testEmail || undefined,
+        testPassword: testPassword || undefined,
+      },
+      (code) => FIELD_OF[code] ?? "form",
+      (id) => {
+        rememberPendingRun(id, { url: address, goal: sentGoal });
+        rememberRecent({ id, kind: "test", site: recentSite(address), at: new Date().toISOString() });
         clearDraft();
-        router.push(`/run/${body.id}`);
-        return;
-      }
-      const apiError = body && "error" in body ? body : null;
-      const code = apiError?.error ?? "server_error";
-      setError({
-        field: FIELD_OF[code] ?? "form",
-        title: TITLES[code],
-        message: apiError?.message ?? "Something went wrong on our side. Please try again in a minute.",
-      });
-    } catch {
-      setError({ field: "form", title: "Couldn't reach the server", message: "Check your connection and try again." });
-    }
-    setSubmitting(false);
+        router.push(`/run/${id}`);
+      },
+    );
   }
 
   async function startBrief(address: string) {
-    setSubmitting(true);
+    return send(
+      "/api/briefs",
+      { url: address },
+      (code) => (code === "invalid_url" ? "url" : "form"),
+      (id) => {
+        rememberPendingRun(id, { url: address, goal: "" });
+        rememberRecent({ id, kind: "brief", site: recentSite(address), at: new Date().toISOString() });
+        router.push(`/brief/${id}`);
+      },
+    );
+  }
+
+  // Starts a run. Progress shows at once; as soon as the run is queued its own page opens and shows the wait
+  // (the run and brief routes have a loading state, so that is immediate). Errors are the server's plain words.
+  async function send(endpoint: string, payload: object, fieldOf: (code: string) => Field, onQueued: (id: string) => void) {
+    setSending("sending");
     setError(null);
+    const slow = setTimeout(() => setSending((now) => (now === "sending" ? "slow" : now)), SLOW_MS);
+    const controller = new AbortController();
+    const giveUp = setTimeout(() => controller.abort(), GIVE_UP_MS);
     try {
-      const response = await fetch("/api/briefs", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: address }),
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
       const body = (await response.json().catch(() => null)) as { id?: string } | ApiError | null;
       if (response.ok && body && "id" in body && body.id) {
-        rememberRecent({ id: body.id, kind: "brief", site: recentSite(address), at: new Date().toISOString() });
-        router.push(`/brief/${body.id}`);
+        setSending("opening");
+        onQueued(body.id);
         return;
       }
       const apiError = body && "error" in body ? body : null;
       const code = apiError?.error ?? "server_error";
-      setError({
-        field: code === "invalid_url" ? "url" : "form",
-        title: TITLES[code],
-        message: apiError?.message ?? "Something went wrong on our side. Please try again in a minute.",
-      });
+      setError({ field: fieldOf(code), title: TITLES[code], message: apiError?.message ?? SERVER_ERROR });
     } catch {
-      setError({ field: "form", title: "Couldn't reach the server", message: "Check your connection and try again." });
+      setError(
+        controller.signal.aborted
+          ? {
+              field: "form",
+              title: "The server didn't answer in time",
+              message: "It may still have started. Wait a minute before you try again, so it is not started twice.",
+            }
+          : { field: "form", title: "Couldn't reach the server", message: "Check your connection and try again." },
+      );
+    } finally {
+      clearTimeout(slow);
+      clearTimeout(giveUp);
     }
-    setSubmitting(false);
+    setSending("idle");
   }
 
   function switchTab(next: Tab) {
@@ -280,7 +326,7 @@ export function StartSection({ initial }: { initial: HomeParams }) {
           </div>
         </div>
 
-        <div id={FORM_ANCHOR} data-stagger="" className="overflow-hidden rounded-form border-[1.5px] border-ink bg-s1 shadow-hard-xl">
+        <div ref={card} id={FORM_ANCHOR} data-stagger="" className="overflow-hidden rounded-form border-[1.5px] border-ink bg-s1 shadow-hard-xl">
           <div role="tablist" aria-label="What do you want to do?" className="relative grid grid-cols-2 border-b-[1.5px] border-ink">
             <span
               aria-hidden
@@ -508,6 +554,7 @@ export function StartSection({ initial }: { initial: HomeParams }) {
                 <div className="flex flex-col gap-2">
                   <label className="flex cursor-pointer items-start gap-3 text-[15px] leading-[1.45]">
                     <input
+                      ref={permissionInput}
                       name="permission"
                       type="checkbox"
                       aria-invalid={error?.field === "permission"}
@@ -527,12 +574,30 @@ export function StartSection({ initial }: { initial: HomeParams }) {
               </div>
             )}
 
-            <button type="submit" disabled={submitting} className="fu-btn fu-btn-lg">
-              <span>{submitting ? "Starting…" : testing ? "Test my website" : "Understand this website"}</span>
+            <button ref={submitButton} type="submit" disabled={sending !== "idle"} aria-describedby={sending !== "idle" ? "fu-sending" : undefined} className="fu-btn fu-btn-lg">
+              <span>
+                {sending === "opening"
+                  ? "Opening…"
+                  : sending !== "idle"
+                    ? testing
+                      ? "Queuing your run…"
+                      : "Queuing your brief…"
+                    : testing
+                      ? "Test my website"
+                      : "Understand this website"}
+              </span>
               <span aria-hidden className="fu-arrow fu-arrow-lg fu-nudge">
                 →
               </span>
             </button>
+            <p id="fu-sending" role="status" className="fu-sending m-0" hidden={sending === "idle"}>
+              {sending !== "idle" && <span aria-hidden className="fu-spinner" />}
+              <span>
+                {sending === "sending" && <>Checking {url.trim() || "the address"} and adding it to the queue.</>}
+                {sending === "slow" && <>Still checking the address. This can take a few seconds.</>}
+                {sending === "opening" && <>Queued. Opening the {testing ? "run" : "brief"} page.</>}
+              </span>
+            </p>
             <p className="m-0 text-center text-[14px] leading-normal text-ink3 fu-pretty">
               No QA team required. No pretending a click worked when it didn&apos;t.
             </p>

@@ -78,7 +78,7 @@ export function RunView({ id }: { id: string }) {
     return (
       <main className="fu-page" style={{ gap: "var(--block-gap)" }}>
         {connectionTrouble && <ConnectionNotice />}
-        <LiveRun run={null} steps={[]} pending={parsePendingRun(pendingRaw)} />
+        <LiveRun run={null} steps={[]} pending={parsePendingRun(pendingRaw)} id={id} />
       </main>
     );
   }

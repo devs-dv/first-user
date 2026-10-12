@@ -23,9 +23,15 @@ async def execute_understand(run: dict, agent_version: str, *, understand=unders
     print(f"Claimed understand run {run_id}: {run['url']} (model {UNDERSTAND_MODEL}, agent {agent_version})",
           flush=True)
     base = {"agent_version": agent_version, "brain_model": UNDERSTAND_MODEL}
+
+    # While the run works, `brief` holds where it is ({"status": "reading" | "writing", "pages_read": n}) for
+    # the waiting page. The finished brief or the failure below replaces it.
+    async def progress(state: dict) -> None:
+        await update(run_id, {"brief": state})
+
     try:
         with neatlogs.identify(session_id=f"run_{run_id}"):
-            result = await understand(run["url"], run_id)
+            result = await understand(run["url"], run_id, progress=progress)
     except SiteUnreadable as error:
         message = trace_safety.scrub(str(error))
         await update(run_id, {**base, "status": "failed", "error": message[:2000], "finished_at": db._now(),

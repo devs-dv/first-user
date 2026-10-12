@@ -2,12 +2,10 @@ import { UUID } from "@/lib/brief-logic";
 import { founderBriefEnabled } from "@/lib/founder-flag";
 import { FOUNDER_COLUMNS } from "@/lib/founder-types";
 import { supabase } from "@/lib/supabase";
+import { MAX_QUEUED, rateLimited, runsPerHour } from "@/lib/run-limits";
 import { clientIp, hashIp } from "@/lib/visitor";
 
 const NO_STORE = { "Cache-Control": "no-store" };
-// The same two limits as every other run.
-const MAX_QUEUED = 20;
-const MAX_RUNS_PER_HOUR = 5;
 
 function fail(status: number, error: string, message: string, headers?: HeadersInit) {
   return Response.json({ error, message }, { status, headers: { ...NO_STORE, ...headers } });
@@ -40,11 +38,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/briefs/[id]
   const { id } = await ctx.params;
   if (!UUID.test(id)) return fail(404, "not_found", "We couldn't find that brief.");
 
+  const perHour = runsPerHour();
   const { data, error } = await supabase().rpc("enqueue_founder_brief_run", {
     p_brief_id: id,
     p_ip_hash: hashIp(clientIp(request.headers)),
     p_max_queued: MAX_QUEUED,
-    p_max_per_hour: MAX_RUNS_PER_HOUR,
+    p_max_per_hour: perHour,
   });
   if (error) {
     console.error("enqueue_founder_brief_run failed:", error.message);
@@ -57,16 +56,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/briefs/[id]
       "Retry-After": "300",
     });
   }
-  if (result.error === "rate_limited") {
-    const seconds = Math.max(60, result.retry_after_seconds ?? 3600);
-    const minutes = Math.ceil(seconds / 60);
-    return fail(
-      429,
-      "rate_limited",
-      `You've started ${MAX_RUNS_PER_HOUR} runs in the last hour. You can start another in about ${minutes} minute${minutes === 1 ? "" : "s"}.`,
-      { "Retry-After": String(seconds) },
-    );
-  }
+  if (result.error === "rate_limited") return rateLimited(perHour, result.retry_after_seconds, NO_STORE);
   if (!result.id) {
     console.error("enqueue_founder_brief_run returned no id");
     return fail(500, "server_error", "Something went wrong on our side. Please try again in a minute.");

@@ -31,10 +31,13 @@ export function LiveRun({
   run,
   steps,
   pending,
+  id,
 }: {
   run: Run | null;
   steps: Step[];
   pending?: { url: string; goal: string } | null;
+  // The run's id from the address, shown before the first response too.
+  id?: string;
 }) {
   // Before the first response the run is treated as queued: that is where every new run starts.
   const live = run ? liveState(run, steps) : liveState({ status: "queued", first_impression: null }, []);
@@ -55,7 +58,7 @@ export function LiveRun({
               className="size-2 rounded-full"
               style={{ background: live.queued ? "var(--ink4)" : "var(--pass)", animation: "fuBlink 1.6s ease-in-out infinite" }}
             />
-            {live.queued ? "In the queue" : "Live"}
+            {live.queued ? "Queued" : "Running"}
             {url && <> · {siteName(url)}</>}
           </span>
           {goal ? (
@@ -68,6 +71,11 @@ export function LiveRun({
             </h1>
           )}
           {url && <span className="font-code text-[13px] text-ink3 [overflow-wrap:anywhere]">{url}</span>}
+          {(run?.id ?? id) && (
+            <span className="font-code text-[12px] text-ink3" title={run?.id ?? id}>
+              Run {(run?.id ?? id ?? "").slice(0, 8)}
+            </span>
+          )}
         </div>
         <span className="whitespace-nowrap font-code text-[15px] font-medium">
           Step {live.stepCount} of up to {MAX_STEPS}

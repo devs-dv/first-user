@@ -1,7 +1,7 @@
 // Small rules of the brief page and of starting a test from it, kept apart from the components so they
 // can be tested with Node alone (npm test). Types only are imported: no runtime dependencies.
 
-import type { Brief, BriefClaim, BriefFailure, ClaimStatus, HiddenTextNote } from "./brief-types.ts";
+import type { Brief, BriefClaim, BriefFailure, BriefProgress, BriefRun, ClaimStatus, HiddenTextNote } from "./brief-types.ts";
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_GOAL_LENGTH = 500;
@@ -25,6 +25,29 @@ export function isFailure(value: unknown): value is BriefFailure {
   return !!failure && typeof failure === "object" && failure.status === "could_not_read";
 }
 
+// The waiting page's phases, in order. "done" is the brief itself; a failed run shows its own message instead.
+export type BriefPhase = "queued" | "reading" | "writing" | "done";
+export const BRIEF_PHASES: BriefPhase[] = ["queued", "reading", "writing", "done"];
+// With nothing new for this long, the waiting page says the read is still going.
+export const BRIEF_STALL_MS = 90_000;
+
+function progressOf(value: unknown): BriefProgress | null {
+  const progress = value as BriefProgress | null;
+  if (!progress || typeof progress !== "object" || (progress.status !== "reading" && progress.status !== "writing")) return null;
+  return progress;
+}
+
+// Where a brief run is, and how many pages it has read when the worker says so (null when it does not, as an
+// older worker or a run that has not read a page yet).
+export function briefProgress(run: Pick<BriefRun, "status" | "brief">): { phase: BriefPhase; pagesRead: number | null } {
+  if (run.status === "done") return { phase: "done", pagesRead: null };
+  if (run.status === "queued") return { phase: "queued", pagesRead: null };
+  const progress = progressOf(run.brief);
+  const count = progress?.pages_read;
+  const pagesRead = typeof count === "number" && Number.isInteger(count) && count > 0 ? count : null;
+  return { phase: progress?.status === "writing" ? "writing" : "reading", pagesRead };
+}
+
 // Only http(s) addresses become links: a page's own text never gets to write a javascript: link.
 export function safeHref(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -46,7 +69,8 @@ export function sortClaims(claims: BriefClaim[]): BriefClaim[] {
     .map(({ claim }) => claim);
 }
 
-// The address the test form opens at for one journey, with the goal and success as the visitor edited them.
+// The address the test form opens at for one journey, with the goal and success as the visitor edited them. It
+// ends at the form's anchor (lib/site.ts FORM_ANCHOR), so the visitor lands on the form, not the top of the page.
 export function testJourneyHref(briefId: string, siteUrl: string, goal: string, success: string): string {
   const params = new URLSearchParams();
   params.set("mode", "test");
@@ -54,7 +78,7 @@ export function testJourneyHref(briefId: string, siteUrl: string, goal: string, 
   params.set("goal", goal.trim().slice(0, MAX_GOAL_LENGTH));
   if (success.trim()) params.set("success", success.trim().slice(0, MAX_SUCCESS_LENGTH));
   params.set("brief", briefId);
-  return `/?${params.toString()}`;
+  return `/?${params.toString()}#fu-form`;
 }
 
 export type HomeParams = { mode: "test" | "understand"; url: string; goal: string; success: string; brief: string };

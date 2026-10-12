@@ -16,6 +16,12 @@ export function rememberPendingRun(id: string, run: PendingRun): void {
   }
 }
 
+// The id at the end of the page's address (/run/<id>, /brief/<id>), for a loading state that is prerendered and
+// so cannot ask the router for it. Browser only.
+export function idFromPath(): string {
+  return window.location.pathname.split("/").filter(Boolean).pop() ?? "";
+}
+
 // The raw stored string (a stable snapshot for useSyncExternalStore), or null.
 export function pendingRunSnapshot(id: string): string | null {
   try {

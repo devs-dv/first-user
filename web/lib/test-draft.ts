@@ -47,3 +47,20 @@ export function clearDraft(): void {
     // Nothing to clear.
   }
 }
+
+// What the form opens with. A prefill from the address (a brief's "Test this journey", "Run it again", any
+// ?url= / ?goal= / ?success= / ?brief=) always wins over the saved draft, for every field, and the draft is then
+// dropped so it cannot come back later. The draft is restored only when the address prefills nothing.
+export type FormPrefill = { url: string; goal: string; success: string; brief: string };
+
+export function hasPrefill(prefill: FormPrefill): boolean {
+  return !!(prefill.url || prefill.goal || prefill.success || prefill.brief);
+}
+
+export function formStart(
+  prefill: FormPrefill,
+  draft: TestDraft | null,
+): { goal: string; success: string; access: AccessMode; dropDraft: boolean } {
+  if (hasPrefill(prefill)) return { goal: prefill.goal, success: prefill.success, access: "public", dropDraft: true };
+  return { goal: draft?.goal ?? "", success: draft?.success ?? "", access: draft?.access ?? "public", dropDraft: false };
+}

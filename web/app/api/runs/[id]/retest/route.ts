@@ -2,14 +2,13 @@ import { readReportFlags } from "@/lib/report-flags";
 import { planRetest, type OriginalForRetest } from "@/lib/retest";
 import { supabase } from "@/lib/supabase";
 import { checkTargetUrl } from "@/lib/target-url";
+import { MAX_QUEUED, rateLimited, runsPerHour } from "@/lib/run-limits";
 import { clientIp, hashIp } from "@/lib/visitor";
 
 // Check again: queue a new run with the same URL, goal, way in, start link and success condition as a
 // finished one, linked to it (retest_of). It goes through the same database function as any new run, so
 // it has the same limits, and its addresses get the same checks.
 
-const MAX_QUEUED = 20;
-const MAX_RUNS_PER_HOUR = 5;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function fail(status: number, error: string, message: string, headers?: HeadersInit) {
@@ -57,13 +56,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     return fail(400, "invalid_credentials", "A test login can only be used with https:// addresses.");
   }
 
+  const perHour = runsPerHour();
   const { data: queued, error: rpcError } = await db.rpc("enqueue_web_run", {
     ...plan.args,
     p_url: target.url,
     p_start_url: start,
     p_ip_hash: hashIp(clientIp(request.headers)),
     p_max_queued: MAX_QUEUED,
-    p_max_per_hour: MAX_RUNS_PER_HOUR,
+    p_max_per_hour: perHour,
   });
   if (rpcError) {
     // The message names the failure, never the arguments.
@@ -76,16 +76,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       "Retry-After": "300",
     });
   }
-  if (result.error === "rate_limited") {
-    const seconds = Math.max(60, result.retry_after_seconds ?? 3600);
-    const minutes = Math.ceil(seconds / 60);
-    return fail(
-      429,
-      "rate_limited",
-      `You've started ${MAX_RUNS_PER_HOUR} runs in the last hour. You can start another in about ${minutes} minute${minutes === 1 ? "" : "s"}.`,
-      { "Retry-After": String(seconds) },
-    );
-  }
+  if (result.error === "rate_limited") return rateLimited(perHour, result.retry_after_seconds);
   if (result.error === "original_not_found") return fail(404, "not_found", "We couldn't find that run.");
   if (!result.id) {
     console.error("enqueue_web_run (retest) returned no id");

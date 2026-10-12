@@ -442,22 +442,29 @@ def unreadable_message(site: SiteRead) -> str:
 
 
 @neatlogs.span(kind="WORKFLOW", name="understand_site", capture_input=False)
-async def understand_site(url: str, run_id: str, *, renderer=None, model_call=None, **limits) -> dict:
+async def understand_site(url: str, run_id: str, *, renderer=None, model_call=None, progress=None, **limits) -> dict:
     """Read the site and write the brief. Returns {"brief", "usage", "cost_usd"}; raises SiteUnreadable
-    when not a single page could be read. `limits` are SiteDiscovery's (max_pages, delay, ...)."""
+    when not a single page could be read. `limits` are SiteDiscovery's (max_pages, delay, ...). `progress`,
+    if given, is awaited with {"status": "reading" | "writing", "pages_read": n} as the work moves on."""
     trace_safety.set_input(url=url, run_id=run_id, model=UNDERSTAND_MODEL)
     trace_safety.set_metadata(environment=os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
     guard = EgressGuard()
     await guard.start()
     try:
+        on_page = (lambda count: progress({"status": "reading", "pages_read": count})) if progress else None
         discovery = SiteDiscovery(
-            url, guard, renderer=renderer if renderer is not None else BrowserRenderer(), **limits)
+            url, guard, renderer=renderer if renderer is not None else BrowserRenderer(), on_page=on_page, **limits)
         site = await discovery.run()
     finally:
         await guard.close()
         summary_span(guard.summary())
     if not site.pages:
         raise SiteUnreadable(unreadable_message(site))
+    if progress:
+        try:
+            await progress({"status": "writing", "pages_read": len(site.pages)})
+        except Exception as error:  # for show only, like the page count
+            print(f"[understand] progress update failed: {type(error).__name__}", flush=True)
     usage = TokenTally()
     brief = await product_brief(url, site, usage, model_call)
     return {"brief": brief, "usage": usage.summary(), "cost_usd": round(usage.cost, 5)}

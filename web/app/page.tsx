@@ -15,7 +15,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
       <Hero />
       {/* The form can be filled in from the address (a brief's "Test this journey", "Run it again"). Until
           the address is read, the same form shows empty. */}
-      <Suspense fallback={<StartSection initial={EMPTY} />}>
+      <Suspense fallback={<StartSection initial={EMPTY} ready={false} />}>
         {searchParams.then((raw) => (
           <StartSection initial={parseHomeParams(raw)} />
         ))}

@@ -946,6 +946,39 @@
     animation: fuShimmer 1.6s ease-in-out infinite;
   }
 
+  /* What the start form is doing once it is sent: shown at once, under the button. */
+  .fu-sending {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink2);
+    text-align: center;
+  }
+  .fu-sending[hidden] {
+    display: none;
+  }
+  .fu-spinner {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    border-top-color: var(--ink);
+    animation: fuSpin 0.8s linear infinite;
+  }
+
+  /* The same placeholder on the site's own surfaces (the brief while it is written), in both themes. */
+  .fu-skeleton-ui {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--s2) 25%, var(--line) 50%, var(--s2) 75%);
+    background-size: 200% 100%;
+    animation: fuShimmer 1.6s ease-in-out infinite;
+  }
+
   /* ------------------------------------------------------------------------------------- disclosure */
   .fu-plus {
     flex: none;

@@ -10,6 +10,7 @@ import { pageMeta } from "./meta";
 import { MotionRuntime } from "./motion";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { VersionGuard } from "./version-guard";
 
 // The three families of the design. Archivo carries its width axis, so display lines can be set narrow.
 const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], axes: ["wdth"] });
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       {/* Browser extensions (e.g. ColorZilla's cz-shortcut-listen) add attributes to <body> before
           React hydrates. This ignores attribute mismatches on <body> only, not its children. */}
       <body suppressHydrationWarning>
+        <VersionGuard />
         <div className="fu-root">
           <div aria-hidden className="fu-noise" />
           <a href="#main" className="sr-only-focusable fu-btn fu-btn-sm absolute left-4 top-4 z-[80]">
