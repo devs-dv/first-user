@@ -1,0 +1,63 @@
+<pasted_content id="6cc0">
+Implement the new design in web/ from the files in design/. Do not read or print any env file. Never start the worker's main loop.
+
+Sources, in order of authority:
+- design/code/: exported HTML/CSS from the designer. Treat it as the source of truth for fonts, colours, spacing, components and animations. Extract its design tokens (fonts, colour palette, type scale, spacing, radii, shadows, motion timings) into one shared place in web/ and use them everywhere.
+- design/01-home-desktop.png, 02-example-report-desktop.png, 03-journey-desktop.png, 04-about-desktop.png: what those pages should look like.
+
+Rules:
+- Keep the hero section and its animations exactly as designed. Respect prefers-reduced-motion everywhere.
+- Keep every existing route, API, behaviour and feature flag working: Report v2 (verdict, short answer, labels, criteria, facts), Check again, feedback buttons, Understand mode, Founder brief, success condition, the three ways to get in, rate limits.
+- Treat every model- or site-sourced string as text, never HTML.
+
+Pages:
+1. Home (/): the designed hero and sections. The form gets two tabs, "Test my website" (URL, "What should a new user be able to do?", "What does success look like?" optional, how the visitor gets in) and "Understand this website" (URL only), wired to the existing APIs.
+2. Report (/run/[id]): build it from the example report design, mapped onto the real data: the verdict hero (six states: got through, unconfirmed, stuck, login wall, bot check, our failure, each with its own label and colour), "The short answer", finding cards with basis labels and "Copy fix prompt", the expandable fix prompt parts, feedback buttons, Check again, the collapsed "How this report was made" panel, and the share panel (copy link, Share on X, Share on LinkedIn, default text "First User just tried {site} like a first-time customer. Here's where it got stuck: {link} #neatHack via @devsdv_").
+3. Live run state on the same page: a phase tracker (Understanding the page, Exploring, Verifying, Writing the report), a step counter, the latest screenshot and the current action in one line.
+4. Retest report: before and after verdicts side by side, then findings labelled Fixed, Still present, Not reached, Inconclusive, New, each with which pass decided it, and the line "Fixed means not reproduced under the tested conditions, not a guarantee."
+5. Brief (/brief/[id]): suggested journeys first as editable cards with "Test this journey", then summary, pricing with sources or "Not published", business model tagged Inferred, claims with Confirmed / Inferred / Unknown chips and source links, unknowns, pages read. The Product brief | Founder brief toggle, and the Founder brief in the same system: the fixed note, sections, traction tagged "Stated by the company, not verified", six readiness cards with "Be ready to answer". No scores, gauges or progress bars.
+6. /journey and /about from their designs. The journey timeline reads from one data file and the embedded X posts from a second data file of URLs, both easy for me to edit. Use only numbers from evals/results and hackathon.md: v0 had 0 verified, v6 had 7 of 7 verified in two consecutive rounds, 0 of 3 broken sites praised, under 1 cent per run. Include the demo shop injection test honestly as a single run.
+7. Footer on every page: "Building in public" linking to /journey.
+
+Check every page at 390 px and 1280 px with no horizontal scroll, using real rows from the database where they exist (report 91e44505-dade-461a-8882-5a256b73b9ee, brief 8ca3896f-a3d8-475f-b810-5c9b6b98bb9e). Run web tests, typecheck, lint and build. Do not invent testimonials, logos, users or numbers; label anything illustrative as a demo. Do not commit.
+</pasted_content id="6cc0">
+
+---
+
+<task-notification>
+<task-id>b881a8qxp</task-id>
+<tool-use-id>toolu_013r4kPbysPm6NFh2tTipi93</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b881a8qxp.output</output-file>
+<status>failed</status>
+<summary>Background command "Restart Next dev server on port 3100" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bzrlnn76z</task-id>
+<tool-use-id>toolu_012vRYVGYBqE8bZKRqcTceQw</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bzrlnn76z.output</output-file>
+<status>failed</status>
+<summary>Background command "Start fresh Next dev server" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bddw5qfxb</task-id>
+<tool-use-id>toolu_01USR1dJ6UMZxYApqm9mi3vw</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bddw5qfxb.output</output-file>
+<status>failed</status>
+<summary>Background command "Start dev server with founder brief on" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>br127gcd0</task-id>
+<tool-use-id>toolu_01F9YaWLahFRhNDo4L8Dp5cv</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\br127gcd0.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve production build on 3100" failed with exit code 1</summary>
+</task-notification>
