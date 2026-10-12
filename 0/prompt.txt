@@ -1,0 +1,6 @@
+<pasted_content id="6cc0">
+I merged the branch "understand" into main and there are conflicts in NEATLOGS_NOTES.md, hackathon.md, web/app/brief/[id]/brief-view.tsx and web/app/brief/[id]/founder-view.tsx. Main has the new design for the brief pages. The branch adds a fixed notice on the brief when hidden text addressed to automated agents was found (and stripped), plus one source link per page in the founder brief. Resolve every conflict:
+- brief-view.tsx and founder-view.tsx: keep main's design and layout, and add the branch's behaviour in that design's style (the hidden-text notice as a small muted line near the top of the brief, never showing the hidden text itself; one link per source page).
+- NEATLOGS_NOTES.md and hackathon.md: keep every entry from both sides.
+Leave no conflict markers anywhere. Run web tests, typecheck, lint and build, and the worker tests with main's test guard. Show me git status. Do not read or print any env file. Do not commit.
+</pasted_content id="6cc0">
