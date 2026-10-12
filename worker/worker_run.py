@@ -5,6 +5,7 @@ imported) so that the whole path can be tested with a stand-in database.
 """
 
 import shutil
+import socket
 import traceback
 
 import neatlogs
@@ -78,6 +79,7 @@ async def execute(run: dict, agent_version: str) -> None:
                 run["url"], run["goal"], run_id, recorder=db.RunRecorder(run_id),
                 start_url=start_url, credentials=credentials, test_login_unavailable=unavailable,
                 access_mode=access_mode, access_mode_chosen=access_mode_was_chosen(run),
+                success_condition=run.get("success_condition") or None,
             )
     except Exception as error:
         # Error text and tracebacks pass through scrub(): an exception can echo what was typed.
@@ -91,6 +93,14 @@ async def execute(run: dict, agent_version: str) -> None:
         await db.delete_run_secrets(run_id)
         _clean_run_files(run_id)
 
+    # What only the worker knows goes into the run facts: who ran it, which version, which trace.
+    facts = result.get("run_facts")
+    if isinstance(facts, dict):
+        facts.update({
+            "agent_version": agent_version,
+            "worker_id": run.get("worker_id") or f"{socket.gethostname()}@{agent_version}",
+            "trace_id": result.get("trace_id"),
+        })
     if result["outcome"] == "error":
         await db.fail_run(run_id, result["reason"], agent_version, BRAIN_MODEL, result=result)
         print(f"Run {run_id} failed: {result['reason'][:200]}", flush=True)

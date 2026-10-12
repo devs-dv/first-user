@@ -15,7 +15,7 @@ const ACCESS_OPTIONS: { value: Access; label: string; help: string }[] = [
 ];
 
 type FormError = {
-  field: "url" | "startUrl" | "credentials" | "permission" | "form";
+  field: "url" | "startUrl" | "credentials" | "permission" | "success" | "form";
   title?: string;
   message: string;
 };
@@ -38,6 +38,7 @@ export function RunForm() {
     const url = String(form.get("url") ?? "").trim();
     const goal = String(form.get("goal") ?? "").trim();
     const permission = form.get("permission") === "on";
+    const successCondition = String(form.get("successCondition") ?? "").trim();
     // Only the fields of the chosen option exist in the form, so nothing else is read or sent.
     const startUrl = access === "link" ? String(form.get("startUrl") ?? "").trim() : "";
     const testEmail = access === "account" ? String(form.get("testEmail") ?? "").trim() : "";
@@ -68,6 +69,7 @@ export function RunForm() {
           url,
           goal,
           permission,
+          successCondition: successCondition || undefined,
           access,
           startUrl: startUrl || undefined,
           testEmail: testEmail || undefined,
@@ -85,6 +87,8 @@ export function RunForm() {
         field:
           code === "invalid_url"
             ? "url"
+            : code === "success_too_long"
+              ? "success"
             : code === "invalid_start_url"
               ? "startUrl"
               : code === "invalid_credentials"
@@ -146,6 +150,26 @@ export function RunForm() {
         <p id="goal-hint" className="mt-2 text-sm text-subtle">
           Leave this empty and they&apos;ll work out what the product does and try its main feature.
         </p>
+      </div>
+
+      <div>
+        <label htmlFor="successCondition" className="font-medium">
+          What does success look like? <span className="font-normal text-subtle">(optional)</span>
+        </label>
+        <input
+          id="successCondition"
+          name="successCondition"
+          type="text"
+          maxLength={300}
+          placeholder="For example: a project appears in the dashboard"
+          aria-describedby="success-hint"
+          className={inputClass}
+        />
+        <p id="success-hint" className="mt-2 text-sm text-subtle">
+          The check at the end judges this, not only the wording of the goal. Leave it empty and the goal is checked
+          as worded.
+        </p>
+        {error?.field === "success" && <p className="mt-2 text-sm text-danger">{error.message}</p>}
       </div>
 
       <fieldset className="space-y-3" aria-describedby="access-hint">

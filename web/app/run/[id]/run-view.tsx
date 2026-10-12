@@ -15,7 +15,10 @@ import type {
   RunDetails,
   Step,
 } from "@/lib/types";
+import { readReportFlags, type ReportFlags } from "@/lib/report-flags";
 import { frictionsNotInFindings, showLoginWallHelp } from "@/lib/report-logic";
+
+import { BasisBadge, Recommendation, RunFactsPanel, ThreeAnswers, VerdictCard } from "./report-v2";
 
 const POLL_MS = 2000;
 
@@ -24,6 +27,11 @@ type State = { kind: "loading" } | { kind: "not_found" } | { kind: "ready"; data
 export function RunView({ id }: { id: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [connectionTrouble, setConnectionTrouble] = useState(false);
+  // Which Report v2 sections show. `?report=basic` on the address hides them all for that view.
+  // Nothing rendered before the run loads depends on it, so reading the address here is safe.
+  const [flags] = useState<ReportFlags>(() =>
+    readReportFlags(typeof window === "undefined" ? "" : window.location.search),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +85,7 @@ export function RunView({ id }: { id: string }) {
       ) : run.status === "failed" ? (
         <Failed run={run} steps={steps} frictions={frictions} />
       ) : (
-        <Report run={run} steps={steps} frictions={frictions} />
+        <Report run={run} steps={steps} frictions={frictions} flags={flags} />
       )}
     </div>
   );
@@ -165,19 +173,29 @@ const OUTCOMES: Record<Outcome, { label: string; tone: string }> = {
   error: { label: "Didn't finish", tone: "border-danger/30 bg-danger-soft text-danger" },
 };
 
-function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions: Friction[] }) {
+function Report({ run, steps, frictions, flags }: {
+  run: Run;
+  steps: Step[];
+  frictions: Friction[];
+  flags: ReportFlags;
+}) {
   const botCheck = run.entry?.bot_check ?? null;
   const outcome = botCheck
     ? { label: "Blocked by a bot check", tone: "border-warning/30 bg-warning-soft text-warning" }
     : (OUTCOMES[run.outcome ?? "error"] ?? OUTCOMES.error);
   return (
     <>
-      {run.first_impression && <FirstImpressionCard review={run.first_impression} />}
+      {flags.answers && <ThreeAnswers run={run} showBasis={flags.labels} />}
+      {run.first_impression && <FirstImpressionCard review={run.first_impression} flags={flags} />}
       <section className="space-y-4">
-        <div className={`rounded-xl border p-5 ${outcome.tone}`}>
-          <p className="text-lg font-semibold">{outcome.label}</p>
-          {run.reason && <p className="mt-2 text-foreground">{run.reason}</p>}
-        </div>
+        {flags.verdict && run.verdict ? (
+          <VerdictCard verdict={run.verdict} run={run} showBasis={flags.labels} showSuccess={flags.success} />
+        ) : (
+          <div className={`rounded-xl border p-5 ${outcome.tone}`}>
+            <p className="text-lg font-semibold">{outcome.label}</p>
+            {run.reason && <p className="mt-2 text-foreground">{run.reason}</p>}
+          </div>
+        )}
         <WayIn run={run} />
         {showLoginWallHelp(run, steps) && <LoginWallHelp run={run} />}
         <p className="text-sm text-muted">This is a simulated user. Treat findings as leads to check.</p>
@@ -188,8 +206,9 @@ function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions:
         </dl>
         <CopyLinkButton />
       </section>
-      <Findings findings={run.findings} />
+      <Findings findings={run.findings} flags={flags} />
       <Frictions frictions={frictions} findings={run.findings} />
+      {flags.facts && <RunFactsPanel run={run} steps={steps} />}
       <Timeline steps={steps} />
     </>
   );
@@ -226,7 +245,7 @@ function ClarityRow({ label, clarity, summary, obvious }: {
 
 // What a newcomer sees on the landing page without logging in. Shown first, so a run that was
 // blocked at a login still gives the builder something useful.
-function FirstImpressionCard({ review }: { review: FirstImpression }) {
+function FirstImpressionCard({ review, flags = readReportFlags("") }: { review: FirstImpression; flags?: ReportFlags }) {
   const hesitations = review.hesitations ?? [];
   const suggestions = review.suggestions ?? [];
   return (
@@ -235,7 +254,10 @@ function FirstImpressionCard({ review }: { review: FirstImpression }) {
         <h2 id="first-impression" className="text-xl font-semibold tracking-tight">
           First impression
         </h2>
-        <p className="mt-1 text-sm text-muted">What a newcomer sees on your landing page, without logging in.</p>
+        <p className="mt-1 text-sm text-muted">
+          What a newcomer sees on your landing page, without logging in.{" "}
+          <BasisBadge basis="observed" show={flags.labels} />
+        </p>
       </div>
       <div className="space-y-5 rounded-xl border border-line bg-surface p-5">
         <dl className="space-y-4">
@@ -263,7 +285,9 @@ function FirstImpressionCard({ review }: { review: FirstImpression }) {
             <h3 className="font-medium">Suggestions</h3>
             <ol className="mt-2 list-decimal space-y-1 pl-5">
               {suggestions.map((item, index) => (
-                <li key={index}>{item}</li>
+                <li key={index}>
+                  <Recommendation text={item} showBasis={flags.labels} />
+                </li>
               ))}
             </ol>
           </div>
@@ -495,7 +519,7 @@ const FINDING_KIND: Record<Finding["kind"], string> = {
 
 // The report's ranked problems, most likely to stop a new user first, each with a prompt to paste
 // into a coding agent. Every one points at a step of the visit.
-function Findings({ findings }: { findings: Finding[] | null }) {
+function Findings({ findings, flags }: { findings: Finding[] | null; flags: ReportFlags }) {
   if (findings === null) return null; // from before the report writer, or it could not be written
   return (
     <section className="space-y-4" aria-labelledby="findings">
@@ -514,7 +538,7 @@ function Findings({ findings }: { findings: Finding[] | null }) {
       ) : (
         <ol className="space-y-4">
           {findings.map((finding, index) => (
-            <FindingCard key={index} finding={finding} rank={index + 1} />
+            <FindingCard key={index} finding={finding} rank={index + 1} flags={flags} />
           ))}
         </ol>
       )}
@@ -522,7 +546,7 @@ function Findings({ findings }: { findings: Finding[] | null }) {
   );
 }
 
-function FindingCard({ finding, rank }: { finding: Finding; rank: number }) {
+function FindingCard({ finding, rank, flags }: { finding: Finding; rank: number; flags: ReportFlags }) {
   const evidence = finding.evidence;
   return (
     <li className="space-y-4 rounded-xl border border-line bg-surface p-4 sm:p-5">
@@ -533,6 +557,7 @@ function FindingCard({ finding, rank }: { finding: Finding; rank: number }) {
             {finding.severity}
           </span>
           <span className="rounded-full border border-line px-2.5 py-0.5 text-muted">{FINDING_KIND[finding.kind]}</span>
+          <BasisBadge basis="observed" show={flags.labels && finding.basis !== undefined} />
         </div>
         <h3 className="text-lg font-semibold leading-snug">{finding.title}</h3>
       </div>
@@ -594,6 +619,22 @@ function FindingCard({ finding, rank }: { finding: Finding; rank: number }) {
             <li key={index}>{line}</li>
           ))}
         </ol>
+      </div>
+      {flags.criteria && (finding.acceptance_criteria?.length ?? 0) > 0 && (
+        <div className="space-y-2 text-sm">
+          <p className="font-medium">
+            Acceptance criteria <BasisBadge basis="recommendation" show={flags.labels} />
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-muted">
+            {finding.acceptance_criteria!.map((line, index) => (
+              <li key={index}>{line}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-subtle">The fix prompt below is</span>
+        <BasisBadge basis="recommendation" show={flags.labels} />
       </div>
       <FixPrompt prompt={finding.fix_prompt} />
     </li>

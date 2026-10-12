@@ -130,13 +130,14 @@ def format_record(record: list[dict]) -> str:
 # capture_input=False: `page`, `usage` and `publish` are live objects, and neatlogs would walk
 # their attributes. The input that matters is recorded explicitly below.
 @neatlogs.span(kind="EVALUATOR", name="verify_goal", capture_input=False)
-async def verify(goal: str, record: list[dict], page, usage=None, publish=None) -> dict:
+async def verify(goal: str, record: list[dict], page, usage=None, publish=None,
+                 success_condition: str | None = None) -> dict:
     """Return {"verdict", "reason", "model", "url"}; adds the call's tokens to `usage`.
 
     `publish`, if given, uploads the screenshot (bytes) and returns its public URL, which the
     exported trace shows in place of the inline image (trace_media.py).
     """
-    trace_safety.set_input(goal=goal, record=record)
+    trace_safety.set_input(goal=goal, record=record, success_condition=success_condition)
     snapshot = await read_page(page)
     if publish is not None and (url := await publish(base64.b64decode(snapshot["screenshot"]))):
         trace_media.register_url(snapshot["screenshot"], url)
@@ -152,7 +153,10 @@ async def verify(goal: str, record: list[dict], page, usage=None, publish=None) 
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": f"Task: {goal}"},
+                    {"type": "text", "text": f"Task: {goal}" + (
+                        f"\n\nSuccess condition given by the founder: {success_condition}\n"
+                        "Judge whether THIS condition is met by what the record and the final page show; the "
+                        "task wording alone is not enough." if success_condition else "")},
                     {"type": "text", "text": f"Record of what was done:\n{format_record(record)}"},
                     {"type": "text", "text": (
                         f"Final page now:\nURL: {snapshot['url']}\nTitle: {snapshot['title']}\n\n"

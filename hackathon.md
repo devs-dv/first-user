@@ -864,3 +864,44 @@ Status of each item:
 - Public repo: `origin` exists; visibility unconfirmed.
 - Demo video: pending.
 - Nothing has been registered, deployed, or submitted by Claude.
+
+## Report v2
+
+*2026-10-12. Own section so it merges cleanly with the work on the "understand" branch. The schema change is the last block of `supabase/schema.sql`, headed REPORT V2.*
+
+The report now answers three questions for a founder: will a new user understand my product, can they get value from it, and what should I fix first.
+
+**1. One verdict per run** (`worker/verdict.py`, stored on the run result and in `runs.verdict`: `{kind, headline, where_step, where_url, evidence_quote, basis}`). Computed in code from the outcome, the independent check and our own-issue count, never from the model's prose. Decided in this order:
+- `bot_check`: stopped by a "verify you are human" check. Nothing is said about the site.
+- `our_failure`: an error, a refusal, or our browser tool having no effect with no sign of a site problem (no site friction, no page error, and the last steps were our issues). Nothing is said about the site. A visit with our issues *and* real site evidence (the saucedemo problem_user case) stays `stuck`.
+- `login_wall`: stopped at a login or sign-up it could not pass; carries the three ways in.
+- `got_through`: achieved and verified; the evidence quote is the verifier's evidence. Headline "A first-time visitor got through".
+- `unconfirmed`: achieved, the check could not confirm; says what it could not see.
+- `stuck`: blocked, gave up, ran out of steps, or a claim the check contradicted; the headline names the page ("... got stuck on shop.example/products") and `where_step` points at the step (the site's own evidence if there is one).
+- `bot_check` and `our_failure` can produce no site findings: the report writer is not even asked (tested).
+
+**2. Success condition.** The form has an optional "What does success look like?" (300 characters, plain text). It is passed to the visitor in its first message, to the independent check ("judge whether THIS condition is met; the task wording alone is not enough"), to the report writer, and saved as `runs.success_condition`. Without one, the report says "The goal was checked without a stated success condition." The check's rules for contradicted and unverified are unchanged.
+
+**3. Three answers at the top** ("The short answer"): *Will a new user understand it?* from the first-impression review (clear when all three parts are clear; unclear when what it does is not clear or two of three are not; partly clear otherwise), with the review's own reasons; *Can they get value from it?* the verdict; *What should you fix first?* the top-ranked finding (or "Nothing, from this visit" for a bot check or a failure on our side).
+
+**4. Evidence labels.** Each statement carries a basis, shown as a small label: *Observed in the run*, *Verified by an independent check*, *Our recommendation*. The verdict is verified only when the check backs it; findings are observed; fix prompts, acceptance criteria and first-impression suggestions are recommendations. Recommendations are never worded as facts and never promise an outcome: sentences with conversion, boost, percentages, "will increase" and the like are removed in code (`worker/claims.py`, and again in the page for older reports), not only asked of the model.
+
+**5. Structured fix prompts.** Built in code from the validated parts, in this order: the observed issue with its evidence (step, page URL, screenshot, the page's error, the steps to reproduce); the expected behaviour; what to change; constraints (keep existing validation and business rules; no unrelated redesigns; change nothing that works); three to five acceptance criteria a person can check by looking; and the retest instruction, word for word: "Repeat the original journey in a fresh session and confirm the original issue no longer occurs, using visible page evidence. Report Not reached if the relevant state cannot be reached; do not report Fixed without testing it." No test code. Fewer than three criteria from the model are topped up from what is known (the expected behaviour, the steps no longer reproduce it, the error is gone), so a prompt never goes out without them.
+
+**6. How this report was made** (a collapsed panel; `worker/run_facts.py`, stored in `runs.run_facts`): steps taken, actions that needed recovery and on which rung, our own issues, page reloads, page errors recorded, the check's verdict and quote, the success condition, cost, duration, agent version, worker id and the neatlogs trace ID as text. All counted from the run.
+
+**7. Flags.** Worker: `REPORT_V2=false` skips the verdict and the facts and writes the old prompt format. Web (`lib/report-flags.ts`): `NEXT_PUBLIC_REPORT_V2=off` hides every Report v2 section; `..._ANSWERS`, `_VERDICT`, `_LABELS`, `_CRITERIA`, `_FACTS`, `_SUCCESS` hide one each; `?report=basic` on the report's address hides them all for that view with no rebuild.
+
+**SQL** (last block of `schema.sql`, safe to re-run): `runs.success_condition`, `runs.verdict`, `runs.run_facts`, and `enqueue_web_run` now takes `p_success_condition` as its last argument (the 9-argument version is dropped). If another branch also changes `enqueue_web_run`, keep both sets of arguments. Until the SQL is run, queueing a web run fails (the 10-argument function does not exist yet), the worker saves a run without `verdict` and `run_facts` and warns once, and the report page falls back to the older columns.
+
+**Checked**
+- Worker: 200 tests (live ones included; the worker's main loop was never started). New: `test_report_v2.py`, 27 tests covering each verdict kind, our issues next to real site evidence, no site findings for `our_failure` and `bot_check` (and no model call), prompts always having 3 to 5 criteria and the retest, promises removed, the success condition reaching the check and the writer, run facts, the worker adding agent version, worker id and trace id, and the run row getting the verdict and facts.
+- Web: 15 tests (the three answers, fix-first, each flag, the promise filter, the older-schema column list); typecheck and lint clean. In a browser against a fake database: the answers, verdict card, labels, criteria, collapsed facts panel and `?report=basic` render, with no horizontal scroll at 390 px.
+- Real visit (direct call to `first_visit`, saucedemo error_user with a success condition): `stuck` on `/checkout-step-one.html`, step 13, the page's own error as evidence, success condition recorded and facts counted; two findings, each with a structured prompt, three to four criteria and the retest.
+- `scan_secrets.py`: 0 matches in the tree and 42 commits.
+
+**Not done / limits**
+- The SQL has not been run on the real Supabase project.
+- Screenshots in a prompt show as "not captured" for a visit made without the database (a direct call); with the worker they are the uploaded URLs.
+- Two findings about the same symptom worded differently ("rejects typed text" and "gives no message") are still two findings: the merge is by word overlap.
+- The understanding level is a rule over a model's reading of one landing page; it is labelled observed, not verified.

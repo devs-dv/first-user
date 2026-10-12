@@ -6,6 +6,7 @@ const DEFAULT_GOAL = "Work out what this product does and try its main feature a
 const MAX_GOAL_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 200;
+const MAX_SUCCESS_LENGTH = 300;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ACCESS_MODES = ["public", "link", "account", "signup"] as const;
 type AccessMode = (typeof ACCESS_MODES)[number];
@@ -23,10 +24,8 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission, access, startUrl, testEmail, testPassword } = (body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { url, goal, permission, access, startUrl, testEmail, testPassword, successCondition } = (body ??
+    {}) as Record<string, unknown>;
 
   if (permission !== true) {
     return fail(400, "permission_required", "Confirm that this is your app or that you have permission to test it.");
@@ -40,6 +39,16 @@ export async function POST(request: Request) {
   const goalText = (goal ?? "").trim();
   if (goalText.length > MAX_GOAL_LENGTH) {
     return fail(400, "goal_too_long", `Keep the goal under ${MAX_GOAL_LENGTH} characters.`);
+  }
+
+  // Optional: what success looks like, in the founder's words. The visitor is told it and the independent
+  // check judges it. Plain text only, never used as an address or in a query.
+  if (successCondition !== undefined && successCondition !== null && typeof successCondition !== "string") {
+    return fail(400, "invalid_request", "What success looks like must be text.");
+  }
+  const success = (successCondition ?? "").replace(/\s+/g, " ").trim();
+  if (success.length > MAX_SUCCESS_LENGTH) {
+    return fail(400, "success_too_long", `Keep what success looks like under ${MAX_SUCCESS_LENGTH} characters.`);
   }
 
   const target = await checkTargetUrl(url);
@@ -103,6 +112,7 @@ export async function POST(request: Request) {
     p_test_email: email,
     p_test_password: password,
     p_access_mode: mode,
+    p_success_condition: success || null,
   });
   if (error) {
     // The message names the failure, never the arguments.

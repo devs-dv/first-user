@@ -8,6 +8,7 @@ is blocked at a login still gives the builder something useful. Traced as its ow
 import neatlogs
 from anthropic import AsyncAnthropic
 
+import claims
 import trace_safety
 from config import VERIFIER_MODEL
 from verifier import read_page
@@ -80,7 +81,9 @@ def normalise(raw: dict) -> dict:
         "who_its_for": block("who_its_for", "clear"),
         "main_action": block("main_action", "obvious"),
         "hesitations": [_text(item) for item in (raw.get("hesitations") or [])[:MAX_HESITATIONS] if _text(item)],
-        "suggestions": [_text(item) for item in (raw.get("suggestions") or [])[:MAX_SUGGESTIONS] if _text(item)],
+        # A suggestion is our recommendation, never a promised result.
+        "suggestions": [s for s in (claims.strip_promises(_text(item))
+                                    for item in (raw.get("suggestions") or [])[:MAX_SUGGESTIONS]) if s],
     }
 
 

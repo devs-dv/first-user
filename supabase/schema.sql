@@ -315,3 +315,77 @@ $$;
 
 revoke execute on function public.claim_run(text) from public, anon, authenticated;
 grant execute on function public.claim_run(text) to service_role;
+
+-- ===========================================================================
+-- REPORT V2 (2026-10-12): success condition, verdict, run facts. Safe to re-run.
+-- Own block, last in the file, so it merges cleanly with other changes to this file.
+-- ===========================================================================
+
+-- What the founder said success looks like (the form's optional "What does success look like?").
+alter table public.runs add column if not exists success_condition text;
+
+-- One verdict per run: {kind, headline, where_step, where_url, evidence_quote, basis, ...}.
+alter table public.runs add column if not exists verdict jsonb;
+
+-- How the report was made: steps, recoveries, own issues, reloads, page errors, verifier, cost, time,
+-- agent version, worker id, trace id.
+alter table public.runs add column if not exists run_facts jsonb;
+
+-- enqueue_web_run takes the success condition as its last argument (default null). If another change
+-- also adds an argument to this function, keep both: this is the only function that queues web runs.
+drop function if exists public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text);
+
+create or replace function public.enqueue_web_run(
+  p_url text,
+  p_goal text,
+  p_ip_hash text,
+  p_max_queued integer,
+  p_max_per_hour integer,
+  p_start_url text default null,
+  p_test_email text default null,
+  p_test_password text default null,
+  p_access_mode text default null,
+  p_success_condition text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  queued_count integer;
+  recent_count integer;
+  oldest_recent timestamptz;
+  new_id uuid;
+  with_login boolean := p_test_email is not null and p_test_password is not null;
+begin
+  perform pg_advisory_xact_lock(hashtext('public.enqueue_web_run'));
+
+  select count(*) into queued_count from public.runs where status = 'queued';
+  if queued_count >= p_max_queued then
+    return jsonb_build_object('error', 'queue_full');
+  end if;
+
+  select count(*), min(created_at) into recent_count, oldest_recent
+  from public.runs where ip_hash = p_ip_hash and created_at > now() - interval '1 hour';
+  if recent_count >= p_max_per_hour then
+    return jsonb_build_object('error', 'rate_limited',
+      'retry_after_seconds', ceil(extract(epoch from (oldest_recent + interval '1 hour' - now())))::integer);
+  end if;
+
+  insert into public.runs (url, goal, source, ip_hash, start_url, has_test_login, access_mode, success_condition)
+  values (p_url, p_goal, 'web', p_ip_hash, p_start_url, with_login, p_access_mode, p_success_condition)
+  returning id into new_id;
+
+  if with_login then
+    insert into public.run_secrets (run_id, test_email, test_password)
+    values (new_id, p_test_email, p_test_password);
+  end if;
+  return jsonb_build_object('id', new_id);
+end;
+$$;
+
+revoke execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text)
+  from public, anon, authenticated;
+grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text, text)
+  to service_role;

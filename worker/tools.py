@@ -109,6 +109,12 @@ class RunContext:
     record: list[dict] = field(default_factory=list)
     # A screenshot from the latest look(), base64 PNG, sent to the brain with that result.
     pending_image: str | None = None
+    # What the founder said success looks like (the form's optional field), or None. The visitor is told it,
+    # and the independent check judges that condition and not only the goal's wording.
+    success_condition: str | None = None
+    # Page reloads made because the page's own files failed to load, and when the visit began.
+    page_reloads: int = 0
+    started_at: float = field(default_factory=time.time)
     # Screenshot URL and page URL of each recorded step, by step number, for the report's evidence.
     step_shots: dict[int, str] = field(default_factory=dict)
     step_urls: dict[int, str] = field(default_factory=dict)
@@ -644,7 +650,7 @@ async def do(instruction: str) -> dict:
         if await page_watch.failed_assets(page):
             from visit import reload_if_broken
 
-            await reload_if_broken(page, ctx.egress)
+            await reload_if_broken(page, ctx.egress, ctx)
         retried_after_wait = True
 
     url = await page.url()
