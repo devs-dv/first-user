@@ -30,8 +30,9 @@ class FakeDb:
         self.runs = list(runs)
         self.claims = 0
 
-    async def claim_run(self):
+    async def claim_run(self, worker_id=None):
         self.claims += 1
+        self.worker_ids = getattr(self, "worker_ids", []) + [worker_id]
         return self.runs.pop(0) if self.runs else None
 
     async def fail_stale_runs(self, minutes):

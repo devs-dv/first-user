@@ -254,7 +254,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True):
+                              access_mode_chosen=True, success_condition=None):
             seen.update(email=credentials.email, password=credentials.password, start_url=start_url,
                         database_holds_login=bool(fake.secrets))
             return {"outcome": "achieved", "steps": 1, "reason": "ok"}
@@ -292,7 +292,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True):
+                              access_mode_chosen=True, success_condition=None):
             self.assertIsNone(credentials)
             self.assertFalse(test_login_unavailable)
             return {"outcome": "gave_up", "steps": 2, "reason": "r"}
@@ -307,7 +307,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True):
+                              access_mode_chosen=True, success_condition=None):
             seen.update(credentials=credentials, unavailable=test_login_unavailable)
             return {"outcome": "blocked", "steps": 1, "reason": "login"}
 

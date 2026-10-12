@@ -13,7 +13,10 @@ from config import (
     BRAIN_EFFORT, BRAIN_MODEL, MAX_RUN_COST_USD, MAX_RUN_TOKENS, MAX_STEPS, MAX_TOKENS_PER_TURN, WRAP_UP_STEPS,
 )
 from tools import TOOL_FUNCTIONS, TOOL_SCHEMAS, RunContext, current_run, current_url, publish_image
+import verdict as verdict_module
+from config import REPORT_V2
 from report_writer import write_findings
+from run_facts import build_run_facts
 from verifier import verify
 
 # Older look results are replaced with stubs, which edits history; drop the affected
@@ -35,6 +38,7 @@ How you behave:
 - If `do` says your action had no effect, the browser tool may be at fault: rephrase or try another way, and do not record that alone as friction.
 - Behave like a real person: use only what is visible on the page, and give up when a real person would give up. Do not guess URLs.
 - Never enter payment details. If the next step needs a card or payment, stop and call `finish` with outcome `blocked`.
+- Never try to get past a bot check: a "Verify you are human" box, a Cloudflare "Just a moment" page, a CAPTCHA or any other test of whether you are a robot. Do not click it, wait it out or look for a way round it. Call `finish` with outcome `blocked` and say the site blocked the visit with a bot check.
 - Getting in: look at what anyone can see first. If the page itself shows a login for visitors (a demo username and password written on the page), use it like any visitor would, with `do`. Otherwise, if a page needs a login, you have two tools. `sign_in` uses a test account the founder may have provided (it tells you if there is none). `sign_up` creates a throwaway test account on an email-and-password sign-up form. Call the tool when the form is on the page. Never make up an email or a password to type.
 - Never use Google, GitHub, Apple, Microsoft or any other third-party login, and never click those buttons. If they are the only way in, call `finish` with outcome `blocked` and say which options the page offered.
 - If signing up needs the email to be verified (a link or a code sent by email), you cannot do that: the run ends as blocked with that reason.
@@ -95,13 +99,15 @@ async def run_persona(ctx: RunContext) -> dict:
         "already be past the login."
         if ctx.start_url else f"You have just opened {ctx.url}."
     )
+    success = (f"The founder says success looks like: {ctx.success_condition}\n\n"
+               if ctx.success_condition else "")
     messages: list[dict] = [{
         "role": "user",
         "content": [{
             "type": "text",
             "text": (
-                f"Your goal: {ctx.goal}\n\n{opened} {ACCESS_NOTES.get(ctx.access_mode, ACCESS_NOTES['signup'])} "
-                "Start by looking at the page."
+                f"Your goal: {ctx.goal}\n\n{success}{opened} "
+                f"{ACCESS_NOTES.get(ctx.access_mode, ACCESS_NOTES['signup'])} Start by looking at the page."
             ),
             "cache_control": CACHE,
         }],
@@ -190,8 +196,16 @@ async def run_persona(ctx: RunContext) -> dict:
         "stopped_by": "max_steps",
         "reason": f"Stopped after {MAX_STEPS} steps without calling finish.",
     }
-    # The report's findings, written from the factual record. None when they could not be written.
-    findings = None if finished["outcome"] == "error" else await write_findings(ctx, finished, verification)
+    entry_summary = _entry_summary(ctx, finished)
+    # One verdict per run, from the outcome, the independent check and our own-issue count.
+    verdict = _verdict(ctx, finished, verification, entry_summary) if REPORT_V2 else None
+    # The report's findings, written from the factual record. None when they could not be written;
+    # none at all when the visit says nothing about the site (a bot check, or a failure on our side).
+    if finished["outcome"] == "error":
+        findings = None
+    else:
+        findings = await write_findings(ctx, finished, verification, verdict)
+    run_facts = build_run_facts(ctx, finished, verification, steps) if REPORT_V2 else None
     # Fixed keys and values (listed in hackathon.md) so traces can be
     # searched with exact strings such as "outcome": "gave_up" or "agent_issue_count": 0.
     # Everything in the result passes through scrub(): a test login must not reach a stored result.
@@ -206,12 +220,37 @@ async def run_persona(ctx: RunContext) -> dict:
         "agent_issue_count": len(ctx.agent_issues),
         "frictions": ctx.frictions,
         "agent_issues": ctx.agent_issues,
-        "entry": _entry_summary(ctx, finished),
+        "entry": entry_summary,
         "first_impression": ctx.first_impression,
         "findings": findings,
+        "verdict": verdict,
+        "run_facts": run_facts,
+        "success_condition": ctx.success_condition,
         **({"egress_blocks": finished["egress_blocks"]} if "egress_blocks" in finished else {}),
         "usage": ctx.usage.summary(),
     })
+
+
+def _verdict(ctx: RunContext, finished: dict, verification: dict | None, entry: dict) -> dict:
+    """The run's verdict (verdict.py), with the evidence the run itself recorded."""
+    own_steps = [i["step"] for i in ctx.agent_issues if isinstance(i.get("step"), int)]
+    site_frictions = [f for f in ctx.frictions if f.get("kind") == "site"]
+    page_errors = sum(1 for e in ctx.record if e.get("page_errors"))
+    last = max((e["step"] for e in ctx.record), default=None)
+    evidence = None
+    if site_frictions:
+        noted = site_frictions[-1]
+        evidence = (noted.get("step"), str(noted.get("happened") or ""))
+    # The page is where the evidence was (or the last step): the nearest recorded URL at or before that step.
+    at = evidence[0] if evidence and isinstance(evidence[0], int) else last
+    known = [n for n in ctx.step_urls if at is not None and n <= at]
+    last_url = ctx.step_urls[max(known)] if known else ctx.url
+    return verdict_module.compute_verdict(
+        outcome=finished["outcome"], stopped_by=finished.get("stopped_by"), reason=finished.get("reason", ""),
+        verification=verification, entry=entry, own_issue_steps=own_steps,
+        site_friction_count=len(site_frictions), page_error_count=page_errors, last_step=last,
+        last_step_url=last_url, site_evidence=evidence,
+    )
 
 
 def blocked_at_login(entry: dict, finished: dict) -> bool:
@@ -220,7 +259,7 @@ def blocked_at_login(entry: dict, finished: dict) -> bool:
     "Got in" is a test login that worked, an account the visitor created, or a login written on the page
     that was accepted. A reason that merely mentions a password or an account does not make a block a login block.
     """
-    if finished["outcome"] != "blocked" or finished.get("stopped_by") == "egress_guard":
+    if finished["outcome"] != "blocked" or finished.get("stopped_by") in ("egress_guard", "bot_check"):
         return False
     got_in = (entry["test_login"] == "used" or entry["self_signup"] == "used"
               or bool(entry.get("page_login_worked")))
@@ -250,6 +289,7 @@ def _entry_summary(ctx: RunContext, finished: dict) -> dict:
         "created_account_email": entry["created_account_email"],
         "blocked_at_login": blocked_at_login(entry, finished),
         "diagnosis": entry.get("diagnosis"),
+        "bot_check": entry.get("bot_check"),
     }
 
 
@@ -292,7 +332,8 @@ async def _verify_if_achieved(ctx: RunContext) -> dict | None:
     page = await ctx.stagehand.browser.context.active_page() or ctx.page
     try:
         verification = await verify(ctx.goal, ctx.record, page, ctx.usage,
-                                    publish=lambda image: publish_image(ctx, image, "verify", "png"))
+                                    publish=lambda image: publish_image(ctx, image, "verify", "png"),
+                                    success_condition=ctx.success_condition)
     except Exception as error:
         print(f"[verify] could not run: {type(error).__name__}: {error}", flush=True)
         verification = {"verdict": "unverified", "reason": f"The check could not run: {type(error).__name__}",
@@ -342,6 +383,10 @@ def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict 
         if result.get("field"):
             entry["field_after"] = f"{result['field']['label']}: {result['field']['value']!r}"
         entry["url_after"] = result.get("url")
+        if result.get("element"):
+            entry["element"] = result["element"]
+        if result.get("rung") in ("a", "b", "c", "d"):
+            entry["rung"] = result["rung"]
         if tool in ("sign_in", "sign_up"):
             entry["login_result"] = result.get("reason")
             if result.get("page_message"):

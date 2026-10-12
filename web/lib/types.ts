@@ -46,6 +46,8 @@ export type Entry = {
   // That login was accepted: the password field went away and the visit moved on. Absent on older runs.
   page_login_worked?: boolean;
   diagnosis?: LoginDiagnosis | null;
+  // The site showed a bot check ("Verify you are human"); the visit did not try to get past it.
+  bot_check?: { phrase: string; url: string; title: string; step: number } | null;
   test_login: "not_provided" | "provided_not_used" | "used" | "failed";
   self_signup: "not_used" | "used" | "blocked_verification" | "blocked_third_party" | "failed";
   third_party_options: string[];
@@ -71,8 +73,48 @@ export type Finding = {
   fix_prompt: string;
   // Steps of the problems the visitor noted that this finding covers, so they are not listed twice.
   covers_steps?: number[];
+  // The problem is observed in the run; the fix is our recommendation. Absent on older findings.
+  basis?: "observed";
+  fix_basis?: "recommendation";
+  // Three to five checks a person can make by looking at the page after the change.
+  acceptance_criteria?: string[];
   // The same symptom seen again, merged into this finding: the earliest step is `evidence`, these are the rest.
   also_seen_at?: { step: number; url: string | null; screenshot_url: string | null; page_errors: string[] }[];
+};
+
+// What a statement in the report rests on: the run record, the independent check, or our suggestion.
+export type Basis = "observed" | "verified" | "recommendation";
+
+export type VerdictKind = "got_through" | "unconfirmed" | "stuck" | "login_wall" | "bot_check" | "our_failure";
+
+// One verdict per run (worker/verdict.py).
+export type Verdict = {
+  kind: VerdictKind;
+  headline: string;
+  where_step: number | null;
+  where_url: string | null;
+  evidence_quote: string;
+  basis: "observed" | "verified";
+  detail?: string;
+  ways_in?: string[];
+};
+
+// How the report was made (worker/run_facts.py): counted from the run, not written by a model.
+export type RunFacts = {
+  steps_taken: number;
+  recoveries: { step: number; rung: string; how: string; instruction: string }[];
+  own_issues: { step: number | null; instruction: string; reason: string | null }[];
+  page_reloads: number;
+  page_errors: string[];
+  page_error_count: number;
+  verifier: { verdict: string | null; quote: string } | null;
+  success_condition: string | null;
+  checked_without_success_condition: boolean;
+  cost_usd: number;
+  duration_seconds: number;
+  agent_version?: string;
+  worker_id?: string;
+  trace_id?: string | null;
 };
 
 export type Run = {
@@ -84,6 +126,9 @@ export type Run = {
   first_impression: FirstImpression | null;
   entry: Entry | null;
   findings: Finding[] | null;
+  verdict: Verdict | null;
+  run_facts: RunFacts | null;
+  success_condition: string | null;
   goal: string;
   status: RunStatus;
   outcome: Outcome | null;
@@ -122,9 +167,13 @@ export type ApiError = { error: string; message: string };
 // Never includes the test login: it lives in run_secrets, which the web app never reads.
 // One string literal, so supabase-js can infer the row type from it.
 export const RUN_COLUMNS =
-  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, verdict, run_facts, success_condition, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
 // The same without the columns added on 2026-10-11 (access_mode, findings), for a database whose schema
 // has not been updated yet: the run page still loads, without them.
-export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "").replace(" findings,", "");
+export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "")
+  .replace(" findings,", "")
+  .replace(" verdict,", "")
+  .replace(" run_facts,", "")
+  .replace(" success_condition,", "");
 export const STEP_COLUMNS = "idx, tool, thought, input, result, url, screenshot_path, created_at";
 export const FRICTION_COLUMNS = "id, step_idx, kind, severity, expected, happened";

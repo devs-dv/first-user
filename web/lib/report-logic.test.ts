@@ -26,6 +26,9 @@ function run(overrides: Partial<Run> = {}): Run {
     first_impression: null,
     entry: entry(),
     findings: null,
+    verdict: null,
+    run_facts: null,
+    success_condition: null,
     goal: "g",
     status: "done",
     outcome: "blocked",
@@ -71,6 +74,16 @@ test("signed in with a test account or an account the visitor made is not a logi
     const r = run({ entry: entry({ ...overrides, blocked_at_login: true }) });
     assert.equal(showLoginWallHelp(r, []), false);
   }
+});
+
+test("a bot check is not a login block", () => {
+  const botCheck = run({
+    entry: entry({
+      blocked_at_login: true,
+      bot_check: { phrase: "Verify you are human", url: "https://shop.example/", title: "Just a moment...", step: 1 },
+    }),
+  });
+  assert.equal(showLoginWallHelp(botCheck, []), false);
 });
 
 test("a block at the login itself shows the help, and only for blocked runs", () => {
@@ -122,4 +135,89 @@ test("without findings, every noted problem is shown", () => {
   const all = [friction(1, 13), friction(2, 9)];
   assert.equal(frictionsNotInFindings(all, null).length, 2);
   assert.equal(frictionsNotInFindings(all, []).length, 2);
+});
+
+// ---------------------------------------------------------------------------------------- Report v2
+
+import { flagsFrom } from "./report-flags.ts";
+import { fixFirst, shortUrl, understanding, withoutPromises } from "./report-logic.ts";
+import type { FirstImpression, Verdict } from "./types.ts";
+
+function review(what: "yes" | "partly" | "no", who: "yes" | "partly" | "no", action: "yes" | "partly" | "no"): FirstImpression {
+  return {
+    what_it_does: { clear: what, summary: "It plans projects." },
+    who_its_for: { clear: who, summary: "Nobody is named." },
+    main_action: { obvious: action, summary: "A green button." },
+    hesitations: ["Pricing is hidden.", "No screenshot.", "Third thing."],
+    suggestions: [],
+  };
+}
+
+test("understanding: clear, partly clear and unclear, with the review's own reasons", () => {
+  assert.equal(understanding(review("yes", "yes", "yes"))?.level, "clear");
+  assert.equal(understanding(review("yes", "partly", "yes"))?.level, "partly");
+  assert.equal(understanding(review("partly", "no", "yes"))?.level, "partly");
+  assert.equal(understanding(review("no", "yes", "yes"))?.level, "unclear", "not knowing what it does is unclear");
+  assert.equal(understanding(review("yes", "no", "no"))?.level, "unclear", "two of three not clear");
+  const partly = understanding(review("yes", "partly", "yes"))!;
+  assert.equal(partly.label, "Partly clear");
+  assert.deepEqual(partly.reasons, ["Who it is for: Nobody is named.", "Pricing is hidden.", "No screenshot."]);
+  assert.equal(understanding(review("yes", "yes", "yes"))!.reasons.length, 2, "only the hesitations, no failed parts");
+  assert.equal(understanding(null), null);
+});
+
+function verdict(kind: Verdict["kind"]): Verdict {
+  return { kind, headline: "h", where_step: null, where_url: null, evidence_quote: "", basis: "observed" };
+}
+
+test("what to fix first is the top finding, and nothing for a visit that says nothing about the site", () => {
+  const top = finding(3);
+  const second = finding(5);
+  assert.deepEqual(fixFirst([top, second], verdict("stuck")), { state: "finding", finding: top });
+  assert.deepEqual(fixFirst([], verdict("got_through")), { state: "none" });
+  assert.deepEqual(fixFirst(null, null), { state: "unavailable" });
+  assert.deepEqual(fixFirst([top], verdict("bot_check")), { state: "not_about_site" });
+  assert.deepEqual(fixFirst([top], verdict("our_failure")), { state: "not_about_site" });
+});
+
+test("every Report v2 section can be switched off, all at once or one at a time", () => {
+  const all = flagsFrom({});
+  assert.deepEqual(Object.values(all), [true, true, true, true, true, true]);
+  assert.equal(flagsFrom({ master: "off" }).verdict, false);
+  assert.equal(flagsFrom({ master: "off" }).facts, false);
+  assert.deepEqual(flagsFrom({ facts: "false" }), { ...all, facts: false });
+  assert.deepEqual(flagsFrom({ answers: "0" }), { ...all, answers: false });
+  assert.equal(flagsFrom({ labels: "OFF" }).labels, false);
+  assert.equal(flagsFrom({ criteria: "no" }).criteria, false);
+  assert.equal(flagsFrom({ success: "hidden" }).success, false);
+  assert.equal(flagsFrom({ verdict: "off" }).verdict, false);
+  // The address switches everything off for that view, without a rebuild.
+  assert.deepEqual(Object.values(flagsFrom({}, "?report=basic")), [false, false, false, false, false, false]);
+  assert.equal(flagsFrom({}, "?report=full").answers, true);
+});
+
+test("recommendations never show a promised outcome", () => {
+  assert.equal(
+    withoutPromises("Name the audience in the headline. This will increase sign-ups by 30%."),
+    "Name the audience in the headline.",
+  );
+  assert.equal(withoutPromises("Boost conversion with a bigger button."), "");
+  assert.equal(withoutPromises("Add a screenshot above the fold."), "Add a screenshot above the fold.");
+});
+
+test("a short address for a page", () => {
+  assert.equal(shortUrl("https://shop.test/checkout?x=1"), "shop.test/checkout");
+  assert.equal(shortUrl("https://shop.test/"), "shop.test");
+  assert.equal(shortUrl(null), "");
+});
+
+import { RUN_COLUMNS, RUN_COLUMNS_BEFORE_FINDINGS } from "./types.ts";
+
+test("a database without the newer columns can still be read", () => {
+  for (const column of ["access_mode", "findings", "verdict", "run_facts", "success_condition"]) {
+    assert.ok(RUN_COLUMNS.split(", ").includes(column), `${column} is selected when the schema is current`);
+    assert.ok(!RUN_COLUMNS_BEFORE_FINDINGS.split(", ").includes(column), `${column} is left out for an older one`);
+  }
+  assert.ok(RUN_COLUMNS_BEFORE_FINDINGS.split(", ").includes("first_impression"));
+  assert.ok(RUN_COLUMNS_BEFORE_FINDINGS.split(", ").includes("outcome"));
 });

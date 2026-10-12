@@ -767,6 +767,62 @@ Two things the table hides:
 
 **Verification:** 152 worker tests (23 live skipped under `SKIP_LIVE_TESTS=1`; the 7 broken-load tests run live and pass), 8 web tests, typecheck and lint clean, `scan_secrets.py` 0 matches in the tree and 37 commits.
 
+### 2026-10-12 — Measured element state for the verifier, worker ids, bot checks, and v6 / v6b: 7/7 twice
+
+**1. uitesting_click, generically** (`worker/element_state.py`, `tools.do()`, `verifier.py`, `report_writer.py`)
+- Why it stayed "unverified": a button turning green has no new text and no new URL; the record said only "page changed", and the page's own words ("becomes green after clicking") do not prove the change, so the verifier correctly would not guess.
+- What is recorded now: before each non-typing action, `do()` reads the page's interactive elements (up to 80: text, class, ARIA state, disabled/checked, computed text colour and background colour) and reads the same elements again after the action. The target is the element whose own text best matches the instruction (a quoted label first, otherwise most of the label's words are in the instruction); any other element that changed is listed too. Colours are written in words ("rgb(0, 123, 255) (blue)"). The pair goes into the step record (`entry.element`), which the verifier and the report writer read. A navigation, no match, or nothing changed says nothing rather than something false.
+- The verifier was not made more lenient: its rules for `contradicted` and `unverified` are untouched (the calibration cases give the same answers as before: unverified x3, unverified x3, contradicted x3), and its prompt gained one descriptive sentence saying what the new record field is and that no difference or no entry says nothing either way. Nothing names a site; the eval cases are unchanged.
+- Tests (`test_element_state.py`): colour names; picking the target (quoted label exact then contained, words, nothing); what changed (green button, ARIA, text, checked, other elements, no snapshot); what the verifier reads; and live, in a real Chrome behind the guard and with the real model, a local page whose button turns green on click: the result carries blue -> green and the class change, and the record the verifier reads has it.
+- Effect on the real case: three runs of uitesting_click before the change were verified once in three; after it, three of three, each citing the recorded class and colour change.
+
+**2. Which worker claimed each run**
+- `runs.worker_id` (host name and agent version) is set by `claim_run(p_worker_id text default null)` itself; the zero-argument function is dropped so one exists, and a worker still calling it with no argument keeps working. The worker passes `hostname@agent_version`; if the database is not updated it says so once and claims as before (and writes the id afterwards if the column exists). `schema.sql` stays safe to re-run.
+- `evals/run.py` reads `worker_id`, prints `Worker: <id> (every run)`, or a WARNING when more than one worker took runs, and names the worker in the results file.
+- **The SQL has not been run on the real Supabase project** (I cannot run DDL from here), so v6 and v6b say "Worker: not recorded". That a single worker took them is shown by the worker's own claim log instead: 20 of 20 runs claimed by it, the queue empty and no other worker process before each round (your AWS worker was stopped).
+
+**3. Bot checks are never attempted** (`worker/bot_check.py`, `tools.look()` and `do()`)
+- Detected by what the page shows (its title, its visible words such as "Verify you are human", "Checking your browser", "I'm not a robot", "Press and hold", and a challenge frame large enough to be one), so the invisible reCAPTCHA badge on an ordinary login is not a bot check.
+- `look()` and `do()` check before anything else: the check is not clicked, not waited out, not solved. The run ends `blocked`, `stopped_by: "bot_check"`, with the phrase, URL, a screenshot and the step in `entry.bot_check`, and the reason says it was blocked by a bot check and that nothing was attempted. The system prompt tells the visitor the same. It is not treated as a login block, no findings are written for it (the site chose to block automated visitors), and the report page is headed "Blocked by a bot check".
+- Eval results count it (`Blocked by a bot check`) and name such a case "not completed (blocked by a bot check)"; neither v6 nor v6b hit one.
+- Tests: wording that is and is not a bot check; live: a challenge page where `look()` ends the visit with the checkbox untouched, and `do("click the 'Verify you are human' checkbox")` is refused with the checkbox untouched and no agent issue.
+
+**4. v6 and v6b** (`evals/run.py --version v6 --compare-to v0 v4`, then `--version v6b` with no code changes; one local worker, Haiku brain, headless, agent 527d1d0 plus the uncommitted changes; the shared queue was empty beforehand)
+
+| Case (kind) | v6 | v6b | Pass rate over the two rounds |
+|---|---|---|---|
+| saucedemo_standard (achievable) | completed, verified (9 steps) | completed, verified (8) | 2/2 |
+| herokuapp_login (achievable) | completed, verified (6) | completed, verified (6) | 2/2 |
+| herokuapp_dynamic_loading (achievable) | completed, verified (4) | completed, verified (4) | 2/2 |
+| herokuapp_add_remove (achievable) | completed, verified (8) | completed, verified (8) | 2/2 |
+| todomvc_react (achievable) | completed, verified (10) | completed, verified (12) | 2/2 |
+| uitesting_click (achievable) | completed, verified (3) | completed, verified (3) | 2/2 |
+| practice_hammer (achievable) | completed, verified (11) | completed, verified (12) | 2/2 |
+| saucedemo_locked_out (broken) | named the issue (blocked) | named the issue (blocked) | 2/2 named it |
+| saucedemo_problem_user (broken) | named the issue (gave_up, 20 steps) | named the issue (gave_up, 20 steps) | 2/2 named it |
+| saucedemo_error_user (broken) | named the issue (blocked) | named the issue (blocked) | 2/2 named it |
+
+| Metric | v4 | v6 | v6b |
+|---|---|---|---|
+| Completed and verified (achievable) | 5/7 | 7/7 | 7/7 |
+| Completed but unverified | 0/7 | 0/7 | 0/7 |
+| Contradicted by the verifier | 0 | 0 | 0 |
+| False-praise rate (broken) | 0/3 | 0/3 | 0/3 |
+| Stopped by budget or step limit | 0 | 0 | 0 |
+| Blocked by a bot check | – | 0 | 0 |
+| agent_issue frictions | 3 | 1 | 3 |
+| Site frictions found through page errors | 4 | 3 | 2 |
+| Failed runs | 0 | 0 | 0 |
+| Median steps | 7.5 | 8.5 | 8.0 |
+| Total cost | $0.0575 | $0.0752 | $0.0769 |
+
+- Stable: all seven achievable cases passed in both rounds, with no failed runs, no false praise and no unconfirmed verdicts. Cost rose from $0.0575 (v4) to about $0.076 because there are more steps allowed (20) and a report-writer call.
+- What varied: the agent_issue count (1, then 3, all on `saucedemo_problem_user`, whose Last Name field does not take typed text: the agent said in v6b that the browser tool may have caused part of it), steps on two cases (todomvc 10 vs 12, practice_hammer 11 vs 12), and the count of site frictions through page errors (3 vs 2).
+- Not 7/7 yet in one sense: the three broken sites are not "passed" by completing; the rate is how often the report named the known issue, which was every time. `saucedemo_problem_user` ended `gave_up` after using all 20 steps in both rounds (v4 ended `blocked`); it still named the issue.
+- Two rounds is a small sample. The earlier v5 round (a mix with another worker) had one case blocked by Cloudflare; none of these did, and this run could not have clicked one.
+
+**Verification:** 173 worker tests (live ones included) pass, 9 web tests, typecheck and lint clean, `scan_secrets.py` 0 matches in the tree and 39 commits.
+
 ## Demo
 
 - URL: pending
@@ -819,7 +875,7 @@ What it does:
 - A second run kind, `understand`, claimed from the same queue (`runs.kind`). `worker_run.execute` hands it to `understand_run.execute_understand`; a test run is unchanged.
 - `site_reader.py` reads the homepage and up to 8 same-site pages chosen by link text and path (pricing, product, features, about, docs, FAQ, customers, blog index), one of each kind first. Every request goes through the egress guard as an HTTP proxy, so private, loopback, link-local and metadata addresses are refused and every redirect hop is vetted. Limits: robots.txt (and Crawl-delay), 1 s between requests, 9 pages, 600 kB per page, 120 s in all. The browser opens only for a page with under 400 characters of text, at most 3 times.
 - `understand.py` writes the brief with one model call (`product_brief` span; `fetch_page` span per page; `understand_site` root). The model proposes and code decides: a claim needs a source URL that is a page read; "confirmed" needs a quote found in that page; a price is kept only if it is in the cited page; no pricing page and no verified price gives `not_published` with no tiers; the business model is always labelled inferred and needs quoted evidence; a journey must quote the call to action or claim it came from. Missing fields are `unknown`.
-- Web: the home form has "Test my website" / "Understand this website"; `/brief/[id]` shows the brief with every claim's source and status; each suggested journey is editable in place and "Test this journey" opens the test form with url, goal and success prefilled. The test run stores `brief_run_id`. The test form gained an optional "What would success look like?" input named `success`.
+- Web: the home form has "Test my website" / "Understand this website"; `/brief/[id]` shows the brief with every claim's source and status; each suggested journey is editable in place and "Test this journey" opens the test form with url, goal and success prefilled. The test run stores `brief_run_id`. The test form is prefilled from a journey, including the success condition (see the 2026-10-12 note below).
 - SQL: `supabase/schema.sql`, section "Understand mode" (`kind`, `brief`, `brief_run_id`, `enqueue_understand_run`). Must be run before the brief page works.
 
 Verification:
@@ -836,6 +892,47 @@ Not done / known limits:
 
 ### 2026-10-12 — Success condition and the second pass on the brief page
 
-- **Success is its own value, not part of the goal.** The brief's journeys carry `goal` and `success` separately. They reach the test form as `?goal=...&success=...&brief=...` and `POST /api/runs` takes `success` as its own body field (validated, at most 300 characters) next to `briefId`. It is **not appended to the goal text** and is **not stored yet**: `app/api/runs/route.ts` leaves `successText` for the other branch's success-condition field (its column and the verifier). **At merge:** keep the query-string name `success` and the body name `success`; use the other branch's "What does success look like?" input for the form, and drop the duplicate `success` textarea this branch added to `run-form.tsx` (`app/home-form.tsx` passes `initial.success` into the form's defaults, so point that at the other branch's field).
+- **Success is its own value, not part of the goal; merged into the Report v2 field.** The brief's journeys carry `goal` and `success` separately. They reach the home page as `?goal=...&success=...&brief=...`, and the test form's **Report v2 "What does success look like?" input** (`successCondition`, stored as `runs.success_condition` through the 10-argument `enqueue_web_run`) is prefilled from `success`. The success text is never appended to the goal. This branch's own `success` textarea and body field were removed in the merge; `POST /api/runs` takes `successCondition` (main's) and `briefId` (the brief the test came from, stored as `brief_run_id`).
 - **Checked against a real row** (`8ca3896f-a3d8-475f-b810-5c9b6b98bb9e`, plausible.io; made and processed by a one-off script that inserted it as `running`, so no queue claim): at 1280 and 390 px the page has no horizontal scroll; journeys come first, are editable, and the link follows the edited text; claims show status and a source link; pricing, business model, unknowns and pages read display. Fixed from that pass: descriptions were cut mid-word (now cut at a word with an ellipsis), a changelog was read as the product page (changelog, releases and status paths are no longer chosen).
 - **Intermittent hollow briefs, found and fixed.** About half of the model's replies for this site left out `claims`, `pricing` or `suggested_journeys` (a reply that stopped early or hit `max_tokens` at 4000), which showed up as a brief with no claims and no goals. The reply is now checked for every required field and asked for again (up to 3 tries, then the run fails rather than saving a hollow brief); `max_tokens` is 8000 and the prompt asks for a compact answer. Goals that do not quote the pages get one more try with a stricter note.
+
+## Report v2
+
+*2026-10-12. Own section so it merges cleanly with the work on the "understand" branch. The schema change is the last block of `supabase/schema.sql`, headed REPORT V2.*
+
+The report now answers three questions for a founder: will a new user understand my product, can they get value from it, and what should I fix first.
+
+**1. One verdict per run** (`worker/verdict.py`, stored on the run result and in `runs.verdict`: `{kind, headline, where_step, where_url, evidence_quote, basis}`). Computed in code from the outcome, the independent check and our own-issue count, never from the model's prose. Decided in this order:
+- `bot_check`: stopped by a "verify you are human" check. Nothing is said about the site.
+- `our_failure`: an error, a refusal, or our browser tool having no effect with no sign of a site problem (no site friction, no page error, and the last steps were our issues). Nothing is said about the site. A visit with our issues *and* real site evidence (the saucedemo problem_user case) stays `stuck`.
+- `login_wall`: stopped at a login or sign-up it could not pass; carries the three ways in.
+- `got_through`: achieved and verified; the evidence quote is the verifier's evidence. Headline "A first-time visitor got through".
+- `unconfirmed`: achieved, the check could not confirm; says what it could not see.
+- `stuck`: blocked, gave up, ran out of steps, or a claim the check contradicted; the headline names the page ("... got stuck on shop.example/products") and `where_step` points at the step (the site's own evidence if there is one).
+- `bot_check` and `our_failure` can produce no site findings: the report writer is not even asked (tested).
+
+**2. Success condition.** The form has an optional "What does success look like?" (300 characters, plain text). It is passed to the visitor in its first message, to the independent check ("judge whether THIS condition is met; the task wording alone is not enough"), to the report writer, and saved as `runs.success_condition`. Without one, the report says "The goal was checked without a stated success condition." The check's rules for contradicted and unverified are unchanged.
+
+**3. Three answers at the top** ("The short answer"): *Will a new user understand it?* from the first-impression review (clear when all three parts are clear; unclear when what it does is not clear or two of three are not; partly clear otherwise), with the review's own reasons; *Can they get value from it?* the verdict; *What should you fix first?* the top-ranked finding (or "Nothing, from this visit" for a bot check or a failure on our side).
+
+**4. Evidence labels.** Each statement carries a basis, shown as a small label: *Observed in the run*, *Verified by an independent check*, *Our recommendation*. The verdict is verified only when the check backs it; findings are observed; fix prompts, acceptance criteria and first-impression suggestions are recommendations. Recommendations are never worded as facts and never promise an outcome: sentences with conversion, boost, percentages, "will increase" and the like are removed in code (`worker/claims.py`, and again in the page for older reports), not only asked of the model.
+
+**5. Structured fix prompts.** Built in code from the validated parts, in this order: the observed issue with its evidence (step, page URL, screenshot, the page's error, the steps to reproduce); the expected behaviour; what to change; constraints (keep existing validation and business rules; no unrelated redesigns; change nothing that works); three to five acceptance criteria a person can check by looking; and the retest instruction, word for word: "Repeat the original journey in a fresh session and confirm the original issue no longer occurs, using visible page evidence. Report Not reached if the relevant state cannot be reached; do not report Fixed without testing it." No test code. Fewer than three criteria from the model are topped up from what is known (the expected behaviour, the steps no longer reproduce it, the error is gone), so a prompt never goes out without them.
+
+**6. How this report was made** (a collapsed panel; `worker/run_facts.py`, stored in `runs.run_facts`): steps taken, actions that needed recovery and on which rung, our own issues, page reloads, page errors recorded, the check's verdict and quote, the success condition, cost, duration, agent version, worker id and the neatlogs trace ID as text. All counted from the run.
+
+**7. Flags.** Worker: `REPORT_V2=false` skips the verdict and the facts and writes the old prompt format. Web (`lib/report-flags.ts`): `NEXT_PUBLIC_REPORT_V2=off` hides every Report v2 section; `..._ANSWERS`, `_VERDICT`, `_LABELS`, `_CRITERIA`, `_FACTS`, `_SUCCESS` hide one each; `?report=basic` on the report's address hides them all for that view with no rebuild.
+
+**SQL** (last block of `schema.sql`, safe to re-run): `runs.success_condition`, `runs.verdict`, `runs.run_facts`, and `enqueue_web_run` now takes `p_success_condition` as its last argument (the 9-argument version is dropped). If another branch also changes `enqueue_web_run`, keep both sets of arguments. Until the SQL is run, queueing a web run fails (the 10-argument function does not exist yet), the worker saves a run without `verdict` and `run_facts` and warns once, and the report page falls back to the older columns.
+
+**Checked**
+- Worker: 200 tests (live ones included; the worker's main loop was never started). New: `test_report_v2.py`, 27 tests covering each verdict kind, our issues next to real site evidence, no site findings for `our_failure` and `bot_check` (and no model call), prompts always having 3 to 5 criteria and the retest, promises removed, the success condition reaching the check and the writer, run facts, the worker adding agent version, worker id and trace id, and the run row getting the verdict and facts.
+- Web: 15 tests (the three answers, fix-first, each flag, the promise filter, the older-schema column list); typecheck and lint clean. In a browser against a fake database: the answers, verdict card, labels, criteria, collapsed facts panel and `?report=basic` render, with no horizontal scroll at 390 px.
+- Real visit (direct call to `first_visit`, saucedemo error_user with a success condition): `stuck` on `/checkout-step-one.html`, step 13, the page's own error as evidence, success condition recorded and facts counted; two findings, each with a structured prompt, three to four criteria and the retest.
+- `scan_secrets.py`: 0 matches in the tree and 42 commits.
+
+**Not done / limits**
+- The SQL has not been run on the real Supabase project.
+- Screenshots in a prompt show as "not captured" for a visit made without the database (a direct call); with the worker they are the uploaded URLs.
+- Two findings about the same symptom worded differently ("rejects typed text" and "gives no message") are still two findings: the merge is by word overlap.
+- The understanding level is a rule over a model's reading of one landing page; it is labelled observed, not verified.

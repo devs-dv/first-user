@@ -40,6 +40,9 @@ PAGE_READY_TIMEOUT_MS = int(os.environ.get("PAGE_READY_TIMEOUT_MS", "75000"))
 
 # Independent check of an "achieved" verdict: sees only the goal and the final page.
 VERIFIER_MODEL = os.environ.get("VERIFIER_MODEL", "claude-haiku-5-5")
+# Report v2: a verdict, run facts, structured fix prompts with acceptance criteria and evidence bases.
+# REPORT_V2=false turns all of it off in the worker (the old report is written); the web app has its own flags.
+REPORT_V2 = _flag("REPORT_V2", True)
 # Writes the report's findings after the visit (report_writer.py); one call per visit.
 REPORT_MODEL = os.environ.get("REPORT_MODEL", VERIFIER_MODEL)
 

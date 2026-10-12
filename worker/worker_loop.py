@@ -11,6 +11,7 @@ holds what a server needs:
 """
 
 import asyncio
+import socket
 import signal
 import time
 from datetime import datetime, timezone
@@ -39,6 +40,8 @@ class Worker:
                  health_file: str | None = None, idle_seconds: float = IDLE_SECONDS,
                  heartbeat_seconds: float = HEARTBEAT_SECONDS, clock=time.monotonic):
         self.agent_version, self.db, self.execute, self.brain_model = agent_version, db, execute, brain_model
+        # Saved on every run this worker claims, so a result says which worker produced it.
+        self.worker_id = f"{socket.gethostname()}@{agent_version}"
         self.health_interval, self.health_file = health_interval, health_file
         self.idle_seconds, self.heartbeat_seconds, self.clock = idle_seconds, heartbeat_seconds, clock
         self.stop_requested = False
@@ -115,7 +118,7 @@ class Worker:
                         for stale in await self.db.fail_stale_runs(STALE_MINUTES):
                             print(f"Marked stale run {stale['id']} as failed", flush=True)
                         await self.db.delete_old_run_secrets(SECRETS_MINUTES)
-                    run = await self.db.claim_run()
+                    run = await self.db.claim_run(self.worker_id)
                     self.db_errors = 0
                 except Exception as error:
                     self.db_errors += 1

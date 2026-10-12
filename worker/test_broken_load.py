@@ -17,6 +17,12 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
+
 import page_watch
 import tools
 import visit
@@ -158,8 +164,11 @@ class ReloadLikeAPerson(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(ctx.frictions), 1)
         friction = ctx.frictions[0]
         self.assertEqual(friction["kind"], "site")
-        self.assertEqual(friction["detected_by"], "failed_assets")
-        self.assertIn("app.js", friction["happened"])
+        # Either the page threw because its script was missing, or nothing happened and the failed
+        # file is named: both are the site's, and neither is ours.
+        self.assertIn(friction["detected_by"], ("page_errors", "failed_assets"))
+        self.assertTrue("is not defined" in friction["happened"] or "app.js" in friction["happened"],
+                        friction["happened"])
         self.assertEqual(result["kind"], "site_problem")
 
 

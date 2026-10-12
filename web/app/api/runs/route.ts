@@ -1,5 +1,5 @@
 import { briefExists, recordBrief } from "@/lib/brief-link";
-import { MAX_SUCCESS_LENGTH, UUID } from "@/lib/brief-logic";
+import { UUID } from "@/lib/brief-logic";
 import { supabase } from "@/lib/supabase";
 import { checkTargetUrl } from "@/lib/target-url";
 import { clientIp, hashIp } from "@/lib/visitor";
@@ -8,6 +8,7 @@ const DEFAULT_GOAL = "Work out what this product does and try its main feature a
 const MAX_GOAL_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 200;
+const MAX_SUCCESS_LENGTH = 300;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ACCESS_MODES = ["public", "link", "account", "signup"] as const;
 type AccessMode = (typeof ACCESS_MODES)[number];
@@ -25,10 +26,8 @@ export async function POST(request: Request) {
   } catch {
     return fail(400, "invalid_request", "The request could not be read. Reload the page and try again.");
   }
-  const { url, goal, permission, access, startUrl, testEmail, testPassword, success, briefId } = (body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { url, goal, permission, access, startUrl, testEmail, testPassword, successCondition, briefId } = (body ??
+    {}) as Record<string, unknown>;
 
   if (permission !== true) {
     return fail(400, "permission_required", "Confirm that this is your app or that you have permission to test it.");
@@ -44,16 +43,16 @@ export async function POST(request: Request) {
     return fail(400, "goal_too_long", `Keep the goal under ${MAX_GOAL_LENGTH} characters.`);
   }
 
-  // A test started from a product brief (Understand mode). `success` is its own value, never part of the
-  // goal text; it is validated here and not stored yet: the success-condition field (its column and the
-  // verifier) is added by the other branch, which reads `successText` below. The run records its brief.
-  if (success !== undefined && success !== null && typeof success !== "string") {
-    return fail(400, "invalid_request", "The success condition must be text.");
+  // Optional: what success looks like, in the founder's words. The visitor is told it and the independent
+  // check judges it. Plain text only, never used as an address or in a query.
+  if (successCondition !== undefined && successCondition !== null && typeof successCondition !== "string") {
+    return fail(400, "invalid_request", "What success looks like must be text.");
   }
-  const successText = (success ?? "").trim();
-  if (successText.length > MAX_SUCCESS_LENGTH) {
-    return fail(400, "success_too_long", `Keep the success condition under ${MAX_SUCCESS_LENGTH} characters.`);
+  const success = (successCondition ?? "").replace(/\s+/g, " ").trim();
+  if (success.length > MAX_SUCCESS_LENGTH) {
+    return fail(400, "success_too_long", `Keep what success looks like under ${MAX_SUCCESS_LENGTH} characters.`);
   }
+  // A test started from a product brief (Understand mode) says which brief it came from.
   if (briefId !== undefined && briefId !== null && briefId !== "" && (typeof briefId !== "string" || !UUID.test(briefId))) {
     return fail(400, "invalid_request", "That brief link is not valid.");
   }
@@ -119,6 +118,7 @@ export async function POST(request: Request) {
     p_test_email: email,
     p_test_password: password,
     p_access_mode: mode,
+    p_success_condition: success || null,
   });
   if (error) {
     // The message names the failure, never the arguments.

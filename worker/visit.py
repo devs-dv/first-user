@@ -25,6 +25,7 @@ async def first_visit(
     test_login_unavailable: bool = False,
     access_mode: str = "signup",
     access_mode_chosen: bool = True,
+    success_condition: str | None = None,
 ) -> dict:
     """Everything a visit does, background work included, finishes inside this root span.
 
@@ -46,7 +47,7 @@ async def first_visit(
         ctx = RunContext(
             url=url, goal=goal, run_id=run_id, stagehand=stagehand, page=page, recorder=recorder, egress=guard,
             credentials=credentials, start_url=start_url, access_mode=access_mode,
-            access_mode_chosen=access_mode_chosen,
+            access_mode_chosen=access_mode_chosen, success_condition=success_condition,
         )
         if credentials is not None:
             ctx.entry["test_login"] = "provided_not_used"
@@ -55,11 +56,11 @@ async def first_visit(
 
         # The first impression is always of the public landing page, what a newcomer sees without
         # logging in, so with a start link the visit goes there afterwards.
-        await open_start_page(page, url, guard)
+        await open_start_page(page, url, guard, ctx)
         if not guard.blocks:
             await _first_impression(ctx)
         if start_url:
-            await open_start_page(page, start_url, guard)
+            await open_start_page(page, start_url, guard, ctx)
         result = await run_persona(ctx)
     finally:
         # Closes the browser, the guard's connections and the lookup client before the root ends.
@@ -110,7 +111,7 @@ MAX_RELOADS = 2
 ASSET_SETTLE_SECONDS = 10
 
 
-async def open_start_page(page, url: str, guard) -> None:
+async def open_start_page(page, url: str, guard, ctx=None) -> None:
     """Navigate and continue once the DOM is ready, without waiting for the full load event.
 
     Slow scripts or third-party resources can hold up even DOMContentLoaded (on
@@ -128,10 +129,10 @@ async def open_start_page(page, url: str, guard) -> None:
             raise
         print(f"[visit] {url} was not ready after {PAGE_READY_TIMEOUT_MS / 1000:.0f} s; continuing with what "
               "has rendered", flush=True)
-    await reload_if_broken(page, guard)
+    await reload_if_broken(page, guard, ctx)
 
 
-async def reload_if_broken(page, guard) -> list[dict]:
+async def reload_if_broken(page, guard, ctx=None) -> list[dict]:
     """Reload a page whose own scripts or stylesheets failed to load, as a person would press reload.
 
     A site can fail to serve a file for a moment (the-internet.herokuapp.com answers some static files
@@ -149,6 +150,8 @@ async def reload_if_broken(page, guard) -> list[dict]:
             break
         print(f"[visit] {len(failed)} of the page's own files failed to load "
               f"({page_watch.describe_assets(failed)}); reloading ({attempt + 1}/{MAX_RELOADS})", flush=True)
+        if ctx is not None:
+            ctx.page_reloads += 1
         try:
             await page.reload(wait_until="domcontentloaded", timeout=PAGE_READY_TIMEOUT_MS)
         except Exception:
