@@ -1,0 +1,28 @@
+<pasted_content id="c7d7">
+Add "Check again": the founder fixes something, then re-runs the same journey and sees what changed. Do not read or print worker/.env or any env file. Never start the worker's main loop while testing; use direct calls or one-off scripts that process a single run id.
+
+1. On a finished report, a "Check again" button creates a new run linked to the original (retest_of), with the same URL, goal, access mode, start link and success condition. Test logins are never stored after a run, so if the original used a test login, ask for it again in a small form. Apply the same rate limits and URL checks as a new run, through the existing enqueue_web_run function (extend it rather than adding a second queueing function, keep all its current arguments, and add new ones last with defaults).
+
+2. Pass 1, independent: the retest first runs as a normal visit. Do not tell the agent what the old findings were, so it is not biased toward finding or missing them.
+
+3. Pass 2, guided follow-up, only for old findings whose page or state pass 1 never reached: use the original run's recorded route (its URLs and actions up to the step where the finding happened) to go back to that state by the same route, then re-try the original action and record what happens. If the same route cannot be followed (a page is gone, the flow changed), stop and leave the finding Not reached. Never treat a different route as equivalent proof. Trace this pass as its own span, retest_guided, and keep it within the normal step and budget limits.
+
+4. A comparison step (traced as retest_compare) labels each old finding:
+   - Fixed: the relevant step was reached and the original failure could not be reproduced under comparable conditions, with the evidence step.
+   - Still present: the relevant step was reached and the failure reproduced, with the evidence step.
+   - Not reached: the relevant state was never reached, so the issue is unverified. Never call this Fixed.
+   - Inconclusive: the state was reached but the evidence is not enough to decide.
+   Show which pass produced each label. New problems not in the original are labelled New.
+   Also compare the verdicts, for example "stuck at checkout" before and "got through" after.
+   Everywhere Fixed appears, the report says it means "not reproduced under the tested conditions", not a guarantee.
+
+5. Report page for a retest: before and after verdicts side by side, then the labelled findings, each linking to both reports. The original report shows a link to its latest retest.
+
+6. Give me the SQL for Supabase, as its own block at the end of schema.sql headed CHECK AGAIN, safe to re-run. Put the feature behind a flag like the Report v2 flags.
+
+Another session is building "Understand this website" on a separate branch and will be merged later, so keep shared-file edits small. Add tests for Fixed, Still present, Not reached, Inconclusive and New, for the guided pass refusing a different route, and for a test login never being copied into the retest. Update hackathon.md under its own heading "Check again". Run all tests and the secret scan. Do not commit.
+</pasted_content id="c7d7">
+
+---
+
+When you finish the current task, also do this: tests must never send traces to neatlogs. Make the test setup (conftest or equivalent) turn neatlogs export off for every test, including live ones, so only real runs and evals reach the project. Real runs and evals should add metadata environment=production or environment=eval to their root span so they can be filtered. Do not read or print any env file.

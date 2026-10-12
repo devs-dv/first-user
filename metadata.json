@@ -1,0 +1,59 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QC7Y7XDGR52829BFVNNQ47",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "evals/run.py",
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/runs/[id]/route.ts",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-flags.ts",
+    "web/lib/report-logic.test.ts",
+    "web/lib/types.ts",
+    "worker/browse.py",
+    "worker/check_costs.py",
+    "worker/check_traces.py",
+    "worker/config.py",
+    "worker/conftest.py",
+    "worker/credentials_harness.py",
+    "worker/db.py",
+    "worker/run_once.py",
+    "worker/test_access_modes.py",
+    "worker/test_broken_load.py",
+    "worker/test_credentials.py",
+    "worker/test_egress.py",
+    "worker/test_element_state.py",
+    "worker/test_login_diagnosis.py",
+    "worker/test_no_export.py",
+    "worker/test_report_v2.py",
+    "worker/test_report_writer.py",
+    "worker/test_server_mode.py",
+    "worker/test_slow_change.py",
+    "worker/test_support.py",
+    "worker/test_trace_safety.py",
+    "worker/test_verifier.py",
+    "worker/tools.py",
+    "worker/trace_safety.py",
+    "worker/visit.py",
+    "worker/worker_run.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 134375,
+    "cache_read_tokens": 38471718,
+    "output_tokens": 111720,
+    "api_call_count": 50
+  }
+}
