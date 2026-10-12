@@ -1,0 +1,187 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4R1HPSTEEDHK1KFAJQQ6WQB",
+  "session_id": "63ecd50b-8fa6-483f-8dab-26c004aa38b1",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T12:31:44.4775914Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "web/app/api/briefs/[id]/founder/route.ts",
+    "web/app/api/briefs/route.ts",
+    "web/app/api/runs/[id]/retest/route.ts",
+    "web/app/api/runs/route.ts",
+    "web/app/brief/[id]/brief-view.tsx",
+    "web/app/brief/[id]/page.tsx",
+    "web/app/home/start-section.tsx",
+    "web/app/layout.tsx",
+    "web/app/page.tsx",
+    "web/app/run/[id]/live-run.tsx",
+    "web/app/run/[id]/page.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/app/ui.css",
+    "web/lib/brief-logic.test.ts",
+    "web/lib/brief-logic.ts",
+    "web/lib/brief-types.ts",
+    "web/lib/pending-run.ts",
+    "web/lib/test-draft.ts",
+    "web/lib/url-input.test.ts",
+    "web/lib/url-input.ts",
+    "web/package.json",
+    "web/public/file.svg",
+    "web/public/globe.svg",
+    "web/public/next.svg",
+    "web/public/vercel.svg",
+    "web/public/window.svg",
+    "worker/site_reader.py",
+    "worker/test_understand.py",
+    "worker/tools.py",
+    "worker/understand.py",
+    "worker/understand_run.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "06caac79d0f3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 244,
+    "cache_creation_tokens": 226858,
+    "cache_read_tokens": 21624308,
+    "output_tokens": 85567,
+    "api_call_count": 122
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01JDkVja8Y1DdzAa3qKQkPaH",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "anthropic-skills:built-in-browser"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "06caac79d0f3",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 592,
+        "end": 593,
+        "entry_ids": [
+          "2722d218-1132-48b8-af14-8c183403a720"
+        ],
+        "tool_use_id": "toolu_01JDkVja8Y1DdzAa3qKQkPaH"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01JDkVja8Y1DdzAa3qKQkPaH"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: anthropic-skills:built-in-browser",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T12:31:43.7357865Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 191,
+    "total_committed": 0,
+    "total_lines_changed": 191,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 860,
+      "user_lines_removed": 192,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "demo-shop/shop.js": 1,
+        "web/app/api/briefs/[id]/founder/route.ts": 4,
+        "web/app/api/briefs/route.ts": 5,
+        "web/app/api/runs/[id]/retest/route.ts": 4,
+        "web/app/api/runs/route.ts": 4,
+        "web/app/brief/[id]/brief-view.tsx": 21,
+        "web/app/brief/[id]/brief-waiting.tsx": 141,
+        "web/app/brief/[id]/loading.tsx": 6,
+        "web/app/brief/[id]/page.tsx": 2,
+        "web/app/home/start-section.tsx": 141,
+        "web/app/layout.tsx": 2,
+        "web/app/page.tsx": 1,
+        "web/app/run/[id]/live-run.tsx": 9,
+        "web/app/run/[id]/loading.tsx": 6,
+        "web/app/run/[id]/page.tsx": 2,
+        "web/app/run/[id]/run-loading.tsx": 21,
+        "web/app/run/[id]/run-view.tsx": 1,
+        "web/app/ui.css": 33,
+        "web/app/version-guard.tsx": 41,
+        "web/lib/brief-logic.test.ts": 18,
+        "web/lib/brief-logic.ts": 27,
+        "web/lib/brief-types.ts": 5,
+        "web/lib/pending-run.ts": 6,
+        "web/lib/run-limits.test.ts": 36,
+        "web/lib/run-limits.ts": 44,
+        "web/lib/test-draft.test.ts": 45,
+        "web/lib/test-draft.ts": 17,
+        "web/lib/url-input.test.ts": 4,
+        "web/lib/url-input.ts": 2,
+        "web/lib/version-skew.test.ts": 39,
+        "web/lib/version-skew.ts": 32,
+        "web/package.json": 1,
+        "worker/site_reader.py": 13,
+        "worker/test_look_screenshot.py": 74,
+        "worker/test_understand.py": 33,
+        "worker/tools.py": 2,
+        "worker/understand.py": 10,
+        "worker/understand_run.py": 7
+      },
+      "user_removed_per_file": {
+        "demo-shop/shop.js": 1,
+        "web/app/api/briefs/[id]/founder/route.ts": 14,
+        "web/app/api/briefs/route.ts": 14,
+        "web/app/api/runs/[id]/retest/route.ts": 13,
+        "web/app/api/runs/route.ts": 13,
+        "web/app/brief/[id]/brief-view.tsx": 26,
+        "web/app/brief/[id]/page.tsx": 1,
+        "web/app/home/start-section.tsx": 76,
+        "web/app/page.tsx": 1,
+        "web/app/run/[id]/live-run.tsx": 1,
+        "web/app/run/[id]/page.tsx": 6,
+        "web/app/run/[id]/run-view.tsx": 1,
+        "web/lib/brief-logic.ts": 3,
+        "web/lib/brief-types.ts": 1,
+        "web/lib/url-input.test.ts": 4,
+        "web/lib/url-input.ts": 4,
+        "web/package.json": 1,
+        "web/public/file.svg": 1,
+        "web/public/globe.svg": 1,
+        "web/public/next.svg": 1,
+        "web/public/vercel.svg": 1,
+        "web/public/window.svg": 1,
+        "worker/site_reader.py": 1,
+        "worker/test_understand.py": 2,
+        "worker/understand.py": 3,
+        "worker/understand_run.py": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 859,
+      "agent_lines_removed": 191
+    }
+  ]
+}

@@ -3,11 +3,39 @@
   "checkpoint_id": "01M4R1HPSTEEDHK1KFAJQQ6WQB",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    "web/app/api/briefs/[id]/founder/route.ts",
+    "web/app/api/briefs/route.ts",
+    "web/app/api/runs/[id]/retest/route.ts",
+    "web/app/api/runs/route.ts",
+    "web/app/brief/[id]/brief-view.tsx",
+    "web/app/brief/[id]/page.tsx",
+    "web/app/home/start-section.tsx",
+    "web/app/layout.tsx",
+    "web/app/page.tsx",
+    "web/app/run/[id]/live-run.tsx",
+    "web/app/run/[id]/page.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/app/ui.css",
+    "web/lib/brief-logic.test.ts",
+    "web/lib/brief-logic.ts",
     "web/lib/brief-types.ts",
+    "web/lib/pending-run.ts",
+    "web/lib/test-draft.ts",
+    "web/lib/url-input.test.ts",
+    "web/lib/url-input.ts",
+    "web/package.json",
+    "web/public/file.svg",
+    "web/public/globe.svg",
+    "web/public/next.svg",
+    "web/public/vercel.svg",
+    "web/public/window.svg",
     "worker/site_reader.py",
-    "worker/understand.py"
+    "worker/test_understand.py",
+    "worker/tools.py",
+    "worker/understand.py",
+    "worker/understand_run.py"
   ],
   "sessions": [
     {
@@ -16,13 +44,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 478,
-    "cache_creation_tokens": 629938,
-    "cache_read_tokens": 109411633,
-    "output_tokens": 280886,
-    "api_call_count": 239
+    "input_tokens": 722,
+    "cache_creation_tokens": 856796,
+    "cache_read_tokens": 131035941,
+    "output_tokens": 366453,
+    "api_call_count": 361
   }
 }
