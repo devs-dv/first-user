@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QR5TSYGCDCGVMXGKZSWJ4V",
+  "session_id": "1ddf4a25-b8e0-4a6f-8ddd-a4d3a44cfd4a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T09:47:53.2070896Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "web/app/brief/[id]/brief-view.tsx"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "c5a7c0183ea0",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 478,
+    "cache_creation_tokens": 629938,
+    "cache_read_tokens": 109411633,
+    "output_tokens": 280886,
+    "api_call_count": 239
+  },
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T09:47:52.7598075Z",
+    "agent_lines": 27,
+    "agent_removed": 4,
+    "human_added": 742,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 769,
+    "total_lines_changed": 791,
+    "agent_percentage": 3.919089759797725,
+    "metric_version": 2
+  }
+}
