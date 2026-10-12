@@ -7,7 +7,11 @@ import { hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHr
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 import { grid } from "@/lib/css";
 import { founderBriefEnabled } from "@/lib/founder-flag";
+import { runForJourney, type BriefTestRun } from "@/lib/journey-progress";
 import { siteName } from "@/lib/report-view";
+import { useBriefRuns } from "@/lib/use-brief-runs";
+
+import { RunStatusChip } from "../../run-status-chip";
 
 import { FounderView } from "./founder-view";
 import { HiddenTextNotice } from "./hidden-text-notice";
@@ -254,6 +258,8 @@ function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
 // The main call to action: each journey is editable in place, and "Test this journey" opens the test
 // form with the URL, the goal and the success condition as they are now.
 function Journeys({ id, siteUrl, journeys }: { id: string; siteUrl: string; journeys: SuggestedJourney[] }) {
+  // Tests already started from this brief: each journey card shows how its newest one went.
+  const runs = useBriefRuns(journeys.length > 0 ? id : null);
   return (
     <section aria-labelledby="journeys-title" className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -275,7 +281,7 @@ function Journeys({ id, siteUrl, journeys }: { id: string; siteUrl: string; jour
       ) : (
         <ol className="fu-grid m-0 list-none p-0" style={grid("280px")}>
           {journeys.map((journey, index) => (
-            <Journey key={`${index}-${journey.goal}`} index={index} id={id} siteUrl={siteUrl} journey={journey} />
+            <Journey key={`${index}-${journey.goal}`} index={index} id={id} siteUrl={siteUrl} journey={journey} tested={runForJourney(journey, runs ?? [])} />
           ))}
         </ol>
       )}
@@ -283,14 +289,31 @@ function Journeys({ id, siteUrl, journeys }: { id: string; siteUrl: string; jour
   );
 }
 
-function Journey({ index, id, siteUrl, journey }: { index: number; id: string; siteUrl: string; journey: SuggestedJourney }) {
+function Journey({ index, id, siteUrl, journey, tested }: {
+  index: number;
+  id: string;
+  siteUrl: string;
+  journey: SuggestedJourney;
+  tested: BriefTestRun | null;
+}) {
   const [goal, setGoal] = useState(journey.goal);
   const [success, setSuccess] = useState(journey.success);
   // Grows with its text where the browser supports it; three rows otherwise.
   const field = "h-auto min-h-[46px] resize-y py-2.5 text-[15px] leading-snug [field-sizing:content]";
   return (
     <li className="fu-card-sm flex flex-col gap-3.5 p-5">
-      <span className="font-code text-[12px] font-medium text-ink3">{String(index + 1).padStart(2, "0")}</span>
+      <span className="flex min-h-6 flex-wrap items-center justify-between gap-2">
+        <span className="font-code text-[12px] font-medium text-ink3">{String(index + 1).padStart(2, "0")}</span>
+        {tested && (
+          <Link
+            href={`/run/${tested.id}`}
+            className="flex items-center gap-2 text-[13px] font-semibold text-ink no-underline hover:underline"
+          >
+            <RunStatusChip status={tested.status} verdictKind={tested.verdict_kind} />
+            {tested.status === "done" || tested.status === "failed" ? "Report →" : "Watch →"}
+          </Link>
+        )}
+      </span>
       <label className="flex flex-col gap-1.5">
         <span className="fu-eyebrow-sm">Goal</span>
         <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} maxLength={500} className={`fu-field ${field} font-semibold`} />
@@ -305,7 +328,7 @@ function Journey({ index, id, siteUrl, journey }: { index: number; id: string; s
         <SourceLink url={journey.source_url} />
       </div>
       <Link href={testJourneyHref(id, siteUrl, goal, success)} className="fu-btn mt-auto">
-        Test this journey →
+        {tested ? "Test it again →" : "Test this journey →"}
       </Link>
     </li>
   );

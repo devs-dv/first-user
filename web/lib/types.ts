@@ -173,6 +173,8 @@ export type Run = {
   success_condition: string | null;
   retest_of: string | null;
   retest: RetestResult | null;
+  // The product brief this test was started from, if any.
+  brief_run_id?: string | null;
   goal: string;
   status: RunStatus;
   outcome: Outcome | null;
@@ -221,7 +223,7 @@ export type ApiError = { error: string; message: string };
 // result, only the hidden-text evidence is read.
 // One string literal, so supabase-js can infer the row type from it.
 export const RUN_COLUMNS =
-  "id, url, start_url, has_test_login, access_mode, first_impression, hidden_text:result->hidden_text, entry, findings, verdict, run_facts, success_condition, retest_of, retest, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+  "id, url, start_url, has_test_login, access_mode, first_impression, hidden_text:result->hidden_text, entry, findings, verdict, run_facts, success_condition, retest_of, retest, brief_run_id, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
 // The same without the columns added on 2026-10-11 (access_mode, findings), for a database whose schema
 // has not been updated yet: the run page still loads, without them.
 export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "")
@@ -230,6 +232,7 @@ export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", 
   .replace(" run_facts,", "")
   .replace(" success_condition,", "")
   .replace(" retest_of,", "")
-  .replace(" retest,", "");
+  .replace(" retest,", "")
+  .replace(" brief_run_id,", "");
 export const STEP_COLUMNS = "idx, tool, thought, input, result, url, screenshot_path, created_at";
 export const FRICTION_COLUMNS = "id, step_idx, kind, severity, expected, happened";

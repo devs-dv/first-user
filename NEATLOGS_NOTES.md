@@ -166,3 +166,5 @@ neatlogs' Incidents view grouped failures from our traces and opened five incide
 - Incidents were the most useful feature for us: they turned scattered failures into a to-do list without any setup.
 - The egress incident showed that a span with no output reads as a failure. A hint in the incident ("this span has no output, is that intended?") would help others spot instrumentation gaps faster.
 - Incidents counted traces from our test suite before we stopped tests exporting. An environment filter on Incidents (production only) would avoid that.
+
+- **"Investigate further" refuses large incidents.** On the egress incident: "This incident has 32267 evidence characters; the investigation limit is 20000. No investigation was started." The incident with the most traces is the one that most needs investigating. Suggestion: sample the evidence (for example the 20 most recent traces) instead of refusing.

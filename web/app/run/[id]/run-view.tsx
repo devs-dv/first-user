@@ -12,6 +12,7 @@ import type { Run, RunDetails, RunLink, Step } from "@/lib/types";
 
 import { CheckAgain, RetestBanner, RetestView } from "./check-again";
 import { Findings, Frictions } from "./findings";
+import { BriefBacklink, TestAnotherJourney, useFromBrief, type FromBrief } from "./from-brief";
 import { LiveRun } from "./live-run";
 import { displayUrl, formatCost } from "./report-bits";
 import { HowMade } from "./how-made";
@@ -37,6 +38,7 @@ export function RunView({ id }: { id: string }) {
     () => null,
   );
   const [flags] = useState<ReportFlags>(() => readReportFlags(typeof window === "undefined" ? "" : window.location.search));
+  const fromBrief = useFromBrief(state.kind === "ready" ? state.data.run.brief_run_id : null);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +87,10 @@ export function RunView({ id }: { id: string }) {
   const running = run.status === "queued" || run.status === "running";
   return (
     <main className="fu-page" style={{ gap: "var(--block-gap)" }}>
-      <ReportHeader run={run} steps={steps} flags={flags} running={running} />
+      <div className="flex flex-col gap-3.5">
+        {fromBrief && <BriefBacklink from={fromBrief} />}
+        <ReportHeader run={run} steps={steps} flags={flags} running={running} />
+      </div>
       {(connectionTrouble || (flags.checkAgain && (run.retest_of || latestRetest))) && (
         <div className="-mt-6 flex flex-col gap-3">
           {flags.checkAgain && <RetestBanner run={run} latest={latestRetest} />}
@@ -95,7 +100,7 @@ export function RunView({ id }: { id: string }) {
       {running ? (
         <InProgress run={run} steps={steps} flags={flags} original={original} />
       ) : (
-        <Report run={run} steps={steps} frictions={frictions} flags={flags} original={original} />
+        <Report run={run} steps={steps} frictions={frictions} flags={flags} original={original} fromBrief={fromBrief} />
       )}
     </main>
   );
@@ -182,12 +187,13 @@ function InProgress({ run, steps, flags, original }: { run: Run; steps: Step[]; 
   );
 }
 
-function Report({ run, steps, frictions, flags, original }: {
+function Report({ run, steps, frictions, flags, original, fromBrief }: {
   run: Run;
   steps: Step[];
   frictions: RunDetails["frictions"];
   flags: ReportFlags;
   original?: RunLink | null;
+  fromBrief: FromBrief | null;
 }) {
   const loginHelp = showLoginWallHelp(run, steps);
   const kind = verdictKindOf(run, loginHelp, flags.verdict);
@@ -209,6 +215,7 @@ function Report({ run, steps, frictions, flags, original }: {
       <FirstImpressionBlock run={run} flags={flags} open={!flags.answers} />
       {done && <Findings run={run} flags={flags} kind={kind} />}
       {frictions.length > 0 && <Frictions frictions={frictions} findings={run.findings} />}
+      {fromBrief && <TestAnotherJourney from={fromBrief} />}
       {flags.checkAgain && done && <CheckAgain run={run} />}
       <StepsStrip steps={steps} highlight={highlight} />
       <HowMade run={run} steps={steps} showFacts={flags.facts} />

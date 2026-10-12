@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { parseHomeParams, type HomeParams } from "@/lib/brief-logic";
 
 import { Hero } from "./home/hero";
+import { RecentRuns } from "./home/recent-runs";
 import { DemoRun, Faq, FinalCta, HowItWorks, Results, Trust, WhoItsFor } from "./home/sections";
 import { StartSection } from "./home/start-section";
 
@@ -19,6 +20,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
           <StartSection initial={parseHomeParams(raw)} />
         ))}
       </Suspense>
+      <RecentRuns />
       <DemoRun />
       <HowItWorks />
       <Trust />

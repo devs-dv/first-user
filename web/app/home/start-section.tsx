@@ -6,6 +6,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { HomeParams } from "@/lib/brief-logic";
 import { grid } from "@/lib/css";
 import { rememberPendingRun } from "@/lib/pending-run";
+import { recentSite } from "@/lib/journey-progress";
+import { rememberRecent } from "@/lib/recent-runs";
+import { clearDraft, readDraft, saveDraft } from "@/lib/test-draft";
 import { FORM_ANCHOR } from "@/lib/site";
 import type { ApiError } from "@/lib/types";
 
@@ -47,6 +50,27 @@ export function StartSection({ initial }: { initial: HomeParams }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<FormError | null>(null);
   const urlInput = useRef<HTMLInputElement>(null);
+  const draftRead = useRef(false);
+
+  // A reload keeps what was typed (goal, success, way in) unless the address fills the form in. The test
+  // login and the start link are never kept. Read after the first render so the server and browser agree.
+  useEffect(() => {
+    if (!initial.goal && !initial.success && !initial.brief) {
+      const draft = readDraft();
+      if (draft) {
+        /* eslint-disable react-hooks/set-state-in-effect -- sessionStorage is only readable after hydration */
+        setGoal(draft.goal);
+        setSuccess(draft.success);
+        setAccess(draft.access);
+        /* eslint-enable react-hooks/set-state-in-effect */
+      }
+    }
+    draftRead.current = true;
+  }, [initial.goal, initial.success, initial.brief]);
+
+  useEffect(() => {
+    if (draftRead.current) saveDraft({ goal, success, access });
+  }, [goal, success, access]);
 
   // Filled in from the address (a suggested journey on a product brief, or "Run it again").
   useEffect(() => {
@@ -133,6 +157,8 @@ export function StartSection({ initial }: { initial: HomeParams }) {
       const body = (await response.json().catch(() => null)) as { id?: string } | ApiError | null;
       if (response.ok && body && "id" in body && body.id) {
         rememberPendingRun(body.id, { url: address, goal: goal.trim() });
+        rememberRecent({ id: body.id, kind: "test", site: recentSite(address), at: new Date().toISOString() });
+        clearDraft();
         router.push(`/run/${body.id}`);
         return;
       }
@@ -160,6 +186,7 @@ export function StartSection({ initial }: { initial: HomeParams }) {
       });
       const body = (await response.json().catch(() => null)) as { id?: string } | ApiError | null;
       if (response.ok && body && "id" in body && body.id) {
+        rememberRecent({ id: body.id, kind: "brief", site: recentSite(address), at: new Date().toISOString() });
         router.push(`/brief/${body.id}`);
         return;
       }
