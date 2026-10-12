@@ -83,3 +83,32 @@ Priority change for the queued fix list: do them in this order. 1) the draft-ove
 <status>failed</status>
 <summary>Background command "Restart the built web app on port 3123" failed with exit code 127</summary>
 </task-notification>
+
+---
+
+<pasted_content id="3900">
+Your fixes are all uncommitted. Please finish them:
+
+1. Run the checks and fix anything that fails:
+   - cd web && npm test && npm run build
+   - cd worker && python -m pytest -q   (never start the worker's main loop)
+2. Commit ONLY web/ and worker/:
+   git add -A web worker
+   Do NOT stage demo-shop/ or anything outside web/ and worker/. Check with git status before committing.
+   Message: "Draft no longer overwrites the goal, look steps keep their screenshot, run page opens immediately, Test this journey scrolls to the form, Understand waiting state, configurable run limit, version-skew reload, www stripped, Next SVGs removed"
+   (Drop anything from that message you didn't actually do.)
+3. git push origin main. No --force, no --rebase. If the push is rejected, stop and tell me.
+4. Reply with: the commit hash, test results, which of the six priority fixes are done, and anything skipped or risky. Say whether the worker changed (worker/tools.py etc.), since that needs an AWS redeploy.
+
+Do not read or print worker/.env or any env file.
+</pasted_content id="3900">
+
+---
+
+<task-notification>
+<task-id>bm2q91so8</task-id>
+<tool-use-id>toolu_01WjxwXUDwAmr5vAgPrm8wXm</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bm2q91so8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run worker suite on HEAD code, then restore changes" completed (exit code 0)</summary>
+</task-notification>
