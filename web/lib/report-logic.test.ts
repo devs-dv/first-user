@@ -109,6 +109,15 @@ test("a problem noted at a finding's own step counts as covered", () => {
   assert.deepEqual(frictionsNotInFindings(all, [finding(12)]).map((f) => f.id), [2]);
 });
 
+test("a problem noted at a step where a merged finding saw it again is covered", () => {
+  const merged: Finding = {
+    ...finding(11),
+    also_seen_at: [{ step: 12, url: null, screenshot_url: null, page_errors: [] }],
+  };
+  const all = [friction(1, 12), friction(2, 9)];
+  assert.deepEqual(frictionsNotInFindings(all, [merged]).map((f) => f.id), [2]);
+});
+
 test("without findings, every noted problem is shown", () => {
   const all = [friction(1, 13), friction(2, 9)];
   assert.equal(frictionsNotInFindings(all, null).length, 2);

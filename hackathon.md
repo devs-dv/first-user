@@ -723,6 +723,50 @@ What the stored run showed (read from its row): `access_mode` was saved as `sign
 - The eval set has not been re-run.
 - Two findings can still describe the same symptom at different steps (the re-run produced a pair for First/Last Name); the writer is told to merge, and nothing in code does.
 
+### 2026-10-12 — The two herokuapp eval failures: cause found, v5, and merged findings
+
+**Part 1: why `herokuapp_add_remove` and `herokuapp_dynamic_loading` failed**
+
+What the v4 runs recorded: add_remove clicked "Add Element" and the page threw `$ is not defined` (twice, even after the worker's wait-and-retry); dynamic_loading's Start click had no effect, with no page error at all (its handler is registered by jQuery on document ready, so with no jQuery there is nothing to click).
+
+Investigation (`probe`: every request of a page, with host, status and timing, over CDP, through the worker's own browser and guard, and again in a plain Chrome with no proxy; the guard's decision and connect time for every host):
+- **Not the guard.** Every script, stylesheet and image is on `the-internet.herokuapp.com` itself, over https. The guard allowed every host (`hosts_refused: []`); the only unresolved host is `298279967.log.optimizely.com`, an analytics call that does not resolve in a plain Chrome either (`ERR_NAME_NOT_RESOLVED`). There is no http script on an https page and no third-party script host. Connections to the site's four addresses take 0.04 to 0.25 s.
+- **Not the page-ready cap.** The failing loads end at about 30.2 s (under both the old 45 s and the 75 s cap), and the page-ready wait returns when they do.
+- **The site itself.** Some of the site's own static files, a different subset each time, come back as `503` after exactly 30 s (Heroku's router timeout) and the browser aborts them. In the worker's browser, in 8 loads of the two pages, 6 had at least one of its scripts or stylesheets fail (jQuery in 5 of them). In a plain Chrome with no proxy, in 7 loads, 5 did. That is the same rate, so our setup is not the cause. A normal browser usually passes because it has jQuery cached; our browser always starts with an empty profile.
+- What our setup did wrong was not to react: a person whose page looks broken presses reload. The visitor continued on the broken page and the agent was blamed (an agent issue) or got a misleading `$ is not defined`.
+
+Fix (generic, nothing about this site, the guard untouched):
+- `page_watch`: the in-page log now records which element failed (script, stylesheet, image); `failed_assets()` returns the page's own (same-site) scripts and stylesheets that failed in the current document. Images, fonts and other sites' files do not count.
+- `visit.open_start_page`: after loading, if any of the page's own scripts or stylesheets failed, the page is reloaded, up to twice, through the same proxy and guard. The worker logs `[visit] N of the page's own files failed to load (...); reloading (1/2)`.
+- `tools.do()`: when a page's scripts did not load (the existing "scripts not loaded yet" wait) it reloads too; and an action with no effect on a page whose own files failed to load, even after reloading, is now a site friction ("the page's own files failed to load, even after reloading: app.js"), not an agent issue.
+- Tests (`test_broken_load.py`, 7): which assets count; and live, in a real Chrome behind the guard against a local server that fails a script N times: fails once -> loaded by the reload (2 requests); loads whole -> not reloaded (1 request); never loads -> reloaded twice then left alone (3 requests); a click that needs the missing script -> one site friction, no agent issue.
+
+**v5 eval** (`evals/run.py --version v5 --compare-to v0 v4`, fresh Haiku worker, agent 907b4b3 plus the uncommitted change): 5/7 completed and verified, 1/7 completed but unconfirmed, 0/3 false praise, 0 failed runs, $0.0649. Not 7/7.
+
+| Case | v0 | v4 | v5 |
+|---|---|---|---|
+| saucedemo_standard | completed, unverified | completed, verified | completed, verified |
+| herokuapp_login | not completed (failed) | completed, verified | completed, verified |
+| herokuapp_dynamic_loading | not completed (failed) | not completed (blocked) | completed, verified |
+| herokuapp_add_remove | completed, unverified | not completed (blocked) | completed, verified |
+| todomvc_react | not completed (gave_up) | completed, verified | completed, verified |
+| uitesting_click | not completed (blocked) | completed, verified | completed, unverified |
+| practice_hammer | completed, unverified | completed, verified | not completed (blocked) |
+| saucedemo_locked_out / problem_user / error_user | named the issue | named the issue | named the issue |
+
+Two things the table hides:
+- **A second worker took half of the runs.** Five of the ten runs (saucedemo_standard, herokuapp_add_remove, todomvc_react, practice_hammer, saucedemo_error_user) were claimed by a worker that is not on this machine (the queue is shared; mine claimed the other five, and the two interleaved in time). Its code is not this change. So v5 is a mix and is not a clean test; in particular `herokuapp_add_remove` passed there without the reload, and `practice_hammer` was blocked by a Cloudflare "Verify you are human" check that appeared for that worker (a server address; from this machine it passes). **For a clean eval, stop the other worker first.** The runs have no worker id, so this could only be found from the claim log; recording one on each run is worth doing.
+- **My worker's five** (herokuapp_login, herokuapp_dynamic_loading, uitesting_click, saucedemo_locked_out, saucedemo_problem_user): dynamic_loading needed both reloads (6 then 4 files failed) and then passed in 4 steps with no agent issues.
+- **A clean local re-run of the other five** through this machine's code, same goals and Haiku brain, no queue: saucedemo_standard achieved/verified; herokuapp_add_remove achieved/verified (`jquery-ui.js` failed once, the reload fixed it); todomvc_react achieved/verified; practice_hammer achieved/verified; saucedemo_error_user blocked, naming the Last Name error. That is 6/7 verified for this code, with uitesting_click the seventh.
+- **uitesting_click** is the open one, and it is not the herokuapp problem: the agent does not capture the button's colour before clicking, so the verifier cannot tell the green from a default. In 4 runs of this machine's code, 2 of 4 were verified (v4 was verified; v5 and two of three re-runs were "unverified"). The verifier is working as designed (unverified, never contradicted). The fix is on the agent's side: look before the click so the record has a before-state. Not done, as it is outside the herokuapp question.
+
+**Part 2: merging findings that describe the same symptom** (`report_writer.merge_same_symptom`, in code, after validation and before the cap of five)
+- Two findings are the same symptom when they are about the same page (host and path) and their title-plus-happened words, without articles and generic UI words, overlap by at least 0.35 (and share two words). Merging is transitive. The earliest step stays the main evidence, the other steps are listed under it as `also_seen_at` (with their screenshots), the severity is the highest of the group, the noted problems any of them covers are kept, and a merged group frees a slot for the next problem. The report page shows "Seen again at step 12, step 14", and a noted problem at one of those steps is not listed twice.
+- Tests (6, `MergingTheSameSymptom`): the First Name / Last Name trio from the saucedemo problem_user run (steps 12, 11 and 14, the same page) becomes one finding with step 11 as evidence, steps 12 and 14 under it, severity high, the noted problem 13 covered; the same result in the reverse order; a different problem on the same page stays separate; the same words on another page are not merged; merging frees a slot for a sixth distinct problem; a single finding is untouched. Web: a problem noted at a merged step is covered (8 tests).
+- Known limit: it is word overlap, not meaning. Two distinct problems described with mostly the same words on the same page would be merged; the first version of the tests did exactly that with templated sentences.
+
+**Verification:** 152 worker tests (23 live skipped under `SKIP_LIVE_TESTS=1`; the 7 broken-load tests run live and pass), 8 web tests, typecheck and lint clean, `scan_secrets.py` 0 matches in the tree and 37 commits.
+
 ## Demo
 
 - URL: pending

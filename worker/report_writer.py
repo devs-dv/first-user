@@ -324,13 +324,84 @@ def build_findings(raw: list, ctx) -> list[dict]:
                 "quote": quote or None,
             },
             "reproduce": _reproduce(ctx, step, _text(item.get("then_observe"), 200)),
+            "also_seen_at": [],
             "fix_prompt": fix_prompt,
             "_order": position,
         })
     kept.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["_order"]))
-    for finding in kept:
+    merged = merge_same_symptom(kept)
+    for finding in merged:
         del finding["_order"]
-    return kept[:MAX_FINDINGS]
+    return merged[:MAX_FINDINGS]
+
+
+# Words that carry no symptom: articles and links, and the generic words every UI problem is described in.
+SYMPTOM_STOPWORDS = frozenset((
+    "the a an and or of in on at to into onto from with without by for is are was were be been it its this that "
+    "these those there then than but not no does did do has have had after before when while still also only "
+    "page field fields textbox input button form shows show showed shown showing stays stay stayed remains remain "
+    "remained appears appeared appear text typed type types visitor user's step one two".split()))
+SAME_SYMPTOM_OVERLAP = 0.35
+
+
+def _symptom_words(finding: dict) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", f"{finding['title']} {finding['happened']}".lower())
+    return {w for w in words if len(w) > 2 and w not in SYMPTOM_STOPWORDS}
+
+
+def _page_key(finding: dict) -> str:
+    match = re.match(r"https?://([^/?#]+)([^?#]*)", finding["evidence"].get("url") or "")
+    return f"{match.group(1)}{match.group(2).rstrip('/')}" if match else ""
+
+
+def same_symptom(a: dict, b: dict) -> bool:
+    """Two findings about the same page whose symptoms share most of their words."""
+    if not _page_key(a) or _page_key(a) != _page_key(b):
+        return False
+    first, second = _symptom_words(a), _symptom_words(b)
+    shared = first & second
+    return len(shared) >= 2 and len(shared) / len(first | second) >= SAME_SYMPTOM_OVERLAP
+
+
+def merge_same_symptom(findings: list[dict]) -> list[dict]:
+    """One finding per symptom per page, in code, whatever the model wrote.
+
+    The earliest step stays the main evidence, with the rest listed under it as `also_seen_at`; the
+    severity is the highest of the group, and the noted problems any of them covers are kept. Order is
+    the order of the group's most severe (then first-written) member.
+    """
+    parent = list(range(len(findings)))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i in range(len(findings)):
+        for j in range(i + 1, len(findings)):
+            if same_symptom(findings[i], findings[j]):
+                parent[find(j)] = find(i)
+    groups: dict[int, list[dict]] = {}
+    for i, finding in enumerate(findings):
+        groups.setdefault(find(i), []).append(finding)
+
+    merged = []
+    for group in groups.values():
+        by_step = sorted(group, key=lambda f: (f["evidence"]["step"], f["_order"]))
+        main = dict(by_step[0])
+        others = by_step[1:]
+        main["also_seen_at"] = [
+            {"step": o["evidence"]["step"], "url": o["evidence"]["url"],
+             "screenshot_url": o["evidence"]["screenshot_url"], "page_errors": o["evidence"]["page_errors"]}
+            for o in others if o["evidence"]["step"] != main["evidence"]["step"]
+        ]
+        main["severity"] = min((f["severity"] for f in group), key=SEVERITIES.index)
+        main["covers_steps"] = sorted({s for f in group for s in f["covers_steps"]})
+        main["_order"] = min(f["_order"] for f in group if f["severity"] == main["severity"])
+        merged.append(main)
+    merged.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["_order"]))
+    return merged
 
 
 def _covered_problems(ctx, step: int, noted, finding_text: str) -> list[int]:

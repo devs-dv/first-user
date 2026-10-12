@@ -105,12 +105,18 @@ def current_trace_id() -> str | None:
     return parts[1] if len(parts) == 4 else None
 
 
+# A page whose own scripts failed to load is reloaded like a person would, this many times at most.
+MAX_RELOADS = 2
+ASSET_SETTLE_SECONDS = 10
+
+
 async def open_start_page(page, url: str, guard) -> None:
     """Navigate and continue once the DOM is ready, without waiting for the full load event.
 
     Slow scripts or third-party resources can hold up even DOMContentLoaded (on
     the-internet.herokuapp.com it takes about 35 s in Chrome). After PAGE_READY_TIMEOUT_MS
-    the visit goes ahead with whatever has rendered, unless nothing has.
+    the visit goes ahead with whatever has rendered, unless nothing has. If the page's own
+    scripts or stylesheets then turn out to have failed to load, it is reloaded (see below).
     """
     try:
         await page.goto(url, wait_until="domcontentloaded", timeout=PAGE_READY_TIMEOUT_MS)
@@ -122,6 +128,44 @@ async def open_start_page(page, url: str, guard) -> None:
             raise
         print(f"[visit] {url} was not ready after {PAGE_READY_TIMEOUT_MS / 1000:.0f} s; continuing with what "
               "has rendered", flush=True)
+    await reload_if_broken(page, guard)
+
+
+async def reload_if_broken(page, guard) -> list[dict]:
+    """Reload a page whose own scripts or stylesheets failed to load, as a person would press reload.
+
+    A site can fail to serve a file for a moment (the-internet.herokuapp.com answers some static files
+    with a 503 after 30 s, with or without our proxy). The page then loads without its scripts and
+    nothing on it works, which is a flaky load, not a finding. At most MAX_RELOADS reloads. Returns the
+    assets that are still failing afterwards (empty when the page is whole), which the visit reports as
+    the site's problem if it stays broken. Never touches the egress guard's rules: a reload goes through
+    the same proxy and is vetted like any request.
+    """
+    failed: list[dict] = []
+    for attempt in range(MAX_RELOADS + 1):
+        await _wait_for_assets(page)
+        failed = await page_watch.failed_assets(page)
+        if not failed or getattr(guard, "blocks", None) or attempt == MAX_RELOADS:
+            break
+        print(f"[visit] {len(failed)} of the page's own files failed to load "
+              f"({page_watch.describe_assets(failed)}); reloading ({attempt + 1}/{MAX_RELOADS})", flush=True)
+        try:
+            await page.reload(wait_until="domcontentloaded", timeout=PAGE_READY_TIMEOUT_MS)
+        except Exception:
+            if getattr(guard, "blocks", None) or not await _has_rendered(page):
+                break
+    return failed
+
+
+async def _wait_for_assets(page) -> None:
+    """Let a page's remaining scripts and styles finish (or fail), up to ASSET_SETTLE_SECONDS."""
+    for _ in range(ASSET_SETTLE_SECONDS * 2):
+        try:
+            if await page.evaluate("document.readyState") == "complete":
+                return
+        except Exception:
+            return
+        await page.wait_for_timeout(500)
 
 
 async def _has_rendered(page) -> bool:

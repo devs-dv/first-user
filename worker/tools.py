@@ -589,13 +589,19 @@ async def do(instruction: str) -> dict:
         page_errors = await page_watch.collect(page, since)
         if worked or retried_after_wait or not any(_NOT_LOADED.search(e) for e in page_errors):
             break
-        # The page's own scripts had not loaded yet: wait for them, then try once more.
+        # The page's own scripts had not loaded yet: wait for them, then try once more. If some failed to
+        # load at all, reload the page first, as a person would.
         print(f"[step {ctx.tool_calls}]   .. page scripts not loaded yet ({page_errors[0]}); waiting and retrying",
               flush=True)
         await _wait_until_loaded(page)
+        if await page_watch.failed_assets(page):
+            from visit import reload_if_broken
+
+            await reload_if_broken(page, ctx.egress)
         retried_after_wait = True
 
     url = await page.url()
+    broken_assets = [] if worked else await page_watch.failed_assets(page)
     if (login_before and worked and login_before[0] and url != login_before[1]
             and not await _password_visible(page)):
         ctx.entry["page_login_worked"] = True
@@ -620,16 +626,25 @@ async def do(instruction: str) -> dict:
             "page_errors": page_errors,
             "message": "The action worked." if worked == "a" and not retried_after_wait else RETRY_MESSAGE,
         }
-    elif page_errors:
+    elif page_errors or broken_assets:
         # Nothing changed, and the page itself reported errors or failed requests while we
-        # tried: that points at the site, so it is site friction, not our tool's issue.
+        # tried, or its own scripts never loaded: that points at the site, so it is site
+        # friction, not our tool's issue.
+        if page_errors:
+            happened = "Nothing on the page changed, and the page reported errors: " + "; ".join(page_errors)
+            detected_by = "page_errors"
+        else:
+            happened = ("Nothing on the page changed, because the page's own files failed to load, even after "
+                        f"reloading: {page_watch.describe_assets(broken_assets)}.")
+            detected_by = "failed_assets"
+            page_errors = [f"request: failed to load {a['url']}" for a in broken_assets[:3]]
         ctx.frictions.append({
             "kind": "site",
             "severity": "medium",
             "expected": f"'{instruction}' has a visible effect",
-            "happened": "Nothing on the page changed, and the page reported errors: " + "; ".join(page_errors),
+            "happened": happened,
             "url": url,
-            "detected_by": "page_errors",
+            "detected_by": detected_by,
         })
         result = {
             "success": False,

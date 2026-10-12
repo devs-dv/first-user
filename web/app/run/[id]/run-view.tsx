@@ -547,6 +547,19 @@ function FindingCard({ finding, rank }: { finding: Finding; rank: number }) {
             </a>
             {evidence.url && <span> on {displayUrl(evidence.url)}</span>}
           </li>
+          {(finding.also_seen_at?.length ?? 0) > 0 && (
+            <li>
+              Seen again at{" "}
+              {finding.also_seen_at!.map((seen, index) => (
+                <span key={seen.step}>
+                  {index > 0 && ", "}
+                  <a href={`#step-${seen.step}`} className="text-accent hover:underline">
+                    step {seen.step}
+                  </a>
+                </span>
+              ))}
+            </li>
+          )}
           {evidence.quote && <li>The page said: &ldquo;{evidence.quote}&rdquo;</li>}
           {evidence.page_errors.map((error, index) => (
             <li key={index}>

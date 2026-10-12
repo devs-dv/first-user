@@ -47,6 +47,7 @@ export function frictionsNotInFindings(frictions: Friction[], findings: Finding[
   for (const finding of findings) {
     for (const step of finding.covers_steps ?? []) covered.add(step);
     covered.add(finding.evidence.step);
+    for (const seen of finding.also_seen_at ?? []) covered.add(seen.step);
   }
   return frictions.filter((friction) => friction.step_idx === null || !covered.has(friction.step_idx));
 }

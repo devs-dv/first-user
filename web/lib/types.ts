@@ -71,6 +71,8 @@ export type Finding = {
   fix_prompt: string;
   // Steps of the problems the visitor noted that this finding covers, so they are not listed twice.
   covers_steps?: number[];
+  // The same symptom seen again, merged into this finding: the earliest step is `evidence`, these are the rest.
+  also_seen_at?: { step: number; url: string | null; screenshot_url: string | null; page_errors: string[] }[];
 };
 
 export type Run = {

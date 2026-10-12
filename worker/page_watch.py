@@ -17,13 +17,17 @@ MAX_ITEM_CHARS = 160
 WATCH_JS = r"""(() => {
   if (window.__firstUserWatch) return;
   const log = window.__firstUserWatch = [];
-  const push = (kind, text) => {
-    if (log.length < 100) log.push({kind, text: String(text).slice(0, 300), t: Date.now()});
+  const push = (kind, text, tag) => {
+    if (log.length < 100) log.push({kind, text: String(text).slice(0, 300), t: Date.now(), tag: tag || ''});
   };
   addEventListener('error', (event) => {
     const el = event.target;
-    if (el && el !== window && (el.src || el.href)) push('request', 'failed to load ' + (el.src || el.href));
-    else push('js_error', event.message || 'error');
+    if (el && el !== window && (el.src || el.href)) {
+      // What failed: a script or a stylesheet matters to the page working; an image or a font does not.
+      const tag = el.tagName === 'SCRIPT' ? 'script'
+        : (el.tagName === 'LINK' && /stylesheet/i.test(el.rel)) ? 'style' : String(el.tagName || '').toLowerCase();
+      push('request', 'failed to load ' + (el.src || el.href), tag);
+    } else push('js_error', event.message || 'error');
   }, true);
   addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
@@ -111,6 +115,38 @@ async def collect(page, since: float) -> list[str]:
             seen.add(item)
             items.append(item)
     return items[:MAX_ITEMS]
+
+
+async def failed_assets(page) -> list[dict]:
+    """The page's own scripts and stylesheets that failed to load in the current document.
+
+    Same-site only: a blocked tracker or an unreachable third-party widget is not the page being broken.
+    Each is {"url", "tag"} with tag "script" or "style". Empty if the log cannot be read.
+    """
+    try:
+        entries = json.loads(await page.evaluate("JSON.stringify(window.__firstUserWatch || [])"))
+        site = _site(await page.url())
+    except Exception:
+        return []
+    found, seen = [], set()
+    for entry in entries:
+        text = entry.get("text", "")
+        if entry.get("kind") != "request" or not text.startswith("failed to load ") or \
+                entry.get("tag") not in ("script", "style"):
+            continue
+        url = text.removeprefix("failed to load ").strip()
+        if url in seen or (site and not _same_site(text, site)):
+            continue
+        seen.add(url)
+        found.append({"url": url, "tag": entry["tag"]})
+    return found
+
+
+def describe_assets(assets: list[dict], limit: int = 3) -> str:
+    """A short phrase for a list of failed assets: their file names, not whole URLs."""
+    names = [urlsplit(a["url"]).path.rsplit("/", 1)[-1] or a["url"] for a in assets[:limit]]
+    more = f" and {len(assets) - limit} more" if len(assets) > limit else ""
+    return ", ".join(names) + more
 
 
 def _site(url: str) -> str:

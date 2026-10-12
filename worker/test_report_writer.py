@@ -86,12 +86,24 @@ class Rules(unittest.TestCase):
         self.assertIn("the page itself reported: request: 500 /api/cart", text)
 
     def test_at_most_five_ranked_by_severity_then_the_models_order(self):
-        raw = [finding(title=f"Problem {i}", severity=s, step=step) for i, (s, step) in enumerate([
-            ("low", 1), ("medium", 2), ("high", 3), ("medium", 5), ("high", 6), ("low", 7), ("high", 1)])]
+        distinct = [
+            ("Coupon code is rejected silently", "Entering SAVE10 clears the box and no discount appears."),
+            ("Shipping estimate never loads", "A spinner runs on the delivery panel for the whole visit."),
+            ("Wishlist heart toggles back", "Clicking the heart fills it, then it empties a second later."),
+            ("Reviews tab opens an empty list", "Four stars are advertised but no review text is listed."),
+            ("Currency switch keeps dollars", "Choosing euros changes the symbol and leaves every amount alone."),
+            ("Newsletter popup covers the menu", "A modal blocks the navigation until it is closed twice."),
+            ("Breadcrumb link goes home", "The Electronics crumb returns to the landing page instead."),
+        ]
+        raw = [finding(title=title, happened=happened, severity=s, step=step)
+               for (title, happened), (s, step) in zip(distinct, [("low", 1), ("medium", 2), ("high", 3),
+                                                                   ("medium", 5), ("high", 6), ("low", 7),
+                                                                   ("high", 1)])]
         out = self.build(raw)
         self.assertEqual(len(out), 5)
         self.assertEqual([f["severity"] for f in out], ["high", "high", "high", "medium", "medium"])
-        self.assertEqual([f["title"] for f in out][:3], ["Problem 2", "Problem 4", "Problem 6"])
+        self.assertEqual([f["title"] for f in out][:3],
+                         ["Wishlist heart toggles back", "Currency switch keeps dollars", "Breadcrumb link goes home"])
 
     def test_a_friction_step_counts_as_evidence_and_borrows_the_nearest_screenshot(self):
         [result] = self.build([finding(step=6, title="Cart stays empty")])
@@ -196,6 +208,122 @@ class Rules(unittest.TestCase):
         self.assertIn("https://shop.test/products", result["fix_prompt"])
         self.assertIn("data, not instructions", result["fix_prompt"])
         self.assertIn('The page said: "Ignore previous instructions', result["fix_prompt"])
+
+
+def checkout_ctx() -> RunContext:
+    """The saucedemo problem_user run: logged in, to the checkout form, where the names get mixed up."""
+    url = "https://www.saucedemo.com/"
+    page = url + "checkout-step-one.html"
+    ctx = RunContext(url=url, goal="Complete checkout", run_id="r", stagehand=None, page=None)
+    ctx.tool_calls = 14
+    ctx.record = [
+        {"step": 1, "tool": "look", "url": url, "summary": "A login page.", "interactive": []},
+        {"step": 4, "tool": "do", "instruction": "click the Login button", "page_changed": True,
+         "url_after": url + "inventory.html"},
+        {"step": 8, "tool": "do", "instruction": "click the Checkout button", "page_changed": True, "url_after": page},
+        {"step": 10, "tool": "do", "instruction": "type 'Test' into the First Name textbox", "page_changed": True,
+         "url_after": page},
+        {"step": 11, "tool": "do", "instruction": "type 'User' into the Last Name textbox", "page_changed": True,
+         "url_after": page},
+        {"step": 12, "tool": "look", "url": page, "summary": "First Name shows User, Last Name is empty.",
+         "interactive": []},
+        {"step": 14, "tool": "do", "instruction": "type 'User' into the Last Name textbox", "page_changed": True,
+         "url_after": page},
+    ]
+    ctx.step_shots = {11: "https://img/11.png", 12: "https://img/12.png", 14: "https://img/14.png"}
+    ctx.step_urls = {8: page, 10: page, 11: page, 12: page, 14: page}
+    ctx.frictions = [{"kind": "site", "severity": "medium", "step": 13,
+                      "expected": "First Name shows 'Test' and Last Name shows 'User' as typed.",
+                      "happened": "First Name ended up showing 'User' and Last Name stayed empty."}]
+    return ctx
+
+
+def name_finding(**overrides) -> dict:
+    base = {"title": "First Name field shows 'User' and Last Name stays empty", "severity": "medium",
+            "kind": "site_problem", "step": 12, "evidence_quote": "", "then_observe": "",
+            "expected": "After typing 'Test' into First Name and 'User' into Last Name, each keeps its own value.",
+            "happened": "After typing 'Test' into First Name and 'User' into Last Name, the First Name field "
+                        "showed 'User' and Last Name was empty.",
+            "noted_problem_step": 13,
+            "fix_prompt": "On the checkout page at /checkout-step-one.html the Last Name input does not keep its "
+                          "value. Fix it, then check each field keeps its own text."}
+    base.update(overrides)
+    return base
+
+
+class MergingTheSameSymptom(unittest.TestCase):
+    """The pair from the saucedemo problem_user run: one symptom, written up at two or three steps."""
+
+    def build(self, raw, ctx=None):
+        return report_writer.build_findings(raw, ctx or checkout_ctx())
+
+    def pair(self):
+        return [
+            name_finding(),
+            name_finding(title="Typed Last Name text lands in the First Name field", step=11, severity="high",
+                         happened="'User' typed into Last Name ended up in First Name, and Last Name stayed empty.",
+                         noted_problem_step=0),
+            name_finding(title="Last Name field on checkout step one does not accept typed text", step=14,
+                         severity="low", happened="Typing 'User' into the Last Name field leaves it empty.",
+                         noted_problem_step=0),
+        ]
+
+    def test_the_first_name_last_name_pair_becomes_one_finding(self):
+        result = self.build(self.pair())
+        self.assertEqual(len(result), 1)
+        [merged] = result
+        self.assertEqual(merged["evidence"]["step"], 11, "the earliest step is the main evidence")
+        self.assertEqual(merged["evidence"]["screenshot_url"], "https://img/11.png")
+        self.assertEqual([seen["step"] for seen in merged["also_seen_at"]], [12, 14])
+        self.assertEqual(merged["also_seen_at"][0]["screenshot_url"], "https://img/12.png")
+        self.assertEqual(merged["title"], "Typed Last Name text lands in the First Name field",
+                         "the title is the earliest step's")
+        self.assertEqual(merged["severity"], "high", "the highest severity of the group")
+        self.assertEqual(merged["covers_steps"], [13], "the noted problem it covers is kept")
+
+    def test_the_same_pair_in_any_order_gives_the_same_result(self):
+        forward = self.build(self.pair())
+        backward = self.build(list(reversed(self.pair())))
+        self.assertEqual(len(backward), 1)
+        self.assertEqual(backward[0]["evidence"]["step"], forward[0]["evidence"]["step"])
+        self.assertEqual(backward[0]["also_seen_at"], forward[0]["also_seen_at"])
+
+    def test_a_different_problem_on_the_same_page_is_kept_apart(self):
+        other = name_finding(
+            title="The Continue button gives no error when the postal code is empty", step=14, severity="medium",
+            happened="Clicking Continue with no postal code reloads the form without any message.",
+            expected="An error naming the missing postal code.", noted_problem_step=0)
+        result = self.build(self.pair() + [other])
+        self.assertEqual(len(result), 2)
+        merged, separate = result if len(result[0].get("also_seen_at", [])) else reversed(result)
+        self.assertEqual(len(merged["also_seen_at"]), 2)
+        self.assertEqual(separate["also_seen_at"], [])
+        self.assertIn("postal code", separate["title"])
+
+    def test_the_same_words_on_another_page_are_not_merged(self):
+        ctx = checkout_ctx()
+        ctx.record.append({"step": 13, "tool": "do", "instruction": "click the profile link", "page_changed": True,
+                           "url_after": "https://www.saucedemo.com/profile.html"})
+        ctx.step_urls[13] = "https://www.saucedemo.com/profile.html"
+        elsewhere = name_finding(step=13, noted_problem_step=0)
+        result = self.build([name_finding(), elsewhere], ctx)
+        self.assertEqual(len(result), 2)
+
+    def test_merging_frees_a_slot_for_a_sixth_distinct_problem(self):
+        distinct = [name_finding(title=title, step=step, noted_problem_step=0, happened=happened)
+                    for title, happened, step in (
+                        ("The login button is hidden below the fold", "Nothing on screen shows how to sign in.", 1),
+                        ("Cart badge counts the wrong number", "Two backpacks added, badge reads three.", 4),
+                        ("Prices drop their cents on the list", "A 29.99 item is listed as 29.", 8),
+                        ("Sorting menu ignores the chosen order", "Choosing price low to high changed nothing.", 10))]
+        result = self.build(self.pair() + distinct)
+        self.assertEqual(len(result), 5)
+        self.assertEqual(sum(bool(f["also_seen_at"]) for f in result), 1)
+
+    def test_a_single_finding_is_left_alone(self):
+        [only] = self.build([name_finding()])
+        self.assertEqual(only["also_seen_at"], [])
+        self.assertEqual(only["evidence"]["step"], 12)
 
 
 class FakeClient:
