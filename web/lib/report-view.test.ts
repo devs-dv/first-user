@@ -10,6 +10,7 @@ import {
   shareText,
   stepKind,
   stepMarks,
+  stepShot,
   stepStatus,
   verdictKindOf,
 } from "./report-view.ts";
@@ -187,4 +188,21 @@ test("the header and the run facts show one duration from one source", () => {
   assert.equal(runSeconds({ started_at: null, finished_at: null, run_facts: null }), null);
   assert.equal(formatSeconds(null), "—");
   assert.equal(formatSeconds(9), "9s");
+});
+
+test("a step without its own screenshot borrows the nearest earlier one", () => {
+  const steps = [
+    step(1, "look"),
+    step(2, "do", { screenshot_path: "https://cdn.test/2.png" }),
+    step(3, "look"),
+    step(4, "do", { screenshot_path: "https://cdn.test/4.png" }),
+    step(5, "finish"),
+  ];
+  assert.equal(stepShot(steps, 1), null);
+  assert.deepEqual(stepShot(steps, 2), { url: "https://cdn.test/2.png", from: 2 });
+  assert.deepEqual(stepShot(steps, 3), { url: "https://cdn.test/2.png", from: 2 });
+  assert.deepEqual(stepShot(steps, 5), { url: "https://cdn.test/4.png", from: 4 });
+  // Never a later screenshot, and never one that is not an http(s) address.
+  assert.equal(stepShot([step(1, "look"), step(2, "do", { screenshot_path: "https://cdn.test/2.png" })], 1), null);
+  assert.equal(stepShot([step(1, "do", { screenshot_path: "javascript:alert(1)" }), step(2, "look")], 2), null);
 });

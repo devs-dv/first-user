@@ -12,7 +12,7 @@ import { BASIS_LABEL, BASIS_NOTE, fixFirst, shortUrl, understanding, withoutProm
 import { isHttpUrl, pathOf } from "@/lib/report-view";
 import type { ReportFlags } from "@/lib/report-flags";
 import type { Basis, FirstImpression, Clarity, Run, Step, VerdictKind } from "@/lib/types";
-import { VERDICT_LOOK } from "@/lib/verdict-look";
+import { derivedHeadline, VERDICT_LOOK } from "@/lib/verdict-look";
 
 import { againHref, BrowserFrame } from "./report-bits";
 
@@ -38,24 +38,6 @@ export function BasisBadge({ basis, show = true, short = false }: { basis: Basis
 
 // The six states' colours and labels live in lib/verdict-look.ts, shared with the brief and the home page.
 export { VERDICT_LOOK };
-
-// The same words the worker writes (worker/verdict.py), for runs saved before it wrote a verdict.
-function derivedHeadline(kind: VerdictKind, page: string): string {
-  switch (kind) {
-    case "got_through":
-      return "A first-time visitor got through";
-    case "unconfirmed":
-      return "The visitor says it got through, but we could not confirm it";
-    case "stuck":
-      return page ? `A first-time visitor got stuck on ${page}` : "A first-time visitor got stuck";
-    case "login_wall":
-      return "A first-time visitor was stopped at a login";
-    case "bot_check":
-      return "The site blocked the visit with a bot check";
-    case "our_failure":
-      return "The visit failed on our side, so this says nothing about your site";
-  }
-}
 
 const OUTCOME_LABEL: Record<string, string> = {
   achieved: "Reached the goal",

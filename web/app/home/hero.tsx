@@ -10,6 +10,7 @@ import { reducedMotion } from "../motion";
 import { goToForm } from "../site-header";
 import { HERO_RUN, MARQUEE, PHASES } from "./data";
 import { setHome, useHeroClock, useHome } from "./store";
+import { urlFieldHandlers } from "./url-field";
 
 const RESULT = {
   ok: { label: "Done", bg: "var(--green-soft)", fg: "var(--green-ink)" },
@@ -134,6 +135,7 @@ export function Hero() {
                 id="hero-url"
                 value={url}
                 onChange={(event) => setHome({ url: event.target.value })}
+                {...urlFieldHandlers((value) => setHome({ url: value }))}
                 placeholder="your-app.com"
                 inputMode="url"
                 autoComplete="url"

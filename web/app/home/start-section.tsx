@@ -15,6 +15,7 @@ import type { ApiError } from "@/lib/types";
 import { START_TEST_EVENT } from "../site-header";
 import { ACCESS, LOOP, type Access } from "./data";
 import { setHome, useHome, type Tab } from "./store";
+import { urlFieldHandlers } from "./url-field";
 
 type Field = "url" | "goal" | "startUrl" | "credentials" | "permission" | "success" | "form";
 type FormError = { field: Field; title?: string; message: string };
@@ -343,6 +344,7 @@ export function StartSection({ initial }: { initial: HomeParams }) {
                   placeholder="your-app.com"
                   value={url}
                   onChange={(event) => setHome({ url: event.target.value })}
+                  {...urlFieldHandlers((value) => setHome({ url: value }))}
                   aria-invalid={error?.field === "url"}
                   aria-describedby={error?.field === "url" ? "url-error" : testing ? undefined : "understand-hint"}
                 />
@@ -451,16 +453,22 @@ export function StartSection({ initial }: { initial: HomeParams }) {
                       <label htmlFor="fu-start-url" className="text-[14px] font-semibold">
                         Start link
                       </label>
-                      <input
-                        id="fu-start-url"
-                        name="startUrl"
-                        type="url"
-                        inputMode="url"
-                        placeholder="https://your-app.com/demo"
-                        aria-invalid={error?.field === "startUrl"}
-                        aria-describedby="start-hint"
-                        className="fu-field fu-field-mono"
-                      />
+                      <span className="fu-field-wrap" data-invalid={error?.field === "startUrl"}>
+                        <span aria-hidden>https://</span>
+                        {/* Not type="url": that type has no caret position, which the paste cleanup needs. */}
+                        <input
+                          id="fu-start-url"
+                          name="startUrl"
+                          inputMode="url"
+                          autoComplete="off"
+                          placeholder="your-app.com/demo"
+                          {...urlFieldHandlers((value, input) => {
+                            input.value = value;
+                          })}
+                          aria-invalid={error?.field === "startUrl"}
+                          aria-describedby="start-hint"
+                        />
+                      </span>
                       <p id="start-hint" className="fu-hint">
                         A demo page, guest mode or preview build that is already past the login. The visit begins here.
                       </p>

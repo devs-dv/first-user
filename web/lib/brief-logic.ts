@@ -74,3 +74,10 @@ export function parseHomeParams(raw: Record<string, string | string[] | undefine
     brief: UUID.test(brief) ? brief : "",
   };
 }
+
+// The default post text of the brief page's share panel, for the product brief and for the founder brief.
+export function briefShareText(site: string, link: string, which: "product" | "founder"): string {
+  return which === "founder"
+    ? `First User wrote a founder brief for ${site} from its public pages: ${link} #neatHack via @devsdv_`
+    : `First User read ${site} and suggested what a first-time visitor should try. Here's the brief: ${link} #neatHack via @devsdv_`;
+}

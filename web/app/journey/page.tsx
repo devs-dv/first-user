@@ -5,12 +5,14 @@ import { X_POSTS } from "@/content/x-posts";
 import { grid } from "@/lib/css";
 import { SOCIAL } from "@/lib/site";
 
+import { pageMeta } from "../meta";
+
 import { ByTool, XPosts } from "./journey-client";
 
-export const metadata: Metadata = {
-  title: "Build Journey · First User",
+export const metadata: Metadata = pageMeta({
+  title: "Build journey",
   description: "Building First User at #neatHack, in public: what broke at each version, and what changed because of it.",
-};
+});
 
 export default function JourneyPage() {
   const singleRuns = SINGLE_RUNS.filter((run) => run.results.length > 0);

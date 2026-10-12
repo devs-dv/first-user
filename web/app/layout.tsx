@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { Archivo, Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 
+import { SITE_DESCRIPTION, SITE_TITLE, TITLE_TEMPLATE } from "@/lib/page-meta";
+import { SITE_URL } from "@/lib/site";
+
 import "./globals.css";
+import { pageMeta } from "./meta";
 import { MotionRuntime } from "./motion";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
@@ -13,9 +17,10 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "First User",
-  description:
-    "Find out whether a stranger can actually use your product, before you spend money acquiring users. A first-time visitor tries one goal in a real browser and reports honestly what happened.",
+  ...pageMeta({ title: SITE_TITLE, description: SITE_DESCRIPTION }),
+  metadataBase: new URL(SITE_URL),
+  // Pages name themselves ("Build journey"); the template adds " · First User". The home page keeps the default.
+  title: { default: SITE_TITLE, template: TITLE_TEMPLATE },
 };
 
 // Applies a saved light or dark choice before the first paint, so the page never flashes the other theme.

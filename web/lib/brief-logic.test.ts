@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  briefShareText,
   hiddenTextNote,
   isBrief,
   isFailure,
@@ -95,5 +96,16 @@ test("the notice wording is the worker's fixed sentence", () => {
   assert.equal(
     HIDDEN_TEXT_NOTICE,
     "This page contains hidden text addressed to automated agents. It is not visible to people and was ignored.",
+  );
+});
+
+test("the brief's share text names the site and the link, per tab", () => {
+  assert.equal(
+    briefShareText("example.com", "https://fu.test/brief/1", "product"),
+    "First User read example.com and suggested what a first-time visitor should try. Here's the brief: https://fu.test/brief/1 #neatHack via @devsdv_",
+  );
+  assert.equal(
+    briefShareText("example.com", "https://fu.test/brief/1?tab=founder", "founder"),
+    "First User wrote a founder brief for example.com from its public pages: https://fu.test/brief/1?tab=founder #neatHack via @devsdv_",
   );
 });

@@ -31,3 +31,6 @@ export const SOCIAL = {
 } as const;
 
 export const BUILT_WITH = ["neatlogs", "Entire", "cfo.ai", "Stagehand", "Claude", "Supabase", "Vercel", "AWS"];
+
+// The public address, for absolute links in share cards. A preview deployment still points cards at production.
+export const SITE_URL = "https://firstuser-dv.vercel.app";

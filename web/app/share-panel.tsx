@@ -1,19 +1,19 @@
 "use client";
 
-// Share this report: copy the link, or post it on X or LinkedIn with an editable default text.
+// Share a page: copy the link, or post it on X or LinkedIn with an editable default text. Used by the report and
+// by the brief.
 
 import { useState } from "react";
 
-import { shareLinks, shareText, siteName } from "@/lib/report-view";
-import type { VerdictKind } from "@/lib/types";
+import { shareLinks } from "@/lib/report-view";
 
-import { copyText } from "../../copy";
+import { copyText } from "./copy";
 
-export function SharePanel({ url, kind }: { url: string; kind: VerdictKind }) {
-  // The link is this page's address without any query (such as ?report=basic). The report renders only
-  // after the run is fetched in the browser, so reading the address here cannot differ from a server render.
-  const [link] = useState(() => (typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}`));
-  const [message, setMessage] = useState(() => shareText(siteName(url), link, kind));
+export function SharePanel({ title, query = "", makeText }: { title: string; query?: string; makeText: (link: string) => string }) {
+  // The link is this page's address with only the given query (such as ?tab=founder). Both pages render this only
+  // after their data is fetched in the browser, so reading the address here cannot differ from a server render.
+  const [link] = useState(() => (typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}${query}`));
+  const [message, setMessage] = useState(() => makeText(link));
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
 
   const links = shareLinks(message);
@@ -27,7 +27,7 @@ export function SharePanel({ url, kind }: { url: string; kind: VerdictKind }) {
     <section aria-labelledby="share-title" className="flex flex-col gap-3.5 border-t border-line pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3.5">
         <h2 id="share-title" className="m-0 text-[17px] font-semibold">
-          Share this report
+          {title}
         </h2>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copy} disabled={!link} className="fu-btn fu-btn-ghost">

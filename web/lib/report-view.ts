@@ -245,6 +245,18 @@ export function isHttpUrl(value: string | null | undefined): value is string {
   return !!value && /^https?:\/\//i.test(value);
 }
 
+// The screenshot a step card shows: its own, else the nearest earlier one. The worker links a screenshot only to
+// do() steps; look() uploads one without linking it and finish() takes none, so those show the page as it was
+// left by the step before. `from` is the step the screenshot belongs to.
+export function stepShot(steps: Step[], idx: number): { url: string; from: number } | null {
+  let found: Step | null = null;
+  for (const step of steps) {
+    if (step.idx > idx) break;
+    if (isHttpUrl(step.screenshot_path)) found = step;
+  }
+  return found ? { url: found.screenshot_path as string, from: found.idx } : null;
+}
+
 // ---------------------------------------------------------------------------------------------------
 // How long the run took: one source for every place the report shows it. The run facts' own count when there
 // is one, otherwise the run's start and finish times.

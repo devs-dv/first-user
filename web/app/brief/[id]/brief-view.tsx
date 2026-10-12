@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import { briefShareText, hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 import { grid } from "@/lib/css";
 import { founderBriefEnabled } from "@/lib/founder-flag";
@@ -12,6 +12,7 @@ import { siteName } from "@/lib/report-view";
 import { useBriefRuns } from "@/lib/use-brief-runs";
 
 import { RunStatusChip } from "../../run-status-chip";
+import { SharePanel } from "../../share-panel";
 
 import { FounderView } from "./founder-view";
 import { HiddenTextNotice } from "./hidden-text-notice";
@@ -155,10 +156,25 @@ function Failed({ message }: { message: string | null }) {
   );
 }
 
+type BriefTab = "product" | "founder";
+
 function Ready({ id, run, brief }: { id: string; run: BriefRun; brief: Brief }) {
-  const [tab, setTab] = useState<"product" | "founder">("product");
   // The founder brief is behind NEXT_PUBLIC_FOUNDER_BRIEF; without it this page is the product brief alone.
   const founder = founderBriefEnabled();
+  // ?tab=founder opens the founder brief, so its shared link lands on it. This renders only after the brief is
+  // fetched in the browser, so reading the address cannot differ from a server render.
+  const [tab, setTabState] = useState<BriefTab>(() =>
+    founder && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "founder" ? "founder" : "product",
+  );
+  function setTab(next: BriefTab) {
+    setTabState(next);
+    const address = new URL(window.location.href);
+    if (next === "founder") address.searchParams.set("tab", "founder");
+    else address.searchParams.delete("tab");
+    window.history.replaceState(window.history.state, "", address);
+  }
+  const shown: BriefTab = founder ? tab : "product";
+  const site = siteName(run.url);
   const tabs = founder ? (
     <div role="tablist" aria-label="Which brief" className="flex gap-1 rounded-pill border-[1.5px] border-ink bg-s1 p-1">
       {(
@@ -187,7 +203,14 @@ function Ready({ id, run, brief }: { id: string; run: BriefRun; brief: Brief }) 
   return (
     <>
       <BriefHeader run={run} tabs={tabs} />
-      {founder && tab === "founder" ? <FounderView briefId={id} /> : <ProductBrief id={id} brief={brief} />}
+      {shown === "founder" ? <FounderView briefId={id} /> : <ProductBrief id={id} brief={brief} />}
+      {/* Keyed by tab: switching tabs starts from that tab's own default text. */}
+      <SharePanel
+        key={shown}
+        title={shown === "founder" ? "Share this founder brief" : "Share this brief"}
+        query={shown === "founder" ? "?tab=founder" : ""}
+        makeText={(link) => briefShareText(site, link, shown)}
+      />
     </>
   );
 }

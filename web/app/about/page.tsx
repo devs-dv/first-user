@@ -4,10 +4,12 @@ import Link from "next/link";
 import { grid } from "@/lib/css";
 import { BUILT_WITH, EXAMPLE_REPORT_HREF, SOCIAL } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "About · First User",
+import { pageMeta } from "../meta";
+
+export const metadata: Metadata = pageMeta({
+  title: "About",
   description: "First User was built solo by Divyanshu Verma (DV) at #neatHack.",
-};
+});
 
 const LINKS = [SOCIAL.x, SOCIAL.linkedin, SOCIAL.github, SOCIAL.repo];
 

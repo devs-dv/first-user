@@ -12,6 +12,7 @@ import {
   pathOf,
   stepKind,
   stepMarks,
+  stepShot,
   stepStatus,
   type StepKind,
   type StepMark,
@@ -304,7 +305,10 @@ export function StepsStrip({ steps, highlight, live = false }: { steps: Step[]; 
             const accent = marks.length ? MARK_COLOR[marks[0]] : null;
             const kind = stepKind(step);
             const result = describeResult(step);
-            const shotIndex = shots.findIndex((shot) => shot.idx === step.idx);
+            // A step without its own screenshot shows the nearest earlier one, labelled with the step it is from.
+            const shot = stepShot(steps, step.idx);
+            const borrowed = shot !== null && shot.from !== step.idx;
+            const shotIndex = shot ? shots.findIndex((own) => own.idx === shot.from) : -1;
             return (
               <li
                 key={step.idx}
@@ -316,20 +320,25 @@ export function StepsStrip({ steps, highlight, live = false }: { steps: Step[]; 
                   className="flex h-full flex-col overflow-hidden rounded-card bg-s1"
                   style={{ border: `${accent ? 2 : 1.5}px solid ${accent ?? "var(--line)"}` }}
                 >
-                  {shotIndex >= 0 ? (
+                  {shot && shotIndex >= 0 ? (
                     <button
                       type="button"
                       onClick={() => setLightbox(shotIndex)}
-                      aria-label={`Open the screenshot of step ${step.idx} full size`}
+                      aria-label={`Open the screenshot of step ${shot.from} full size`}
                       className="group relative block cursor-zoom-in border-b border-line bg-page p-0"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={step.screenshot_path as string}
-                        alt={`The page after step ${step.idx}`}
+                        src={shot.url}
+                        alt={`The page after step ${shot.from}`}
                         loading="lazy"
                         className="block aspect-[16/10] w-full object-cover object-top"
                       />
+                      {borrowed && (
+                        <span className="absolute left-2 top-2 rounded-pill bg-ink-fixed/85 px-2.5 py-1 font-code text-[11px] text-white">
+                          Screenshot from step {shot.from}
+                        </span>
+                      )}
                       <span aria-hidden className="absolute bottom-2 right-2 rounded-pill bg-ink-fixed/85 px-2.5 py-1 font-code text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                         View full size
                       </span>

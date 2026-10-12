@@ -7,8 +7,10 @@ import { hiddenTextNotice } from "@/lib/hidden-text";
 import { parsePendingRun, pendingRunSnapshot } from "@/lib/pending-run";
 import { readReportFlags, type ReportFlags } from "@/lib/report-flags";
 import { showLoginWallHelp } from "@/lib/report-logic";
-import { formatSeconds, runSeconds, siteName, verdictKindOf } from "@/lib/report-view";
+import { formatSeconds, runSeconds, shareText, siteName, verdictKindOf } from "@/lib/report-view";
 import type { Run, RunDetails, RunLink, Step } from "@/lib/types";
+
+import { SharePanel } from "../../share-panel";
 
 import { CheckAgain, RetestBanner, RetestView } from "./check-again";
 import { Findings, Frictions } from "./findings";
@@ -17,7 +19,6 @@ import { LiveRun } from "./live-run";
 import { displayUrl, formatCost } from "./report-bits";
 import { HowMade } from "./how-made";
 import { FirstImpressionPanel, HiddenTextLine, ShortAnswer, VerdictHero, heroTitle } from "./report-v2";
-import { SharePanel } from "./share-panel";
 import { StepsStrip } from "./steps-strip";
 
 const POLL_MS = 2000;
@@ -219,7 +220,7 @@ function Report({ run, steps, frictions, flags, original, fromBrief }: {
       {flags.checkAgain && done && <CheckAgain run={run} />}
       <StepsStrip steps={steps} highlight={highlight} />
       <HowMade run={run} steps={steps} showFacts={flags.facts} />
-      {done && <SharePanel url={run.url} kind={kind} />}
+      {done && <SharePanel title="Share this report" makeText={(link) => shareText(siteName(run.url), link, kind)} />}
     </>
   );
 }
