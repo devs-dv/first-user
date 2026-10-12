@@ -1,0 +1,201 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4Q520E1Y2ST4RFTTPP85WAT",
+  "session_id": "225c0e86-6abd-4bc8-88dc-e3a2fc4683a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T04:13:45.8519604Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/runs/route.ts",
+    "web/app/run-form.tsx",
+    "web/app/run/[id]/report-v2.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-flags.ts",
+    "web/lib/report-logic.test.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/types.ts",
+    "worker/browse.py",
+    "worker/claims.py",
+    "worker/config.py",
+    "worker/db.py",
+    "worker/first_impression.py",
+    "worker/report_writer.py",
+    "worker/run_facts.py",
+    "worker/test_credentials.py",
+    "worker/test_report_v2.py",
+    "worker/test_report_writer.py",
+    "worker/tools.py",
+    "worker/verdict.py",
+    "worker/verifier.py",
+    "worker/visit.py",
+    "worker/worker_run.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5-5",
+  "turn_id": "2a6873b7706b",
+  "checkpoint_transcript_start": 7763,
+  "transcript_lines_at_start": 7763,
+  "compact_transcript_start": 1052,
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 97248,
+    "cache_read_tokens": 22637361,
+    "output_tokens": 75943,
+    "api_call_count": 35
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_013kMS35BQ5cDu1tvSGibbrr",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "neathack"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 106,
+        "end": 107,
+        "entry_ids": [
+          "d5d75114-d7c8-4b1e-8a05-2508cf34c1b7"
+        ],
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_013kMS35BQ5cDu1tvSGibbrr"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: neathack",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01V3E2EwWcZ6125BhUUVnk2e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "dcc913e9e683",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 203,
+        "end": 204,
+        "entry_ids": [
+          "43368411-b9af-456e-977c-eb42c2a57641"
+        ],
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01V3E2EwWcZ6125BhUUVnk2e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01F3gTXSsUEyTFNu2RWeGAo6",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 783,
+        "end": 784,
+        "entry_ids": [
+          "8235cce7-6252-430b-8c3d-d02f0759eae8"
+        ],
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01F3gTXSsUEyTFNu2RWeGAo6"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_019PL2tgUQwAD2VjGnNzKQ6m",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "supabase:supabase-postgres-best-practices"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "206e9567e27f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 845,
+        "end": 846,
+        "entry_ids": [
+          "952fbb7c-d6ca-4060-b3d2-feb13d99a799"
+        ],
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019PL2tgUQwAD2VjGnNzKQ6m"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: supabase:supabase-postgres-best-practices",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 89
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T04:13:45.1631975Z",
+    "agent_lines": 1455,
+    "agent_removed": 58,
+    "human_added": 0,
+    "human_modified": 1692,
+    "human_removed": 0,
+    "total_committed": 3147,
+    "total_lines_changed": 3205,
+    "agent_percentage": 47.20748829953198,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

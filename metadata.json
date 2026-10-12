@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4Q520E1Y2ST4RFTTPP85WAT",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "hackathon.md",
+    "supabase/schema.sql",
+    "web/app/api/runs/route.ts",
+    "web/app/run-form.tsx",
+    "web/app/run/[id]/report-v2.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/lib/report-flags.ts",
+    "web/lib/report-logic.test.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/types.ts",
+    "worker/browse.py",
+    "worker/claims.py",
+    "worker/config.py",
+    "worker/db.py",
+    "worker/first_impression.py",
+    "worker/report_writer.py",
+    "worker/run_facts.py",
+    "worker/test_credentials.py",
+    "worker/test_report_v2.py",
+    "worker/test_report_writer.py",
+    "worker/tools.py",
+    "worker/verdict.py",
+    "worker/verifier.py",
+    "worker/visit.py",
+    "worker/worker_run.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 97248,
+    "cache_read_tokens": 22637361,
+    "output_tokens": 75943,
+    "api_call_count": 35
+  }
+}

@@ -1,0 +1,30 @@
+<pasted_content id="c7d7">
+Upgrade the report so it answers three questions for a founder: will a new user understand my product, can they get value from it, and what should I fix first. Do not read or print worker/.env or any env file.
+
+1. Verdict. Compute one verdict per run from the outcome, the verifier and our own-issue count, stored on the run result as {kind, headline, where_step, evidence_quote}. Kinds:
+   - got_through: achieved and verified. Headline "A first-time visitor got through". evidence_quote is the verifier's evidence.
+   - unconfirmed: achieved but the verifier could not confirm. Say plainly what it could not see.
+   - stuck: blocked, gave up, ran out of steps, or contradicted. Headline names the page where they got stuck; where_step points to the step.
+   - login_wall: stopped at a login or sign-up it could not pass. Include the three ways in.
+   - bot_check: stopped by a "verify you are human" check. No site findings.
+   - our_failure: the run failed because of our tool or an error, not the site. No site findings may be produced in this case.
+
+2. Success condition. Add an optional field to the form: "What does success look like?" (for example "a project appears in the dashboard"). Pass it to the agent and to the verifier, and record it on the run. When it is given, the verifier checks that condition, not just the goal wording. When it is not given, the report says the goal was checked without a stated success condition.
+
+3. Three answers at the top of the report:
+   - Will they understand it? From the first-impression review: clear, partly clear or unclear, with the reasons.
+   - Can they get value? The verdict.
+   - What to fix first? The top-ranked finding.
+
+4. Evidence labels. Every statement in the report carries a basis: observed (from the run record), verified (confirmed by the verifier), or recommendation (our suggestion). Findings must show their basis. Recommendations must never be worded as facts and must never promise outcomes such as conversion lifts.
+
+5. Structured fix prompts. Each finding's fix prompt has: the observed issue with its evidence (step number, page URL, screenshot reference); the expected behaviour; constraints (keep existing validation and business rules, no unrelated redesigns, change nothing that works); 3 to 5 acceptance criteria a person can check; and a retest instruction: "Repeat the original journey in a fresh session and confirm the original issue no longer occurs, using visible page evidence. Report Not reached if the relevant state cannot be reached; do not report Fixed without testing it." Keep it paste-ready for Cursor or Claude Code. Do not generate regression test code.
+
+6. Run facts. Store and show in a collapsed "How this report was made" panel: steps taken, actions that needed recovery and on which rung, our own issues, page reloads, hidden page errors, the verifier's verdict and quote, cost in USD, duration, agent version, worker id, and the neatlogs trace ID as text (no link).
+
+7. Put every new report section behind a flag so it can be hidden if something breaks.
+
+Another Claude Code session is building a separate "Understand this website" mode in a git worktree on the branch "understand". Keep your SQL in its own clearly headed block at the end of schema.sql and your hackathon.md entry under its own heading "Report v2", so the merge is clean. Never start the worker's main loop while testing unless I say so; test with direct calls or one-off scripts.
+
+Add tests for each verdict kind, for our_failure and bot_check producing no site findings, and for fix prompts always containing acceptance criteria. Give me any SQL for Supabase, keeping schema.sql safe to re-run. Run all worker and web tests and the secret scan. Do not commit.
+</pasted_content id="c7d7">
