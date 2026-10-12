@@ -1,0 +1,33 @@
+<pasted_content id="1b09">
+Four fixes. Do not read or print any env file. Do not commit.
+
+1. Share on the brief page: the Understand/brief page has no share panel. Add the same share panel the report has (copy link, Share on X, Share on LinkedIn, editable text), with default text: "First User read {site} and suggested what a first-time visitor should try. Here's the brief: {link} #neatHack via @devsdv_". Also on the Founder brief tab: "First User wrote a founder brief for {site} from its public pages: {link} #neatHack via @devsdv_".
+
+2. URL input: the field shows a fixed "https://" prefix, so pasting a full URL gives "https://https://…". On paste and on blur, strip any leading "http://" or "https://" (case-insensitive) and surrounding spaces, and also strip a leading "www." only if the user typed it with a protocol. Never strip anything else. Same for every URL field (test form, Understand form, start link). Add tests.
+
+3. Branding: replace the Next.js favicon with a First User icon (the lime dot mark from the design, as SVG plus a 32px PNG fallback and an apple-touch icon). Set metadata: site title "First User: Your first user, before the real ones.", description "An AI that tries your app like a first-time customer, shows where it gets stuck with evidence, gives you a fix prompt, and checks your fix." Per-page titles: report "{site}: {verdict headline} · First User", brief "{site} brief · First User", journey "Build journey · First User". Add Open Graph and Twitter card tags with a 1200x630 image in the design's style (wordmark, tagline, lime accent), so links shared on X show a proper card. Report pages: use the verdict in the og:description.
+
+4. Missing screenshots in "03 · Every step": some step cards show "No screenshot for this step". Find out why before changing anything. Check, for run 665db5d4-aeab-4889-9369-d7cf5f4f5f31 and 631236d8-c32f-4124-b0af-5d63cda81c61: which step types the worker captures screenshots for (look, do, finish), whether the missing ones were never captured, failed to upload, or are captured but not linked to the step in the web app. If the cause is in the web app, fix it. If the worker only captures some step types by design, show the nearest earlier screenshot with a small "screenshot from step N" label instead of an empty box. If it's a worker bug, tell me the exact cause and the fix, but do not change worker code without telling me first, because it needs a server redeploy.
+
+Check at 390 px and 1280 px. Run web tests, typecheck, lint and build.
+</pasted_content id="1b09">
+
+---
+
+<task-notification>
+<task-id>b5y8ov3cc</task-id>
+<tool-use-id>toolu_012NkQ91svTxVdUb5Ax2YjxU</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b5y8ov3cc.output</output-file>
+<status>failed</status>
+<summary>Background command "Start production server again" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bp1w2ofap</task-id>
+<tool-use-id>toolu_01UxpYY34YLfhNAhtbY74yyx</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bp1w2ofap.output</output-file>
+<status>failed</status>
+<summary>Background command "Start production server on fresh build" failed with exit code 127</summary>
+</task-notification>
