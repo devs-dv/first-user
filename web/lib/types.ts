@@ -1,5 +1,7 @@
 // Shapes returned by GET /api/runs/[id]. Shared by the API route and the run page.
 
+import type { HiddenText } from "./hidden-text.ts";
+
 export type RunStatus = "queued" | "running" | "done" | "failed";
 export type Outcome =
   | "achieved"
@@ -161,6 +163,9 @@ export type Run = {
   has_test_login: boolean;
   access_mode: AccessMode | null;
   first_impression: FirstImpression | null;
+  // Evidence that the page hid instructions aimed at AI agents (worker/hidden_text.py): where and how, never the
+  // text. Read from the run's result only for this field. See lib/hidden-text.ts for what the page shows of it.
+  hidden_text?: HiddenText;
   entry: Entry | null;
   findings: Finding[] | null;
   verdict: Verdict | null;
@@ -212,10 +217,11 @@ export type RunDetails = {
 
 export type ApiError = { error: string; message: string };
 
-// Never includes the test login: it lives in run_secrets, which the web app never reads.
+// Never includes the test login: it lives in run_secrets, which the web app never reads. Of the run's raw
+// result, only the hidden-text evidence is read.
 // One string literal, so supabase-js can infer the row type from it.
 export const RUN_COLUMNS =
-  "id, url, start_url, has_test_login, access_mode, first_impression, entry, findings, verdict, run_facts, success_condition, retest_of, retest, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
+  "id, url, start_url, has_test_login, access_mode, first_impression, hidden_text:result->hidden_text, entry, findings, verdict, run_facts, success_condition, retest_of, retest, goal, status, outcome, reason, cost_usd, brain_model, created_at, started_at, finished_at";
 // The same without the columns added on 2026-10-11 (access_mode, findings), for a database whose schema
 // has not been updated yet: the run page still loads, without them.
 export const RUN_COLUMNS_BEFORE_FINDINGS = RUN_COLUMNS.replace(" access_mode,", "")

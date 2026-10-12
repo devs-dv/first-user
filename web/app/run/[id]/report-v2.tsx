@@ -7,12 +7,13 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
 import { grid } from "@/lib/css";
+import { HIDDEN_TEXT_NOTICE, hiddenTextNotice, withoutNotice } from "@/lib/hidden-text";
 import { BASIS_LABEL, BASIS_NOTE, fixFirst, shortUrl, understanding, withoutPromises } from "@/lib/report-logic";
 import { isHttpUrl, pathOf } from "@/lib/report-view";
 import type { ReportFlags } from "@/lib/report-flags";
-import type { Basis, FirstImpression, Clarity, Run, RunFacts, Step, VerdictKind } from "@/lib/types";
+import type { Basis, FirstImpression, Clarity, Run, Step, VerdictKind } from "@/lib/types";
 
-import { againHref, BrowserFrame, duration, formatCost, wayInLines } from "./report-bits";
+import { againHref, BrowserFrame } from "./report-bits";
 
 // ------------------------------------------------------------------------------------- evidence labels
 
@@ -399,7 +400,7 @@ export function FirstImpressionPanel({ review, flags, open }: { review: FirstImp
     ["Who it is for", review.who_its_for?.clear, review.who_its_for?.summary, false],
     ["The main action", review.main_action?.obvious, review.main_action?.summary, true],
   ];
-  const hesitations = review.hesitations ?? [];
+  const hesitations = withoutNotice(review.hesitations);
   const suggestions = (review.suggestions ?? []).map(withoutPromises).filter(Boolean);
   return (
     <details open={open} className="overflow-hidden rounded-card border-[1.5px] border-ink bg-s1">
@@ -460,94 +461,20 @@ export function FirstImpressionPanel({ review, flags, open }: { review: FirstImp
   );
 }
 
-// ------------------------------------------------------------------------------------- how this report was made
+// ------------------------------------------------------------------------------------- hidden text
 
-function fmtDuration(seconds: number): string {
-  const total = Math.max(0, Math.round(seconds));
-  return total < 60 ? `${total} s` : `${Math.floor(total / 60)} min ${total % 60} s`;
-}
-
-// "How this report was made", collapsed. The run facts are counted from the run, none of them is written by a
-// model; the way in is read from what the visit recorded. With the facts switched off, only the way in, the
-// steps, the time and the cost are listed, as before Report v2.
-export function HowMade({ run, steps, showFacts }: { run: Run; steps: Step[]; showFacts: boolean }) {
-  const facts: RunFacts | null = showFacts ? run.run_facts : null;
-  const rows: [string, ReactNode, boolean?][] = [];
-  rows.push([
-    "How the visitor got in",
-    <ul key="w" className="m-0 flex list-none flex-col gap-1 p-0">
-      {wayInLines(run).map((line) => (
-        <li key={line}>{line}</li>
-      ))}
-    </ul>,
-  ]);
-  rows.push(["Steps taken", String(facts?.steps_taken ?? steps.length)]);
-  if (facts) {
-    rows.push([
-      "Actions that needed recovery",
-      facts.recoveries.length === 0 ? "None" : facts.recoveries.map((r) => `Step ${r.step}, rung ${r.rung} (${r.how})`).join("; "),
-    ]);
-    rows.push([
-      "Our own issues",
-      facts.own_issues.length === 0
-        ? "None"
-        : `${facts.own_issues.length}: ` +
-          facts.own_issues.map((issue) => (issue.step !== null ? `step ${issue.step}` : "a step")).join(", ") +
-          " (our browser tool had no effect; not the site's fault)",
-    ]);
-    rows.push(["Page reloads", String(facts.page_reloads)]);
-    rows.push([
-      "Hidden page errors",
-      facts.page_error_count === 0 ? (
-        "None"
-      ) : (
-        <ul key="e" className="m-0 flex list-none flex-col gap-1 p-0 font-code text-[13px]">
-          {facts.page_errors.map((error, index) => (
-            <li key={index} className="[overflow-wrap:anywhere]">
-              {error}
-            </li>
-          ))}
-          {facts.page_error_count > facts.page_errors.length && <li>and {facts.page_error_count - facts.page_errors.length} more</li>}
-        </ul>
-      ),
-    ]);
-    rows.push([
-      "Independent check",
-      facts.verifier ? `${facts.verifier.verdict}: ${facts.verifier.quote}` : "Not run (the visitor did not claim to reach the goal)",
-    ]);
-    rows.push(["Success condition", facts.success_condition ?? "None given: the goal was checked as worded"]);
-  }
-  const cost = facts ? facts.cost_usd : run.cost_usd;
-  rows.push(["Cost of the run", formatCost(cost)]);
-  rows.push(["Duration", facts ? fmtDuration(facts.duration_seconds) : duration(run.started_at, run.finished_at)]);
-  if (facts?.agent_version) rows.push(["Agent version", facts.agent_version, true]);
-  if (facts?.worker_id) rows.push(["Worker", facts.worker_id, true]);
-  if (facts?.trace_id) rows.push(["neatlogs trace ID", facts.trace_id, true]);
-
+// One small line when the page hid instructions aimed at AI agents. The wording is the page's own fixed copy of
+// the worker's notice, and the hiding methods are fixed labels: nothing the page hid is ever shown.
+export function HiddenTextLine({ run }: { run: Run }) {
+  const notice = hiddenTextNotice(run.hidden_text, run.first_impression);
+  if (!notice) return null;
   return (
-    <details id="fu-r-made" className="overflow-hidden rounded-card border-[1.5px] border-ink bg-s1">
-      <summary className="flex min-h-[72px] items-center justify-between gap-4 px-6 py-[18px]">
-        <span className="flex flex-col gap-1">
-          <span className="fu-eyebrow-sm">04 · Transparency</span>
-          <span className="text-[19px] font-semibold">How this report was made</span>
-        </span>
-        <span aria-hidden className="fu-plus size-9">
-          +
-        </span>
-      </summary>
-      <dl className="m-0 grid gap-x-8 px-6 pb-5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))" }}>
-        {rows.map(([label, value, mono]) => (
-          <div key={label} className="flex flex-col gap-1 border-t border-line py-3">
-            <dt className="font-code text-[12px] font-medium uppercase tracking-[.04em] text-ink3">{label}</dt>
-            <dd className={`m-0 leading-normal [overflow-wrap:anywhere] ${mono ? "font-code text-[14px] font-medium" : "text-[15px]"}`}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="m-0 border-t border-line px-6 py-4 text-[13px] leading-normal text-ink3">
-        The visit is a simulated user, so treat findings as leads to check. Recommendations are our suggestions and promise no
-        outcome.
-      </p>
-    </details>
+    <p role="note" className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-field border-[1.5px] border-dashed border-ink3 bg-s1 px-4 py-3 text-[14px] leading-normal text-ink2">
+      <span className="fu-chip fu-chip-tag border-none bg-s2 text-ink2">Hidden text</span>
+      <span className="min-w-0 flex-1">
+        {HIDDEN_TEXT_NOTICE}
+        {notice.methods.length > 0 && <span className="text-ink3"> Hidden as {notice.methods.join(", ")}.</span>}
+      </span>
+    </p>
   );
 }
-

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default function JourneyPage() {
-  const singleRuns = SINGLE_RUNS.filter((run) => run.result.trim());
+  const singleRuns = SINGLE_RUNS.filter((run) => run.results.length > 0);
   return (
     <main className="relative isolate" style={{ padding: "var(--page-top-lg) var(--gutter) var(--section-y)" }}>
       <div
@@ -115,14 +115,23 @@ export default function JourneyPage() {
 
       {singleRuns.length > 0 && (
         <section data-reveal="" className="flex flex-col gap-4" style={{ marginTop: "var(--section-y)" }}>
-          <span className="fu-eyebrow">Single runs · not a benchmark</span>
+          <span className="fu-eyebrow">One run · not a rate</span>
           <div className="fu-grid" style={grid("320px")}>
             {singleRuns.map((run) => (
               <article key={run.title} className="flex flex-col gap-3 rounded-card border-[1.5px] border-dashed border-ink bg-s1 p-[22px]">
                 <span className="fu-chip fu-chip-tag self-start">One run</span>
                 <h3 className="m-0 text-[19px] font-semibold">{run.title}</h3>
                 <p className="m-0 text-[15px] leading-normal text-ink2">{run.what}</p>
-                <p className="m-0 text-[15px] leading-normal">{run.result}</p>
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  {run.results.map((line) => (
+                    <li key={line} className="grid gap-2.5 text-[15px] leading-normal" style={{ gridTemplateColumns: "20px minmax(0,1fr)" }}>
+                      <span aria-hidden className="mt-0.5 flex size-5 items-center justify-center rounded-full border-[1.5px] border-ink bg-acc text-[11px] font-semibold text-ink-fixed">
+                        ✓
+                      </span>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
                 {run.link && (
                   <a href={run.link} className="fu-link text-[14px]">
                     Open the report

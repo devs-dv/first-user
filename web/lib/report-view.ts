@@ -114,60 +114,123 @@ export function describeAction(step: Pick<Step, "tool" | "input">): string {
   }
 }
 
-export type StepTone = "done" | "retry" | "problem" | "ours" | "end" | "blocked";
+export type StepTone = "done" | "retry" | "problem" | "ours" | "end" | "blocked" | "error";
 export type StepStatus = { label: string; tone: StepTone };
 
-// The chip on each step card of "The whole run".
+// Which try of the worker's recovery ladder changed the page (worker/tools.py do()): a is the first.
+const RUNG_TRY: Record<string, number> = { a: 1, b: 2, c: 3, d: 4 };
+
+function pageErrorCount(result: Record<string, unknown>): number {
+  const count = result.page_error_count;
+  if (typeof count === "number") return count;
+  return Array.isArray(result.page_errors) ? result.page_errors.length : 0;
+}
+
+// The coloured result on each step card of "The whole run".
 export function stepStatus(step: Pick<Step, "tool" | "result">): StepStatus {
   const result = step.result ?? {};
   if (result.bot_check) return { label: "Bot check", tone: "blocked" };
   if (result.error) return { label: "Tool error", tone: "ours" };
   switch (step.tool) {
-    case "do":
+    case "do": {
+      if (pageErrorCount(result) > 0) return { label: "Page error", tone: "error" };
       if (!result.success) return { label: "No effect", tone: "ours" };
-      return text(result.rung) && text(result.rung) !== "a" ? { label: "Needed a retry", tone: "retry" } : { label: "Done", tone: "done" };
+      const attempt = RUNG_TRY[text(result.rung)] ?? 1;
+      return attempt > 1 ? { label: `Needed recovery on try ${attempt}`, tone: "retry" } : { label: "Worked", tone: "done" };
+    }
     case "note_friction":
       return { label: "Noted a problem", tone: "problem" };
     case "finish":
       return { label: "Finished", tone: "end" };
     default:
-      return { label: "Done", tone: "done" };
+      return { label: "Worked", tone: "done" };
   }
 }
 
-// ---------------------------------------------------------------------------------------------------
-// A run in progress: which of the four phases it is in, from what has been saved so far. Steps are saved
-// as they happen; the independent check and the report are written after the visitor's last step.
+export type StepKind = "look" | "click" | "type" | "scroll" | "back" | "note" | "finish" | "login";
 
-export const LIVE_PHASES = ["Understanding the page", "Exploring", "Verifying", "Writing the report"] as const;
+// The small icon on each step card.
+export function stepKind(step: Pick<Step, "tool" | "input">): StepKind {
+  switch (step.tool) {
+    case "look":
+      return "look";
+    case "scroll":
+      return "scroll";
+    case "go_back":
+      return "back";
+    case "note_friction":
+      return "note";
+    case "finish":
+      return "finish";
+    case "sign_in":
+    case "sign_up":
+      return "login";
+    default:
+      return /^\s*(type|enter|fill|write|input|select)\b/i.test(text(step.input?.instruction)) ? "type" : "click";
+  }
+}
+
+export type StepMark = "Finding" | "Recovery" | "Page error" | "Final step";
+
+// Steps that matter get an accent border and a label: one a finding points at, a recovery, a page error, the last.
+export function stepMarks(step: Pick<Step, "idx" | "tool" | "result">, findingSteps: Set<number>, lastIdx: number): StepMark[] {
+  const marks: StepMark[] = [];
+  const result = step.result ?? {};
+  if (findingSteps.has(step.idx)) marks.push("Finding");
+  if (step.tool === "do" && result.success && (RUNG_TRY[text(result.rung)] ?? 1) > 1) marks.push("Recovery");
+  if (pageErrorCount(result) > 0) marks.push("Page error");
+  if (step.idx === lastIdx) marks.push("Final step");
+  return marks;
+}
+
+// ---------------------------------------------------------------------------------------------------
+// A run on its way: which phase it is in, from what has been saved so far. Steps are saved as they happen; the
+// first impression is saved once the page is read; the independent check and the report come after the
+// visitor's last step.
+
+export const LIVE_PHASES = [
+  "Queued",
+  "Starting a browser",
+  "Understanding the page",
+  "Exploring",
+  "Verifying",
+  "Writing the report",
+] as const;
 export const MAX_STEPS = 20;
+
+// One calm line per phase.
+export const PHASE_LINES = [
+  "Waiting for a free browser",
+  "Opening your site like a first-time visitor",
+  "Reading the page the way a newcomer would",
+  "Trying the goal, one action at a time",
+  "Checking the final page independently",
+  "Writing up what happened",
+] as const;
 
 export type LiveState = {
   queued: boolean;
-  phase: number; // index into LIVE_PHASES; -1 while queued
+  phase: number; // index into LIVE_PHASES
   stepCount: number;
   action: string;
   screenshot: { url: string; step: number; pageUrl: string | null } | null;
   pageUrl: string | null;
 };
 
-export function liveState(run: Pick<Run, "status">, steps: Step[]): LiveState {
+export function liveState(run: Pick<Run, "status" | "first_impression">, steps: Step[]): LiveState {
   const queued = run.status === "queued";
   const last = steps[steps.length - 1];
   const finish = steps.find((step) => step.tool === "finish");
   const acted = steps.some((step) => step.tool !== "look");
-  let phase = -1;
-  if (!queued) {
-    if (finish) phase = text(finish.input?.outcome) === "achieved" ? 2 : 3;
-    else phase = acted ? 1 : 0;
-  }
+  let phase: number;
+  if (queued) phase = 0;
+  else if (finish) phase = text(finish.input?.outcome) === "achieved" ? 4 : 5;
+  else if (acted) phase = 3;
+  else if (steps.length > 0 || run.first_impression) phase = 2;
+  else phase = 1;
   const shot = [...steps].reverse().find((step) => isHttpUrl(step.screenshot_path));
   const pageUrl = [...steps].reverse().find((step) => step.url)?.url ?? null;
-  let action: string;
-  if (queued) action = "Waiting for a free browser";
-  else if (!last) action = "Opening the page and reading it";
-  else if (finish) action = phase === 2 ? "Checking the final page independently" : "Writing the report";
-  else action = describeAction(last);
+  const action = phase === 3 && last ? describeAction(last) : PHASE_LINES[phase];
   return {
     queued,
     phase,
@@ -183,10 +246,34 @@ export function isHttpUrl(value: string | null | undefined): value is string {
 }
 
 // ---------------------------------------------------------------------------------------------------
+// How long the run took: one source for every place the report shows it. The run facts' own count when there
+// is one, otherwise the run's start and finish times.
+
+export function runSeconds(run: Pick<Run, "run_facts" | "started_at" | "finished_at">): number | null {
+  const counted = run.run_facts?.duration_seconds;
+  if (typeof counted === "number" && Number.isFinite(counted)) return Math.max(0, Math.round(counted));
+  if (!run.started_at || !run.finished_at) return null;
+  const seconds = (Date.parse(run.finished_at) - Date.parse(run.started_at)) / 1000;
+  return Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : null;
+}
+
+export function formatSeconds(seconds: number | null): string {
+  if (seconds === null) return "—";
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
+// ---------------------------------------------------------------------------------------------------
 // Sharing.
 
-export function shareText(site: string, link: string): string {
-  return `First User just tried ${site} like a first-time customer. Here's where it got stuck: ${link} #neatHack via @devsdv_`;
+// The default post text, worded for the verdict: a run that got through does not say it got stuck.
+export function shareText(site: string, link: string, kind: VerdictKind): string {
+  const middle =
+    kind === "got_through"
+      ? "like a first-time customer and got through. Here's the report:"
+      : kind === "stuck"
+        ? "like a first-time customer. Here's where it got stuck:"
+        : "like a first-time customer. Here's what it found:";
+  return `First User just tried ${site} ${middle} ${link} #neatHack via @devsdv_`;
 }
 
 export function shareLinks(textToShare: string): { x: string; linkedin: string } {

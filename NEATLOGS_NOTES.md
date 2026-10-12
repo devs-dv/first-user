@@ -143,3 +143,6 @@ feedback for the neatlogs team, and a nice specific example:
 - **`neatlogs.span()` has no metadata argument.** We set `metadata.environment` (production / eval / development) as a span attribute so test and eval traces can be filtered out.
 - **Detections:** editing an existing detection still returns 422, and preview fails. We create new ones instead.
 - **Test traces:** our test suite was exporting to the real project. Fixed on our side by routing tests to a local sink. A per-environment project or an ingest-side environment filter would help others avoid this.
+
+
+- **Redaction changes prompts as displayed.** Our system prompt says "Never use Google, GitHub, Apple … login"; the trace shows "Never use , , , or any other third-party login". The stored prompt no longer matches what the model received, which makes debugging prompts from traces unreliable. Same run: "Thank you for your order!" shown as "<ORGANIZATION> you for your order!", and a "Username" field shown as "<PERSON>". Trace 8862b1ebaf4b29d646bda39dc42278fa.

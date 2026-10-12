@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { grid } from "@/lib/css";
+import { rememberPendingRun } from "@/lib/pending-run";
 import { shortUrl } from "@/lib/report-logic";
 import { siteName } from "@/lib/report-view";
 import type { RetestItem, RetestLabel, RetestResult, RetestVerdictSide, Run, RunLink } from "@/lib/types";
@@ -66,6 +67,7 @@ export function CheckAgain({ run }: { run: Run }) {
       });
       const body = (await response.json().catch(() => null)) as { id?: string; message?: string } | null;
       if (response.ok && body?.id) {
+        rememberPendingRun(body.id, { url: run.url, goal: run.goal });
         router.push(`/run/${body.id}`);
         return;
       }

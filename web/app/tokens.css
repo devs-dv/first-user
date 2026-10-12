@@ -325,6 +325,16 @@
   }
 }
 
+/* A skeleton's light sweep while something loads. */
+@keyframes fuShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 /* Every animation and transition stops for people who ask for less motion. The scripted motion
    (reveals, the hero's demo run, counters) checks the same setting before it starts. */
 @media (prefers-reduced-motion: reduce) {

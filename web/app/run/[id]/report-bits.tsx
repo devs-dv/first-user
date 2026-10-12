@@ -16,13 +16,6 @@ export function displayUrl(url: string): string {
   }
 }
 
-export function duration(start: string | null, end: string | null): string {
-  if (!start || !end) return "—";
-  const seconds = Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 1000));
-  if (seconds < 60) return `${seconds} s`;
-  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
-}
-
 export function formatCost(cost: number | string | null | undefined): string {
   if (cost === null || cost === undefined || cost === "") return "—";
   const value = Number(cost);

@@ -1,15 +1,52 @@
-// A run in progress: the four phases, the step count, the latest screenshot and what the visitor is doing
-// now, all from what the worker has saved so far (lib/report-view.ts liveState). The page polls, so this
-// updates by itself.
+"use client";
 
-import { LIVE_PHASES, MAX_STEPS, liveState, siteName } from "@/lib/report-view";
+// A run on its way: the six phases, the step count, the latest screenshot (or a skeleton of it) and one calm line
+// about what is happening now, all from what the worker has saved so far (lib/report-view.ts liveState). It also
+// shows before the first response, from what the form remembered, so the page is never blank. The page polls,
+// so this updates by itself.
+
+import { useEffect, useState } from "react";
+
+import { LIVE_PHASES, MAX_STEPS, PHASE_LINES, liveState, siteName } from "@/lib/report-view";
 import type { Run, Step } from "@/lib/types";
 
+const STALL_MS = 90_000;
 
-export function LiveRun({ run, steps }: { run: Run; steps: Step[] }) {
-  const live = liveState(run, steps);
+// Shown when nothing has changed for 90 seconds. Remounted (by key) whenever something changes.
+function StallNotice() {
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setStalled(true), STALL_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!stalled) return null;
   return (
-    <section aria-labelledby="live-title" className="flex flex-col gap-6">
+    <p role="status" className="fu-notice m-0">
+      Still working. Runs usually take a few minutes.
+    </p>
+  );
+}
+
+export function LiveRun({
+  run,
+  steps,
+  pending,
+}: {
+  run: Run | null;
+  steps: Step[];
+  pending?: { url: string; goal: string } | null;
+}) {
+  // Before the first response the run is treated as queued: that is where every new run starts.
+  const live = run ? liveState(run, steps) : liveState({ status: "queued", first_impression: null }, []);
+  const url = run?.url ?? pending?.url ?? "";
+  const goal = run?.goal ?? pending?.goal ?? "";
+  const waiting = !run;
+  // Queue position: the runs API does not report one, so a queued run says it is waiting for a free browser.
+  const line = waiting ? "Getting your run ready" : live.action;
+  const signature = `${run?.status ?? "loading"}:${steps.length}:${run?.first_impression ? 1 : 0}`;
+
+  return (
+    <section aria-labelledby="live-title" aria-busy className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-2.5">
           <span className="flex items-center gap-2 font-code text-[12px] font-medium uppercase tracking-[.06em] text-ink3">
@@ -18,13 +55,21 @@ export function LiveRun({ run, steps }: { run: Run; steps: Step[] }) {
               className="size-2 rounded-full"
               style={{ background: live.queued ? "var(--ink4)" : "var(--pass)", animation: "fuBlink 1.6s ease-in-out infinite" }}
             />
-            {live.queued ? "In the queue" : "Live"} · {siteName(run.url)}
+            {live.queued ? "In the queue" : "Live"}
+            {url && <> · {siteName(url)}</>}
           </span>
-          <h1 id="live-title" className="fu-display text-run" style={{ lineHeight: 0.9, overflowWrap: "anywhere" }}>
-            {run.goal}
-          </h1>
+          {goal ? (
+            <h1 id="live-title" className="fu-display text-run" style={{ lineHeight: 0.9, overflowWrap: "anywhere" }}>
+              {goal}
+            </h1>
+          ) : (
+            <h1 id="live-title" className="fu-display text-run" style={{ lineHeight: 0.9 }}>
+              Starting your run
+            </h1>
+          )}
+          {url && <span className="font-code text-[13px] text-ink3 [overflow-wrap:anywhere]">{url}</span>}
         </div>
-        <span className="whitespace-nowrap font-code text-[15px] font-medium" aria-live="polite">
+        <span className="whitespace-nowrap font-code text-[15px] font-medium">
           Step {live.stepCount} of up to {MAX_STEPS}
         </span>
       </div>
@@ -47,10 +92,7 @@ export function LiveRun({ run, steps }: { run: Run; steps: Step[] }) {
               <span
                 aria-hidden
                 className="flex size-6 flex-none items-center justify-center rounded-full border-[1.5px] border-ink text-[12px] font-semibold"
-                style={{
-                  background: done ? "var(--acc)" : on ? "var(--s1)" : "var(--s2)",
-                  color: done ? "#0E1320" : "var(--ink)",
-                }}
+                style={{ background: done ? "var(--acc)" : on ? "var(--s1)" : "var(--s2)", color: done ? "#0E1320" : "var(--ink)" }}
               >
                 {done ? "✓" : i + 1}
               </span>
@@ -71,7 +113,7 @@ export function LiveRun({ run, steps }: { run: Run; steps: Step[] }) {
             <span />
           </span>
           <span className="flex h-7 min-w-0 flex-1 items-center overflow-hidden whitespace-nowrap rounded-r8 border border-line bg-s1 px-3 font-code text-[12px] font-medium text-ink3">
-            <span className="truncate">{live.pageUrl ?? run.start_url ?? run.url}</span>
+            <span className="truncate">{live.pageUrl ?? run?.start_url ?? url}</span>
           </span>
           <span className="whitespace-nowrap font-code text-[11px] font-medium text-ink3">
             {live.screenshot ? `Latest screenshot · step ${live.screenshot.step}` : "Latest screenshot"}
@@ -83,20 +125,35 @@ export function LiveRun({ run, steps }: { run: Run; steps: Step[] }) {
             <img src={live.screenshot.url} alt={`The page at step ${live.screenshot.step}`} className="fu-browser-shot" />
           </div>
         ) : (
-          <div className="flex aspect-video min-h-[240px] items-center justify-center bg-page p-6 text-center text-[15px] text-page-ink3">
-            {live.queued ? "Waiting for a free browser. The first screenshot appears after the first action." : "The first screenshot appears after the first action."}
+          <div aria-hidden className="grid aspect-video min-h-[240px] bg-page" style={{ gridTemplateColumns: "minmax(70px,20%) minmax(0,1fr)" }}>
+            <div className="flex flex-col gap-2.5 border-r border-page-line bg-page-side px-3 py-4">
+              <span className="fu-skeleton h-3 w-[60%]" />
+              <span className="fu-skeleton h-2 w-[75%]" />
+              <span className="fu-skeleton h-2 w-[55%]" />
+              <span className="fu-skeleton h-2 w-[65%]" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-3" style={{ padding: "clamp(14px,3cqi,32px)" }}>
+              <span className="fu-skeleton h-6 w-[55%]" />
+              <span className="fu-skeleton h-9 w-full" />
+              <span className="fu-skeleton h-9 w-[80%]" />
+              <span className="fu-skeleton h-9 w-32" />
+            </div>
           </div>
         )}
         <div className="flex items-center gap-3.5 border-t-[1.5px] border-ink px-[18px] py-4">
           <span className="flex h-[26px] flex-none items-center rounded-pill bg-deep px-2.5 font-code text-[11px] font-medium tracking-[.06em] text-acc-fixed">
             NOW
           </span>
-          <span role="status" className="min-w-0 flex-1 truncate text-[clamp(16px,1.8cqi,19px)] font-medium leading-[1.35]" title={live.action}>
-            {live.action}
+          <span role="status" className="min-w-0 flex-1 truncate text-[clamp(16px,1.8cqi,19px)] font-medium leading-[1.35]" title={line}>
+            {line}
           </span>
         </div>
       </div>
-      <p className="m-0 text-[14px] text-ink3">A run takes a few minutes. You can leave this page; the report keeps its link.</p>
+      <StallNotice key={signature} />
+      <p className="m-0 text-[14px] text-ink3">
+        {waiting || live.queued ? PHASE_LINES[0] + ". " : ""}A run takes a few minutes. You can leave this page; the report keeps its
+        link.
+      </p>
     </section>
   );
 }

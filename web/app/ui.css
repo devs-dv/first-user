@@ -854,6 +854,98 @@
     padding-left: 24px;
   }
 
+  /* ------------------------------------------------------------------------------------- every step */
+  /* A phone shows the steps as a vertical timeline; wider screens as a snapping carousel. */
+  .fu-steps {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 0;
+    padding: 0 0 0 26px;
+    list-style: none;
+  }
+  .fu-steps::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+  .fu-step {
+    position: relative;
+  }
+  .fu-step::before {
+    content: "";
+    position: absolute;
+    left: -24px;
+    top: 18px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: var(--bw) solid var(--ink);
+    background: var(--step-accent, var(--s1));
+  }
+  .fu-steps-controls {
+    display: none;
+  }
+  @container fu (min-width: 700px) {
+    .fu-steps {
+      flex-direction: row;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      overscroll-behavior-x: contain;
+      padding: 4px 4px 16px;
+      margin: 0 -4px;
+      scrollbar-width: thin;
+    }
+    .fu-steps::before,
+    .fu-step::before {
+      display: none;
+    }
+    .fu-step {
+      flex: none;
+      width: min(480px, 78cqi);
+      scroll-snap-align: start;
+    }
+    .fu-steps-controls {
+      display: flex;
+    }
+  }
+  /* Cards ease in as they enter the view; with reduced motion they are simply shown. */
+  @media (prefers-reduced-motion: no-preference) {
+    .fu-step {
+      opacity: 0;
+      transform: translateY(16px);
+      transition:
+        opacity 0.5s var(--e-out),
+        transform 0.6s var(--e-out);
+    }
+    @container fu (min-width: 700px) {
+      .fu-step {
+        transform: translateX(28px);
+      }
+    }
+    .fu-step.is-in {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* ------------------------------------------------------------------------------------- skeleton */
+  /* A placeholder block on the mock page while a screenshot is not there yet. The sweep stops with reduced motion. */
+  .fu-skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--page-line) 25%, var(--page-side) 50%, var(--page-line) 75%);
+    background-size: 200% 100%;
+    animation: fuShimmer 1.6s ease-in-out infinite;
+  }
+
   /* ------------------------------------------------------------------------------------- disclosure */
   .fu-plus {
     flex: none;

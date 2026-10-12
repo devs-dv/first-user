@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { HomeParams } from "@/lib/brief-logic";
 import { grid } from "@/lib/css";
+import { rememberPendingRun } from "@/lib/pending-run";
 import { FORM_ANCHOR } from "@/lib/site";
 import type { ApiError } from "@/lib/types";
 
@@ -131,6 +132,7 @@ export function StartSection({ initial }: { initial: HomeParams }) {
       });
       const body = (await response.json().catch(() => null)) as { id?: string } | ApiError | null;
       if (response.ok && body && "id" in body && body.id) {
+        rememberPendingRun(body.id, { url: address, goal: goal.trim() });
         router.push(`/run/${body.id}`);
         return;
       }

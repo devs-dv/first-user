@@ -1,6 +1,7 @@
 // Small rules of the report page, kept apart from the components so they can be tested with Node alone
 // (npm test). Types only are imported, so this file has no runtime dependencies.
 
+import { withoutNotice } from "./hidden-text.ts";
 import type { Basis, FirstImpression, Finding, Friction, Run, Step, Verdict } from "./types.ts";
 
 function pathOf(url: string | null | undefined): string | null {
@@ -82,7 +83,8 @@ export function understanding(review: FirstImpression | null): Understanding | n
   const reasons = parts
     .filter((part) => part.level !== "yes" && part.summary)
     .map((part) => `${part.name}: ${part.summary}`);
-  reasons.push(...(review.hesitations ?? []).slice(0, 2));
+  // The hidden-text notice is shown as its own line, not as a reason (lib/hidden-text.ts).
+  reasons.push(...withoutNotice(review.hesitations).slice(0, 2));
   return { level, label: UNDERSTANDING_LABEL[level], reasons };
 }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { LiveRun } from "./live-run";
 import { RunView } from "./run-view";
 
 export const metadata: Metadata = {
@@ -11,7 +12,13 @@ export const metadata: Metadata = {
 
 export default function RunPage({ params }: PageProps<"/run/[id]">) {
   return (
-    <Suspense fallback={<main className="fu-page"><p className="m-0 font-code text-[13px] text-ink3">Loading the report…</p></main>}>
+    <Suspense
+      fallback={
+        <main className="fu-page" style={{ gap: "var(--block-gap)" }}>
+          <LiveRun run={null} steps={[]} />
+        </main>
+      }
+    >
       {params.then(({ id }) => (
         <RunView id={id} />
       ))}

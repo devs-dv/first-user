@@ -4,8 +4,12 @@ import { test } from "node:test";
 import {
   fixPromptParts,
   liveState,
+  formatSeconds,
+  runSeconds,
   shareLinks,
   shareText,
+  stepKind,
+  stepMarks,
   stepStatus,
   verdictKindOf,
 } from "./report-view.ts";
@@ -99,43 +103,88 @@ test("an older free-text fix prompt is one part, by paragraph", () => {
   assert.deepEqual(fixPromptParts(""), []);
 });
 
-test("each step gets a status chip", () => {
-  assert.deepEqual(stepStatus(step(1, "do", { result: { success: true, rung: "a" } })), { label: "Done", tone: "done" });
-  assert.equal(stepStatus(step(1, "do", { result: { success: true, rung: "c" } })).label, "Needed a retry");
-  assert.equal(stepStatus(step(1, "do", { result: { success: false } })).tone, "ours");
+test("each step gets a coloured result", () => {
+  assert.deepEqual(stepStatus(step(1, "do", { result: { success: true, rung: "a" } })), { label: "Worked", tone: "done" });
+  assert.equal(stepStatus(step(1, "do", { result: { success: true, rung: "c" } })).label, "Needed recovery on try 3");
+  assert.equal(stepStatus(step(1, "do", { result: { success: false } })).label, "No effect");
+  assert.equal(stepStatus(step(1, "do", { result: { success: false, page_error_count: 2 } })).label, "Page error");
   assert.equal(stepStatus(step(1, "note_friction")).tone, "problem");
   assert.equal(stepStatus(step(1, "finish")).label, "Finished");
   assert.equal(stepStatus(step(1, "look", { result: { bot_check: true } })).label, "Bot check");
 });
 
+test("each step gets an icon for its kind of action", () => {
+  assert.equal(stepKind(step(1, "look")), "look");
+  assert.equal(stepKind(step(1, "do", { input: { instruction: "Type 'Jane' into First Name" } })), "type");
+  assert.equal(stepKind(step(1, "do", { input: { instruction: "Click the Login button" } })), "click");
+  assert.equal(stepKind(step(1, "scroll")), "scroll");
+  assert.equal(stepKind(step(1, "finish")), "finish");
+});
+
+test("findings, recoveries, page errors and the last step are marked", () => {
+  const findings = new Set([4]);
+  assert.deepEqual(stepMarks(step(4, "do", { result: { success: true, rung: "a" } }), findings, 9), ["Finding"]);
+  assert.deepEqual(stepMarks(step(5, "do", { result: { success: true, rung: "b" } }), findings, 9), ["Recovery"]);
+  assert.deepEqual(stepMarks(step(6, "do", { result: { success: false, page_error_count: 1 } }), findings, 9), ["Page error"]);
+  assert.deepEqual(stepMarks(step(9, "finish"), findings, 9), ["Final step"]);
+  assert.deepEqual(stepMarks(step(2, "look"), findings, 9), []);
+});
+
 test("a live run's phase comes from what has been saved", () => {
-  assert.equal(liveState({ status: "queued" }, []).phase, -1);
-  assert.equal(liveState({ status: "running" }, []).phase, 0);
-  assert.equal(liveState({ status: "running" }, [step(1, "look")]).phase, 0);
-  const exploring = liveState({ status: "running" }, [
+  const live = (status: Run["status"], steps: Step[], first_impression: Run["first_impression"] = null) =>
+    liveState({ status, first_impression }, steps);
+  assert.equal(live("queued", []).phase, 0);
+  assert.equal(live("queued", []).action, "Waiting for a free browser");
+  assert.equal(live("running", []).phase, 1);
+  assert.equal(live("running", []).action, "Opening your site like a first-time visitor");
+  assert.equal(live("running", [step(1, "look")]).phase, 2);
+  const exploring = live("running", [
     step(1, "look"),
     step(2, "do", { input: { instruction: "click Login" }, screenshot_path: "https://cdn.test/2.png" }),
   ]);
-  assert.equal(exploring.phase, 1);
+  assert.equal(exploring.phase, 3);
   assert.equal(exploring.stepCount, 2);
   assert.equal(exploring.action, "Tried to click Login");
   assert.equal(exploring.screenshot?.step, 2);
   const achieved = [step(1, "do"), step(2, "finish", { input: { outcome: "achieved", reason: "r" } })];
-  assert.equal(liveState({ status: "running" }, achieved).phase, 2);
+  assert.equal(live("running", achieved).phase, 4);
   const blocked = [step(1, "do"), step(2, "finish", { input: { outcome: "blocked", reason: "r" } })];
-  assert.equal(liveState({ status: "running" }, blocked).phase, 3);
+  assert.equal(live("running", blocked).phase, 5);
   // A screenshot that is not an http(s) address is never used.
-  assert.equal(liveState({ status: "running" }, [step(1, "do", { screenshot_path: "javascript:alert(1)" })]).screenshot, null);
+  assert.equal(live("running", [step(1, "do", { screenshot_path: "javascript:alert(1)" })]).screenshot, null);
 });
 
-test("the share text and links carry the site and the report link", () => {
-  const textToShare = shareText("saucedemo.com", "https://first.user/run/abc");
+test("the share text matches the verdict and carries the site and the report link", () => {
+  const link = "https://first.user/run/abc";
+  assert.equal(
+    shareText("saucedemo.com", link, "got_through"),
+    "First User just tried saucedemo.com like a first-time customer and got through. Here's the report: https://first.user/run/abc #neatHack via @devsdv_",
+  );
+  const textToShare = shareText("saucedemo.com", link, "stuck");
   assert.equal(
     textToShare,
     "First User just tried saucedemo.com like a first-time customer. Here's where it got stuck: https://first.user/run/abc #neatHack via @devsdv_",
   );
+  for (const kind of ["unconfirmed", "login_wall", "bot_check", "our_failure"] as const) {
+    assert.equal(
+      shareText("saucedemo.com", link, kind),
+      "First User just tried saucedemo.com like a first-time customer. Here's what it found: https://first.user/run/abc #neatHack via @devsdv_",
+    );
+  }
   const links = shareLinks(textToShare);
   assert.ok(links.x.startsWith("https://x.com/intent/post?text="));
   assert.ok(links.x.includes(encodeURIComponent("#neatHack")));
   assert.ok(links.linkedin.startsWith("https://www.linkedin.com/"));
+});
+
+test("the header and the run facts show one duration from one source", () => {
+  const times = { started_at: "2026-10-12T10:00:00Z", finished_at: "2026-10-12T10:01:52Z" };
+  const facts = { duration_seconds: 108.4 } as Run["run_facts"];
+  // The run facts' own count wins over the timestamps, so both places show 1m 48s, never 1m 52s in one of them.
+  assert.equal(runSeconds({ ...times, run_facts: facts }), 108);
+  assert.equal(formatSeconds(runSeconds({ ...times, run_facts: facts })), "1m 48s");
+  assert.equal(formatSeconds(runSeconds({ ...times, run_facts: null })), "1m 52s");
+  assert.equal(runSeconds({ started_at: null, finished_at: null, run_facts: null }), null);
+  assert.equal(formatSeconds(null), "—");
+  assert.equal(formatSeconds(9), "9s");
 });

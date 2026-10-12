@@ -5,14 +5,15 @@
 import { useState } from "react";
 
 import { shareLinks, shareText, siteName } from "@/lib/report-view";
+import type { VerdictKind } from "@/lib/types";
 
 import { copyText } from "../../copy";
 
-export function SharePanel({ url }: { url: string }) {
+export function SharePanel({ url, kind }: { url: string; kind: VerdictKind }) {
   // The link is this page's address without any query (such as ?report=basic). The report renders only
   // after the run is fetched in the browser, so reading the address here cannot differ from a server render.
   const [link] = useState(() => (typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}`));
-  const [message, setMessage] = useState(() => shareText(siteName(url), link));
+  const [message, setMessage] = useState(() => shareText(siteName(url), link, kind));
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
 
   const links = shareLinks(message);

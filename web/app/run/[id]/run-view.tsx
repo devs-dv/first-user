@@ -1,22 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { hiddenTextNotice } from "@/lib/hidden-text";
+import { parsePendingRun, pendingRunSnapshot } from "@/lib/pending-run";
 import { readReportFlags, type ReportFlags } from "@/lib/report-flags";
 import { showLoginWallHelp } from "@/lib/report-logic";
-import { siteName, verdictKindOf } from "@/lib/report-view";
+import { formatSeconds, runSeconds, siteName, verdictKindOf } from "@/lib/report-view";
 import type { Run, RunDetails, RunLink, Step } from "@/lib/types";
 
 import { CheckAgain, RetestBanner, RetestView } from "./check-again";
 import { Findings, Frictions } from "./findings";
 import { LiveRun } from "./live-run";
-import { displayUrl, duration, formatCost } from "./report-bits";
-import { FirstImpressionPanel, HowMade, ShortAnswer, VerdictHero, heroTitle } from "./report-v2";
+import { displayUrl, formatCost } from "./report-bits";
+import { HowMade } from "./how-made";
+import { FirstImpressionPanel, HiddenTextLine, ShortAnswer, VerdictHero, heroTitle } from "./report-v2";
 import { SharePanel } from "./share-panel";
 import { StepsStrip } from "./steps-strip";
 
 const POLL_MS = 2000;
+
+// The remembered address and goal never change while the page is open, so nothing needs to subscribe.
+const noSubscription = () => () => {};
 
 type State = { kind: "loading" } | { kind: "not_found" } | { kind: "ready"; data: RunDetails };
 
@@ -25,6 +31,11 @@ export function RunView({ id }: { id: string }) {
   const [connectionTrouble, setConnectionTrouble] = useState(false);
   // Which Report v2 sections show. `?report=basic` on the address hides them all for that view.
   // Nothing rendered before the run loads depends on it, so reading the address here is safe.
+  const pendingRaw = useSyncExternalStore(
+    noSubscription,
+    () => pendingRunSnapshot(id),
+    () => null,
+  );
   const [flags] = useState<ReportFlags>(() => readReportFlags(typeof window === "undefined" ? "" : window.location.search));
 
   useEffect(() => {
@@ -59,13 +70,12 @@ export function RunView({ id }: { id: string }) {
     };
   }, [id]);
 
+  // Until the first response, the waiting view shows at once, with the address and goal the form remembered.
   if (state.kind === "loading") {
     return (
-      <main className="fu-page gap-4">
-        <p role="status" className="m-0 font-code text-[13px] text-ink3">
-          Loading the report…
-        </p>
+      <main className="fu-page" style={{ gap: "var(--block-gap)" }}>
         {connectionTrouble && <ConnectionNotice />}
+        <LiveRun run={null} steps={[]} pending={parsePendingRun(pendingRaw)} />
       </main>
     );
   }
@@ -98,7 +108,7 @@ function ReportHeader({ run, steps, flags, running }: { run: Run; steps: Step[];
     ? []
     : [
         `${facts?.steps_taken ?? steps.length} steps`,
-        duration(run.started_at, run.finished_at),
+        formatSeconds(runSeconds(run)),
         formatCost(facts?.cost_usd ?? run.cost_usd),
         ...(facts?.agent_version ? [`Agent ${facts.agent_version}`] : []),
       ].filter((item) => item !== "—");
@@ -166,7 +176,7 @@ function InProgress({ run, steps, flags, original }: { run: Run; steps: Step[]; 
     <>
       {flags.checkAgain && run.retest_of && <RetestView run={run} original={original} />}
       <LiveRun run={run} steps={steps} />
-      {run.first_impression && <FirstImpressionPanel review={run.first_impression} flags={flags} open />}
+      <FirstImpressionBlock run={run} flags={flags} open />
       {steps.length > 0 && <StepsStrip steps={steps} highlight={new Set()} live />}
     </>
   );
@@ -196,14 +206,26 @@ function Report({ run, steps, frictions, flags, original }: {
       {flags.checkAgain && run.retest_of && <RetestView run={run} original={original} />}
       <VerdictHero run={run} steps={steps} kind={kind} flags={flags} loginHelp={loginHelp && kind !== "login_wall"} />
       {flags.answers && done && <ShortAnswer run={run} kind={kind} title={title} showBasis={flags.labels} />}
-      {run.first_impression && <FirstImpressionPanel review={run.first_impression} flags={flags} open={!flags.answers} />}
+      <FirstImpressionBlock run={run} flags={flags} open={!flags.answers} />
       {done && <Findings run={run} flags={flags} kind={kind} />}
       {frictions.length > 0 && <Frictions frictions={frictions} findings={run.findings} />}
       {flags.checkAgain && done && <CheckAgain run={run} />}
       <StepsStrip steps={steps} highlight={highlight} />
       <HowMade run={run} steps={steps} showFacts={flags.facts} />
-      {done && <SharePanel url={run.url} />}
+      {done && <SharePanel url={run.url} kind={kind} />}
     </>
+  );
+}
+
+// The first impression, with the hidden-text notice as its own line just above it.
+function FirstImpressionBlock({ run, flags, open }: { run: Run; flags: ReportFlags; open: boolean }) {
+  const notice = hiddenTextNotice(run.hidden_text, run.first_impression);
+  if (!notice && !run.first_impression) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <HiddenTextLine run={run} />
+      {run.first_impression && <FirstImpressionPanel review={run.first_impression} flags={flags} open={open} />}
+    </div>
   );
 }
 
