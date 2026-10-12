@@ -46,6 +46,8 @@ export type Entry = {
   // That login was accepted: the password field went away and the visit moved on. Absent on older runs.
   page_login_worked?: boolean;
   diagnosis?: LoginDiagnosis | null;
+  // The site showed a bot check ("Verify you are human"); the visit did not try to get past it.
+  bot_check?: { phrase: string; url: string; title: string; step: number } | null;
   test_login: "not_provided" | "provided_not_used" | "used" | "failed";
   self_signup: "not_used" | "used" | "blocked_verification" | "blocked_third_party" | "failed";
   third_party_options: string[];

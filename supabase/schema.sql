@@ -281,3 +281,37 @@ revoke execute on function public.enqueue_web_run(text, text, text, integer, int
   from public, anon, authenticated;
 grant execute on function public.enqueue_web_run(text, text, text, integer, integer, text, text, text, text)
   to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Which worker took each run (2026-10-12). Safe to re-run.
+-- ---------------------------------------------------------------------------
+
+-- Host name and agent version of the worker that claimed the run, e.g. "ip-10-0-1-5@907b4b3".
+-- Set by claim_run itself, so a result always says where it was produced.
+alter table public.runs add column if not exists worker_id text;
+
+-- claim_run now takes the worker id. A worker still calling it with no argument keeps working
+-- (the argument has a default). The zero-argument version is dropped so only one function exists.
+drop function if exists public.claim_run();
+
+create or replace function public.claim_run(p_worker_id text default null)
+returns setof public.runs
+language sql
+security invoker
+set search_path = ''
+as $$
+  update public.runs
+  set status = 'running', started_at = now(), worker_id = p_worker_id
+  where id = (
+    select id
+    from public.runs
+    where status = 'queued'
+    order by created_at
+    limit 1
+    for update skip locked
+  )
+  returning *;
+$$;
+
+revoke execute on function public.claim_run(text) from public, anon, authenticated;
+grant execute on function public.claim_run(text) to service_role;

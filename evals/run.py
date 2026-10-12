@@ -88,6 +88,20 @@ async def has_eval_version_column(client) -> bool:
         return False
 
 
+async def has_worker_id_column(client) -> bool:
+    try:
+        await client.table("runs").select("worker_id").limit(1).execute()
+        return True
+    except Exception:
+        return False
+
+
+def bot_checked(row: dict) -> bool:
+    """Did the run end at a bot check ("Verify you are human"), which the visitor never tries to pass?"""
+    result = row.get("result") or {}
+    return result.get("stopped_by") == "bot_check" or bool((result.get("entry") or {}).get("bot_check"))
+
+
 async def queue(client, cases: list[dict], version: str, with_label: bool) -> dict[str, str]:
     run_ids = {}
     for case in cases:
@@ -100,13 +114,15 @@ async def queue(client, cases: list[dict], version: str, with_label: bool) -> di
     return run_ids
 
 
-async def wait_for(client, run_ids: dict[str, str], timeout_minutes: float) -> dict[str, dict]:
+async def wait_for(client, run_ids: dict[str, str], timeout_minutes: float,
+                   with_worker: bool = False) -> dict[str, dict]:
     ids = list(run_ids.values())
     deadline = time.monotonic() + timeout_minutes * 60
     last: dict[str, str] = {}
     while True:
         rows = (await client.table("runs").select(
             "id,status,outcome,reason,result,error,cost_usd,agent_version,brain_model,started_at,finished_at"
+            + (",worker_id" if with_worker else "")
         ).in_("id", ids).execute()).data
         by_id = {row["id"]: row for row in rows}
         for case_id, run_id in run_ids.items():
@@ -194,6 +210,8 @@ def score(cases: list[dict], rows: dict[str, dict], run_ids: dict[str, str],
             "agent_issue_frictions": agent_issue_frictions.get(row["id"], 0),
             "cost_usd": float(row["cost_usd"]) if row.get("cost_usd") is not None else None,
             "reason": row.get("reason") or (row.get("error") or "")[:300],
+            "worker_id": row.get("worker_id"),
+            "blocked_by_bot_check": bot_checked(row),
         }
         verification = result.get("verification") or {}
         entry["verdict"] = verification.get("verdict")
@@ -202,7 +220,8 @@ def score(cases: list[dict], rows: dict[str, dict], run_ids: dict[str, str],
         if case["kind"] == "achievable":
             outcome = row.get("outcome")
             entry["completion"] = ("verified" if outcome == "achieved" and entry["verdict"] == "verified"
-                                   else "unverified" if outcome == "achieved_unconfirmed" else "not_completed")
+                                   else "unverified" if outcome == "achieved_unconfirmed"
+                                   else "bot_check" if entry["blocked_by_bot_check"] else "not_completed")
             entry["completed"] = entry["completion"] == "verified"
         else:
             verdict = verdicts[case["id"]]
@@ -222,6 +241,7 @@ def score(cases: list[dict], rows: dict[str, dict], run_ids: dict[str, str],
         "contradicted": sum(e["outcome"] == "not_achieved" for e in per_case),
         "false_praise_rate": _rate(sum(e["false_praise"] for e in broken), len(broken)),
         "stopped_by_budget_or_step_limit": sum(e["stopped_by"] in ("budget", "max_steps") for e in per_case),
+        "blocked_by_bot_check": sum(e["blocked_by_bot_check"] for e in per_case),
         "agent_issue_frictions": sum(e["agent_issue_frictions"] for e in per_case),
         "page_error_frictions": sum(e["page_error_frictions"] for e in per_case),
         "median_steps": statistics.median(steps) if steps else None,
@@ -258,17 +278,27 @@ def markdown(version: str, per_case: list[dict], metrics: dict, meta: dict) -> s
         f"| Contradicted by the verifier | {m['contradicted']} |",
         f"| False-praise rate (broken) | {m['false_praise_rate']['count']}/{m['false_praise_rate']['of']} |",
         f"| Stopped by budget or step limit | {m['stopped_by_budget_or_step_limit']} |",
+        f"| Blocked by a bot check | {m.get('blocked_by_bot_check', 0)} |",
         f"| agent_issue frictions | {m['agent_issue_frictions']} |",
         f"| Site frictions found through page errors | {m.get('page_error_frictions', 0)} |",
         f"| Median steps | {cell(m['median_steps'])} (runs without steps: {m['runs_without_steps']}) |",
         f"| Failed runs | {m['failed_runs']} |",
         f"| Total cost | ${m['total_cost_usd']:.4f} (runs ${m['run_cost_usd']:.4f}, judge ${m['judge_cost_usd']:.4f}) |",
     ]
-    reasons = [f"- **{e['id']}**: {cell(e['reason'])}" for e in per_case]
+    reasons = [f"- **{e['id']}**{' (blocked by a bot check)' if e.get('blocked_by_bot_check') else ''}: "
+               f"{cell(e['reason'])}" for e in per_case]
+    workers = meta.get("workers") or []
+    if not meta.get("worker_id_column"):
+        worker_note = ("Worker: not recorded (runs.worker_id does not exist yet; run the last lines of "
+                       "supabase/schema.sql).")
+    elif len(workers) == 1:
+        worker_note = f"Worker: {workers[0]} (every run)."
+    else:
+        worker_note = f"WARNING: more than one worker took runs: {', '.join(workers) or 'none recorded'}."
     return "\n".join([
         f"# Eval {version}", "",
         f"Run {meta['finished_at']}. Agent version(s): {', '.join(meta['agent_versions']) or 'unknown'}. "
-        f"Brain model(s): {', '.join(meta['brain_models']) or 'unknown'}. Judge: {JUDGE_MODEL}.", "",
+        f"Brain model(s): {', '.join(meta['brain_models']) or 'unknown'}. Judge: {JUDGE_MODEL}. {worker_note}", "",
         *summary, "", *rows, "", "## What each run reported", "", *reasons, "",
     ])
 
@@ -279,7 +309,8 @@ def case_score(e: dict) -> str:
     if e["kind"] == "broken":
         return ("FALSE PRAISE" if e["false_praise"] else "named the issue") + f" ({outcome})"
     if "completion" in e:
-        return {"verified": "completed, verified", "unverified": "completed, unverified"}.get(
+        return {"verified": "completed, verified", "unverified": "completed, unverified",
+                "bot_check": "not completed (blocked by a bot check)"}.get(
             e["completion"], f"not completed ({outcome})")
     if "verifier" in e:  # v1: a yes/no verifier
         return "completed, verified" if e["completed"] else f"not completed ({outcome})"
@@ -319,6 +350,7 @@ def comparison(results: list[dict]) -> str:
                        ("contradicted", "Contradicted by the verifier"),
                        ("false_praise_rate", "False-praise rate (broken)"),
                        ("stopped_by_budget_or_step_limit", "Stopped by budget or step limit"),
+                       ("blocked_by_bot_check", "Blocked by a bot check"),
                        ("agent_issue_frictions", "agent_issue frictions"),
                        ("page_error_frictions", "Site frictions found through page errors"),
                        ("failed_runs", "Failed runs"),
@@ -350,8 +382,12 @@ async def main(version: str, only: list[str] | None, timeout_minutes: float, com
     if not with_label:
         print("runs.eval_version does not exist yet (run the last lines of supabase/schema.sql); "
               "the version label is kept in the results file only.", flush=True)
+    with_worker = await has_worker_id_column(client)
+    if not with_worker:
+        print("runs.worker_id does not exist yet (run the last lines of supabase/schema.sql); the results "
+              "will not say which worker took each run.", flush=True)
     run_ids = await queue(client, cases, version, with_label)
-    rows = await wait_for(client, run_ids, timeout_minutes)
+    rows = await wait_for(client, run_ids, timeout_minutes, with_worker)
 
     frictions = (await client.table("frictions").select("run_id,kind").in_(
         "run_id", list(run_ids.values())).execute()).data
@@ -380,6 +416,8 @@ async def main(version: str, only: list[str] | None, timeout_minutes: float, com
         "brain_models": sorted({r["brain_model"] for r in finished if r.get("brain_model")}),
         "judge_model": JUDGE_MODEL,
         "eval_version_column": with_label,
+        "worker_id_column": with_worker,
+        "workers": sorted({r["worker_id"] for r in finished if r.get("worker_id")}),
     }
     out_dir = ROOT / "results"
     out_dir.mkdir(exist_ok=True)

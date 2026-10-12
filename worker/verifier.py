@@ -17,6 +17,7 @@ import neatlogs
 from anthropic import AsyncAnthropic
 
 import credentials
+import element_state
 import trace_media
 import trace_safety
 from config import VERIFIER_MODEL
@@ -27,6 +28,8 @@ VERDICTS = ("verified", "contradicted", "unverified")
 
 SYSTEM_PROMPT = """\
 You check whether a task on a website was completed. You get the task, a factual record of what was done in the browser, and the current state of the page. The record lists each action as it was instructed, whether the page changed after it (measured automatically by comparing the page before and after), the URL afterwards, and short descriptions of the page written at the time. It does not say whether the task succeeded; that is for you to judge.
+
+For an action on an element, the record may also give that element's state just before and just after it (its text, class, ARIA state and computed colours, read from the page automatically). A difference between the two is a change that happened; no difference, or no entry, says nothing either way.
 
 Return one of three verdicts. The difference between the last two matters most:
 
@@ -115,6 +118,8 @@ def format_record(record: list[dict]) -> str:
                 line += f"; the page reported errors: {'; '.join(entry['page_errors'])}"
             if entry.get("field_after"):
                 line += f"; field afterwards: {entry['field_after']}"
+            if entry.get("element"):
+                line += "; " + element_state.format_for_record(entry["element"])
             line += f"; URL after: {entry.get('url_after')}"
         lines.append(line)
     return "\n".join(lines) or (

@@ -35,6 +35,7 @@ export function gotPastLogin(run: Run, steps: Step[]): boolean {
 
 // The three-ways-in help is for a run that was blocked at a login or sign-up step, and only that.
 export function showLoginWallHelp(run: Run, steps: Step[]): boolean {
+  if (run.entry?.bot_check) return false; // a bot check is not a login
   return run.outcome === "blocked" && !!run.entry?.blocked_at_login && !gotPastLogin(run, steps);
 }
 

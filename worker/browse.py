@@ -35,6 +35,7 @@ How you behave:
 - If `do` says your action had no effect, the browser tool may be at fault: rephrase or try another way, and do not record that alone as friction.
 - Behave like a real person: use only what is visible on the page, and give up when a real person would give up. Do not guess URLs.
 - Never enter payment details. If the next step needs a card or payment, stop and call `finish` with outcome `blocked`.
+- Never try to get past a bot check: a "Verify you are human" box, a Cloudflare "Just a moment" page, a CAPTCHA or any other test of whether you are a robot. Do not click it, wait it out or look for a way round it. Call `finish` with outcome `blocked` and say the site blocked the visit with a bot check.
 - Getting in: look at what anyone can see first. If the page itself shows a login for visitors (a demo username and password written on the page), use it like any visitor would, with `do`. Otherwise, if a page needs a login, you have two tools. `sign_in` uses a test account the founder may have provided (it tells you if there is none). `sign_up` creates a throwaway test account on an email-and-password sign-up form. Call the tool when the form is on the page. Never make up an email or a password to type.
 - Never use Google, GitHub, Apple, Microsoft or any other third-party login, and never click those buttons. If they are the only way in, call `finish` with outcome `blocked` and say which options the page offered.
 - If signing up needs the email to be verified (a link or a code sent by email), you cannot do that: the run ends as blocked with that reason.
@@ -220,7 +221,7 @@ def blocked_at_login(entry: dict, finished: dict) -> bool:
     "Got in" is a test login that worked, an account the visitor created, or a login written on the page
     that was accepted. A reason that merely mentions a password or an account does not make a block a login block.
     """
-    if finished["outcome"] != "blocked" or finished.get("stopped_by") == "egress_guard":
+    if finished["outcome"] != "blocked" or finished.get("stopped_by") in ("egress_guard", "bot_check"):
         return False
     got_in = (entry["test_login"] == "used" or entry["self_signup"] == "used"
               or bool(entry.get("page_login_worked")))
@@ -250,6 +251,7 @@ def _entry_summary(ctx: RunContext, finished: dict) -> dict:
         "created_account_email": entry["created_account_email"],
         "blocked_at_login": blocked_at_login(entry, finished),
         "diagnosis": entry.get("diagnosis"),
+        "bot_check": entry.get("bot_check"),
     }
 
 
@@ -342,6 +344,8 @@ def record_step(ctx: RunContext, step: int, tool: str, args: dict, result: dict 
         if result.get("field"):
             entry["field_after"] = f"{result['field']['label']}: {result['field']['value']!r}"
         entry["url_after"] = result.get("url")
+        if result.get("element"):
+            entry["element"] = result["element"]
         if tool in ("sign_in", "sign_up"):
             entry["login_result"] = result.get("reason")
             if result.get("page_message"):

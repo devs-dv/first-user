@@ -21,6 +21,7 @@ import re
 import neatlogs
 from anthropic import AsyncAnthropic
 
+import element_state
 import trace_safety
 from config import REPORT_MODEL
 
@@ -137,6 +138,8 @@ def format_record(ctx) -> str:
                 line += f"; the page itself reported: {'; '.join(entry['page_errors'])}"
             if entry.get("field_after"):
                 line += f"; field afterwards: {entry['field_after']}"
+            if entry.get("element"):
+                line += "; " + element_state.format_for_record(entry["element"])
             line += f"; URL after: {entry.get('url_after')}"
         lines.append(line)
     text = "\n".join(lines) or "(nothing was recorded)"
@@ -447,6 +450,8 @@ async def write_findings(ctx, finished: dict, verification: dict | None) -> list
     )
     if not ctx.record and not ctx.frictions:
         return []
+    if finished.get("stopped_by") == "bot_check":
+        return []  # the site chose to block automated visitors; there is nothing in it to fix from this visit
     prompt = trace_safety.scrub(
         f"{_entry_lines(ctx, finished, verification)}\n\nRecord of the visit:\n{format_record(ctx)}\n\n"
         f"Problems the visitor noted (step numbers are the record's):\n{_noted_lines(ctx)}"

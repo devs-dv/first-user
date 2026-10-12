@@ -73,6 +73,16 @@ test("signed in with a test account or an account the visitor made is not a logi
   }
 });
 
+test("a bot check is not a login block", () => {
+  const botCheck = run({
+    entry: entry({
+      blocked_at_login: true,
+      bot_check: { phrase: "Verify you are human", url: "https://shop.example/", title: "Just a moment...", step: 1 },
+    }),
+  });
+  assert.equal(showLoginWallHelp(botCheck, []), false);
+});
+
 test("a block at the login itself shows the help, and only for blocked runs", () => {
   const atLogin = run({ entry: entry({ blocked_at_login: true, test_login: "failed" }) });
   assert.equal(showLoginWallHelp(atLogin, []), true);

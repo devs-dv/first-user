@@ -166,7 +166,10 @@ const OUTCOMES: Record<Outcome, { label: string; tone: string }> = {
 };
 
 function Report({ run, steps, frictions }: { run: Run; steps: Step[]; frictions: Friction[] }) {
-  const outcome = OUTCOMES[run.outcome ?? "error"] ?? OUTCOMES.error;
+  const botCheck = run.entry?.bot_check ?? null;
+  const outcome = botCheck
+    ? { label: "Blocked by a bot check", tone: "border-warning/30 bg-warning-soft text-warning" }
+    : (OUTCOMES[run.outcome ?? "error"] ?? OUTCOMES.error);
   return (
     <>
       {run.first_impression && <FirstImpressionCard review={run.first_impression} />}
@@ -337,6 +340,11 @@ function wayInLines(run: Run): string[] {
         (entry.self_signup === "blocked_verification"
           ? "Tried to sign up, but the app needs email verification, which the visitor can't do."
           : "Tried to sign up with a made-up test account, but the form did not accept it."),
+    );
+  }
+  if (entry?.bot_check) {
+    lines.push(
+      `The site showed a bot check (\u201c${entry.bot_check.phrase}\u201d). The visitor never tries to get past those, so the visit stopped there.`,
     );
   }
   // A login written on the page itself is a way in too, and never "no login".

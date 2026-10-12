@@ -16,6 +16,8 @@ import neatlogs
 from pydantic import BaseModel, Field
 
 import credentials as credentials_module
+import bot_check
+import element_state
 import page_watch
 import trace_media
 from config import ACT_TIMEOUT_MS
@@ -95,6 +97,9 @@ class RunContext:
         # The login written on the page was accepted: the password field was there before the action and
         # is gone after it, on another page. Set by do().
         "page_login_worked": False,
+        # The visit met a bot check ("Verify you are human") and did not try to get past it:
+        # {"phrase", "url", "title", "step"}. Set by look() and do().
+        "bot_check": None,
     })
     # The first-impression review, once written (first_impression.py).
     first_impression: dict | None = None
@@ -231,12 +236,40 @@ class LookContent(BaseModel):
     )
 
 
+async def stop_at_bot_check(ctx, page, tool: str) -> dict | None:
+    """If the page shows a bot check, end the visit as blocked and return the tool's result; else None.
+
+    Nothing is done about the check: not clicked, not waited out, not solved. The visit says it was
+    blocked by a bot check and keeps a screenshot of what was shown.
+    """
+    found = await bot_check.detect(page)
+    if found is None:
+        return None
+    ctx.entry["bot_check"] = {**found, "step": ctx.tool_calls}
+    ctx.finished = {"outcome": "blocked", "stopped_by": "bot_check", "reason": bot_check.reason(found)}
+    result = {
+        "success": False, "changed": False, "kind": tool, "reason": "bot_check", "url": found["url"],
+        "bot_check": True,
+        "message": "The site is showing a bot check. The visit does not try to get past it, and is ending as "
+                   "blocked by a bot check.",
+    }
+    try:
+        image = await page.screenshot(type="png")
+        if url := await publish_image(ctx, image, tool, "png"):
+            result["screenshot_url"] = url
+    except Exception:
+        pass
+    return result
+
+
 @neatlogs.span(kind="TOOL", tool_name="look")
 @lookups_nest_here
 @metered
 async def look() -> dict:
     ctx = current_run.get()
     page = await _active_page()
+    if (stopped := await stop_at_bot_check(ctx, page, "look")) is not None:
+        return {**stopped, "title": await page.title(), "unchanged": False, "summary": "", "interactive": []}
     fingerprint = await page_fingerprint(page)
     if ctx.last_look and ctx.last_look[0] == fingerprint:
         return {
@@ -472,6 +505,15 @@ async def _ladder(instruction: str, before: str, with_focus: bool) -> tuple[str 
     return None, rungs, action
 
 
+async def _element_snapshot(page, mode: str) -> list[dict] | None:
+    """The interactive elements' state ("before" picks them, "after" re-reads the same ones), or None."""
+    try:
+        return await page.evaluate(
+            element_state.SNAPSHOT_JS % (element_state.MAX_ELEMENTS, element_state.MAX_LABEL, json.dumps(mode)))
+    except Exception:
+        return None
+
+
 async def _wait_until_loaded(page) -> None:
     """Give a page whose scripts are still loading up to READY_WAIT_MS to finish."""
     for _ in range(READY_WAIT_MS // 500):
@@ -568,8 +610,13 @@ async def do(instruction: str) -> dict:
             "message": FOCUS_MESSAGE,
         }
 
+    if (stopped := await stop_at_bot_check(ctx, page, "do")) is not None:
+        return {**stopped, "rung": "none", "via": "none", "page_error_count": 0, "page_errors": []}
+
     with_focus = not typing
     retried_after_wait = False
+    # The interactive elements' state just before the action, so a visual change is evidence.
+    elements_before = None if typing else await _element_snapshot(page, "before")
     # Once a login written on the page has been typed, watch for the action that gets past it.
     watching_login = ctx.entry["page_login"] != "not_used" and not ctx.entry["page_login_worked"]
     login_before = (await _password_visible(page), await page.url()) if watching_login else None
@@ -601,6 +648,10 @@ async def do(instruction: str) -> dict:
         retried_after_wait = True
 
     url = await page.url()
+    element = None
+    if elements_before:
+        element = element_state.describe_change(
+            instruction, elements_before, await _element_snapshot(page, "after"))
     broken_assets = [] if worked else await page_watch.failed_assets(page)
     if (login_before and worked and login_before[0] and url != login_before[1]
             and not await _password_visible(page)):
@@ -688,6 +739,8 @@ async def do(instruction: str) -> dict:
         }
     if retried_after_wait:
         result["retried_after_wait"] = True
+    if element:
+        result["element"] = element
     if settled_late:
         result["settled_late"] = True
     if typing:

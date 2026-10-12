@@ -767,6 +767,62 @@ Two things the table hides:
 
 **Verification:** 152 worker tests (23 live skipped under `SKIP_LIVE_TESTS=1`; the 7 broken-load tests run live and pass), 8 web tests, typecheck and lint clean, `scan_secrets.py` 0 matches in the tree and 37 commits.
 
+### 2026-10-12 — Measured element state for the verifier, worker ids, bot checks, and v6 / v6b: 7/7 twice
+
+**1. uitesting_click, generically** (`worker/element_state.py`, `tools.do()`, `verifier.py`, `report_writer.py`)
+- Why it stayed "unverified": a button turning green has no new text and no new URL; the record said only "page changed", and the page's own words ("becomes green after clicking") do not prove the change, so the verifier correctly would not guess.
+- What is recorded now: before each non-typing action, `do()` reads the page's interactive elements (up to 80: text, class, ARIA state, disabled/checked, computed text colour and background colour) and reads the same elements again after the action. The target is the element whose own text best matches the instruction (a quoted label first, otherwise most of the label's words are in the instruction); any other element that changed is listed too. Colours are written in words ("rgb(0, 123, 255) (blue)"). The pair goes into the step record (`entry.element`), which the verifier and the report writer read. A navigation, no match, or nothing changed says nothing rather than something false.
+- The verifier was not made more lenient: its rules for `contradicted` and `unverified` are untouched (the calibration cases give the same answers as before: unverified x3, unverified x3, contradicted x3), and its prompt gained one descriptive sentence saying what the new record field is and that no difference or no entry says nothing either way. Nothing names a site; the eval cases are unchanged.
+- Tests (`test_element_state.py`): colour names; picking the target (quoted label exact then contained, words, nothing); what changed (green button, ARIA, text, checked, other elements, no snapshot); what the verifier reads; and live, in a real Chrome behind the guard and with the real model, a local page whose button turns green on click: the result carries blue -> green and the class change, and the record the verifier reads has it.
+- Effect on the real case: three runs of uitesting_click before the change were verified once in three; after it, three of three, each citing the recorded class and colour change.
+
+**2. Which worker claimed each run**
+- `runs.worker_id` (host name and agent version) is set by `claim_run(p_worker_id text default null)` itself; the zero-argument function is dropped so one exists, and a worker still calling it with no argument keeps working. The worker passes `hostname@agent_version`; if the database is not updated it says so once and claims as before (and writes the id afterwards if the column exists). `schema.sql` stays safe to re-run.
+- `evals/run.py` reads `worker_id`, prints `Worker: <id> (every run)`, or a WARNING when more than one worker took runs, and names the worker in the results file.
+- **The SQL has not been run on the real Supabase project** (I cannot run DDL from here), so v6 and v6b say "Worker: not recorded". That a single worker took them is shown by the worker's own claim log instead: 20 of 20 runs claimed by it, the queue empty and no other worker process before each round (your AWS worker was stopped).
+
+**3. Bot checks are never attempted** (`worker/bot_check.py`, `tools.look()` and `do()`)
+- Detected by what the page shows (its title, its visible words such as "Verify you are human", "Checking your browser", "I'm not a robot", "Press and hold", and a challenge frame large enough to be one), so the invisible reCAPTCHA badge on an ordinary login is not a bot check.
+- `look()` and `do()` check before anything else: the check is not clicked, not waited out, not solved. The run ends `blocked`, `stopped_by: "bot_check"`, with the phrase, URL, a screenshot and the step in `entry.bot_check`, and the reason says it was blocked by a bot check and that nothing was attempted. The system prompt tells the visitor the same. It is not treated as a login block, no findings are written for it (the site chose to block automated visitors), and the report page is headed "Blocked by a bot check".
+- Eval results count it (`Blocked by a bot check`) and name such a case "not completed (blocked by a bot check)"; neither v6 nor v6b hit one.
+- Tests: wording that is and is not a bot check; live: a challenge page where `look()` ends the visit with the checkbox untouched, and `do("click the 'Verify you are human' checkbox")` is refused with the checkbox untouched and no agent issue.
+
+**4. v6 and v6b** (`evals/run.py --version v6 --compare-to v0 v4`, then `--version v6b` with no code changes; one local worker, Haiku brain, headless, agent 527d1d0 plus the uncommitted changes; the shared queue was empty beforehand)
+
+| Case (kind) | v6 | v6b | Pass rate over the two rounds |
+|---|---|---|---|
+| saucedemo_standard (achievable) | completed, verified (9 steps) | completed, verified (8) | 2/2 |
+| herokuapp_login (achievable) | completed, verified (6) | completed, verified (6) | 2/2 |
+| herokuapp_dynamic_loading (achievable) | completed, verified (4) | completed, verified (4) | 2/2 |
+| herokuapp_add_remove (achievable) | completed, verified (8) | completed, verified (8) | 2/2 |
+| todomvc_react (achievable) | completed, verified (10) | completed, verified (12) | 2/2 |
+| uitesting_click (achievable) | completed, verified (3) | completed, verified (3) | 2/2 |
+| practice_hammer (achievable) | completed, verified (11) | completed, verified (12) | 2/2 |
+| saucedemo_locked_out (broken) | named the issue (blocked) | named the issue (blocked) | 2/2 named it |
+| saucedemo_problem_user (broken) | named the issue (gave_up, 20 steps) | named the issue (gave_up, 20 steps) | 2/2 named it |
+| saucedemo_error_user (broken) | named the issue (blocked) | named the issue (blocked) | 2/2 named it |
+
+| Metric | v4 | v6 | v6b |
+|---|---|---|---|
+| Completed and verified (achievable) | 5/7 | 7/7 | 7/7 |
+| Completed but unverified | 0/7 | 0/7 | 0/7 |
+| Contradicted by the verifier | 0 | 0 | 0 |
+| False-praise rate (broken) | 0/3 | 0/3 | 0/3 |
+| Stopped by budget or step limit | 0 | 0 | 0 |
+| Blocked by a bot check | – | 0 | 0 |
+| agent_issue frictions | 3 | 1 | 3 |
+| Site frictions found through page errors | 4 | 3 | 2 |
+| Failed runs | 0 | 0 | 0 |
+| Median steps | 7.5 | 8.5 | 8.0 |
+| Total cost | $0.0575 | $0.0752 | $0.0769 |
+
+- Stable: all seven achievable cases passed in both rounds, with no failed runs, no false praise and no unconfirmed verdicts. Cost rose from $0.0575 (v4) to about $0.076 because there are more steps allowed (20) and a report-writer call.
+- What varied: the agent_issue count (1, then 3, all on `saucedemo_problem_user`, whose Last Name field does not take typed text: the agent said in v6b that the browser tool may have caused part of it), steps on two cases (todomvc 10 vs 12, practice_hammer 11 vs 12), and the count of site frictions through page errors (3 vs 2).
+- Not 7/7 yet in one sense: the three broken sites are not "passed" by completing; the rate is how often the report named the known issue, which was every time. `saucedemo_problem_user` ended `gave_up` after using all 20 steps in both rounds (v4 ended `blocked`); it still named the issue.
+- Two rounds is a small sample. The earlier v5 round (a mix with another worker) had one case blocked by Cloudflare; none of these did, and this run could not have clicked one.
+
+**Verification:** 173 worker tests (live ones included) pass, 9 web tests, typecheck and lint clean, `scan_secrets.py` 0 matches in the tree and 39 commits.
+
 ## Demo
 
 - URL: pending

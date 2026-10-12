@@ -33,10 +33,41 @@ async def enqueue_run(url: str, goal: str, source: str = "live", start_url: str 
     return response.data[0]
 
 
-async def claim_run() -> dict | None:
-    """Take the oldest queued run and mark it running, or return None if the queue is empty."""
-    response = await (await client()).rpc("claim_run").execute()
-    return response.data[0] if response.data else None
+# False once the database's claim_run turned out not to take a worker id (the schema was not re-run).
+_claim_takes_worker_id = True
+
+
+def _function_missing(error: Exception) -> bool:
+    text = str(error)
+    return "PGRST202" in text or "Could not find the function" in text or "does not exist" in text
+
+
+async def claim_run(worker_id: str | None = None) -> dict | None:
+    """Take the oldest queued run and mark it running, or return None if the queue is empty.
+
+    `worker_id` (host name and agent version) is saved on the run by the claim itself, so every run
+    says which worker took it. A database whose claim_run predates that is still used: the id is then
+    written right after the claim, if the column exists, and the run is claimed either way.
+    """
+    global _claim_takes_worker_id
+    database = await client()
+    if worker_id and _claim_takes_worker_id:
+        try:
+            response = await database.rpc("claim_run", {"p_worker_id": worker_id}).execute()
+        except Exception as error:
+            if not _function_missing(error):
+                raise
+            _claim_takes_worker_id = False
+            print("claim_run does not take a worker id yet (run the last lines of supabase/schema.sql); "
+                  "claiming without one.", flush=True)
+            response = await database.rpc("claim_run").execute()
+    else:
+        response = await database.rpc("claim_run").execute()
+    run = response.data[0] if response.data else None
+    if run is not None and worker_id and run.get("worker_id") is None and "worker_id" not in _missing_columns:
+        run["worker_id"] = worker_id
+        await _update_run(run["id"], {"worker_id": worker_id})
+    return run
 
 
 async def add_step(
@@ -98,7 +129,7 @@ async def finish_run(run_id: str, result: dict, agent_version: str, brain_model:
 
 # Columns added after the first schema. If the database does not have one yet (supabase/schema.sql
 # not re-run), runs are saved without it and a warning is printed once, rather than failing.
-OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry", "findings")
+OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry", "findings", "worker_id")
 _missing_columns: set[str] = set()
 
 
