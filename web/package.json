@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --no-warnings --test lib/report-logic.test.ts lib/brief-logic.test.ts"
+    "test": "node --no-warnings --test lib/report-logic.test.ts lib/brief-logic.test.ts lib/founder-logic.test.ts lib/feedback-logic.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",

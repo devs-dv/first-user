@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import { founderBriefEnabled } from "@/lib/founder-flag";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
+
+import { FounderView } from "./founder-view";
+import { SourceLink, displayUrl } from "./source-link";
 
 const POLL_MS = 2000;
 
@@ -97,26 +101,6 @@ function ConnectionNotice() {
   );
 }
 
-function displayUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return parsed.host + (parsed.pathname === "/" ? "" : parsed.pathname);
-  } catch {
-    return url;
-  }
-}
-
-function SourceLink({ url, label }: { url: string; label?: string }) {
-  const href = safeHref(url);
-  const text = label ?? displayUrl(url);
-  if (!href) return <span className="break-all text-subtle">{text}</span>;
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-accent hover:underline">
-      {text}
-    </a>
-  );
-}
-
 function InProgress({ queued }: { queued: boolean }) {
   return (
     <section role="status" className="rounded-xl border border-line bg-surface p-5">
@@ -145,6 +129,32 @@ function Failed({ message }: { message: string | null }) {
 }
 
 function Ready({ id, brief }: { id: string; brief: Brief }) {
+  const [tab, setTab] = useState<"product" | "founder">("product");
+  // The founder brief is behind NEXT_PUBLIC_FOUNDER_BRIEF; without it this page is the product brief alone.
+  const founder = founderBriefEnabled();
+  const tabClass = (active: boolean) =>
+    "rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 " +
+    (active
+      ? "bg-accent text-white dark:text-background"
+      : "border border-line bg-surface text-muted hover:border-accent/60");
+  return (
+    <>
+      {founder && (
+        <div role="tablist" aria-label="Which report" className="flex gap-2">
+          <button type="button" role="tab" aria-selected={tab === "product"} onClick={() => setTab("product")} className={tabClass(tab === "product")}>
+            Product brief
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "founder"} onClick={() => setTab("founder")} className={tabClass(tab === "founder")}>
+            Founder brief
+          </button>
+        </div>
+      )}
+      {founder && tab === "founder" ? <FounderView briefId={id} /> : <ProductBrief id={id} brief={brief} />}
+    </>
+  );
+}
+
+function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
   return (
     <>
       <p className="text-xl leading-snug">{brief.one_liner}</p>

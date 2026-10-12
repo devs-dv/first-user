@@ -71,6 +71,10 @@ async def execute(run: dict, agent_version: str) -> None:
         from understand_run import execute_understand  # the brief mode: no browser visit, no test login
 
         return await execute_understand(run, agent_version)
+    if run.get("kind") == "founder_brief":
+        from founder_brief_run import execute_founder_brief  # written from a stored brief; fetches nothing
+
+        return await execute_founder_brief(run, agent_version)
     run_id = run["id"]
     start_url = run.get("start_url")
     access_mode = access_mode_for(run)
