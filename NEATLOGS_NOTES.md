@@ -168,3 +168,5 @@ neatlogs' Incidents view grouped failures from our traces and opened five incide
 - Incidents counted traces from our test suite before we stopped tests exporting. An environment filter on Incidents (production only) would avoid that.
 
 - **"Investigate further" refuses large incidents.** On the egress incident: "This incident has 32267 evidence characters; the investigation limit is 20000. No investigation was started." The incident with the most traces is the one that most needs investigating. Suggestion: sample the evidence (for example the 20 most recent traces) instead of refusing.
+
+- Resolving an incident doesn't let us record why. A resolution note (e.g. "fixed in commit 51e480b") would connect incidents to the fix, and to tools like Entire.
