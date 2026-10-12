@@ -1,0 +1,128 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QPXNB4698ZYJMW0Y77PRG8",
+  "session_id": "1ddf4a25-b8e0-4a6f-8ddd-a4d3a44cfd4a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T09:25:56.5026739Z",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "save_step_count": 3,
+  "files_touched": [
+    "NEATLOGS_NOTES.md",
+    "web/app/home/start-section.tsx",
+    "web/app/journey/page.tsx",
+    "web/app/run/[id]/check-again.tsx",
+    "web/app/run/[id]/live-run.tsx",
+    "web/app/run/[id]/page.tsx",
+    "web/app/run/[id]/report-bits.tsx",
+    "web/app/run/[id]/report-v2.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/app/run/[id]/share-panel.tsx",
+    "web/app/run/[id]/steps-strip.tsx",
+    "web/app/tokens.css",
+    "web/app/ui.css",
+    "web/content/journey.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/report-view.test.ts",
+    "web/lib/report-view.ts",
+    "web/lib/types.ts",
+    "web/package.json"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "460568190907",
+  "checkpoint_transcript_start": 1275,
+  "transcript_lines_at_start": 1275,
+  "compact_transcript_start": 187,
+  "token_usage": {
+    "input_tokens": 132,
+    "cache_creation_tokens": 88792,
+    "cache_read_tokens": 39384171,
+    "output_tokens": 59387,
+    "api_call_count": 66
+  },
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T09:25:56.0867371Z",
+    "agent_lines": 0,
+    "agent_removed": 14,
+    "human_added": 677,
+    "human_modified": 218,
+    "human_removed": 0,
+    "total_committed": 730,
+    "total_lines_changed": 909,
+    "agent_percentage": 1.54015401540154,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 182,
+      "user_lines_removed": 16,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "web/app/journey/page.tsx": 12,
+        "web/app/run/[id]/report-v2.tsx": 20,
+        "web/app/run/[id]/run-view.tsx": 16,
+        "web/content/journey.ts": 10,
+        "web/lib/hidden-text.test.ts": 61,
+        "web/lib/hidden-text.ts": 51,
+        "web/lib/report-logic.ts": 3,
+        "web/lib/types.ts": 8,
+        "web/package.json": 1
+      },
+      "user_removed_per_file": {
+        "web/app/journey/page.tsx": 3,
+        "web/app/run/[id]/report-v2.tsx": 1,
+        "web/app/run/[id]/run-view.tsx": 3,
+        "web/content/journey.ts": 5,
+        "web/lib/report-logic.ts": 1,
+        "web/lib/types.ts": 2,
+        "web/package.json": 1
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 182,
+      "agent_lines_removed": 16
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 895,
+      "user_lines_removed": 202,
+      "agent_lines_added": 245,
+      "agent_lines_removed": 40,
+      "user_added_per_file": {
+        "NEATLOGS_NOTES.md": 4,
+        "web/app/home/start-section.tsx": 2,
+        "web/app/run/[id]/check-again.tsx": 2,
+        "web/app/run/[id]/how-made.tsx": 216,
+        "web/app/run/[id]/live-run.tsx": 79,
+        "web/app/run/[id]/page.tsx": 8,
+        "web/app/run/[id]/report-v2.tsx": 3,
+        "web/app/run/[id]/run-view.tsx": 15,
+        "web/app/run/[id]/steps-strip.tsx": 309,
+        "web/app/tokens.css": 10,
+        "web/app/ui.css": 92,
+        "web/lib/pending-run.ts": 36,
+        "web/lib/report-view.test.ts": 36,
+        "web/lib/report-view.ts": 83
+      },
+      "user_removed_per_file": {
+        "NEATLOGS_NOTES.md": 1,
+        "web/app/run/[id]/live-run.tsx": 22,
+        "web/app/run/[id]/page.tsx": 1,
+        "web/app/run/[id]/report-v2.tsx": 91,
+        "web/app/run/[id]/run-view.tsx": 6,
+        "web/app/run/[id]/steps-strip.tsx": 49,
+        "web/lib/report-view.test.ts": 12,
+        "web/lib/report-view.ts": 20
+      }
+    }
+  ]
+}

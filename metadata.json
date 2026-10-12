@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QPXNB4698ZYJMW0Y77PRG8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "NEATLOGS_NOTES.md",
+    "web/app/home/start-section.tsx",
+    "web/app/journey/page.tsx",
+    "web/app/run/[id]/check-again.tsx",
+    "web/app/run/[id]/live-run.tsx",
+    "web/app/run/[id]/page.tsx",
+    "web/app/run/[id]/report-bits.tsx",
+    "web/app/run/[id]/report-v2.tsx",
+    "web/app/run/[id]/run-view.tsx",
+    "web/app/run/[id]/share-panel.tsx",
+    "web/app/run/[id]/steps-strip.tsx",
+    "web/app/tokens.css",
+    "web/app/ui.css",
+    "web/content/journey.ts",
+    "web/lib/report-logic.ts",
+    "web/lib/report-view.test.ts",
+    "web/lib/report-view.ts",
+    "web/lib/types.ts",
+    "web/package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 132,
+    "cache_creation_tokens": 88792,
+    "cache_read_tokens": 39384171,
+    "output_tokens": 59387,
+    "api_call_count": 66
+  }
+}

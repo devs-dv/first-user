@@ -1,0 +1,89 @@
+clear
+
+---
+
+<pasted_content id="6cc0">
+The understand branch is now merged into main. It adds the demo shop (demo-shop/), the injection eval and worker/hidden_text.py. Two small things, then stop. Do not read or print any env file. Do not commit.
+
+1. Fill the journey's SINGLE_RUNS slot for the demo shop injection test, using hackathon.md's "Demo shop and injection test" section as the source: one local run on a review page with hidden instructions aimed at AI agents (HTML comment, white-on-white and off-screen text). The hidden text was found by code and removed before any model saw the page; the agent did not claim success (it gave up, because the review form really is broken); the verifier, called directly, did not confirm success; the report showed only a neutral notice and repeated none of the hidden wording. Label it "One run", not a rate.
+
+2. Make sure the report page shows the hidden-text notice (result.hidden_text) as its own small line near the first impression, in the design's style, and that nothing from the hidden text itself is ever rendered.
+
+Run web tests, typecheck, lint and build.
+</pasted_content id="6cc0">
+
+---
+
+<task-notification>
+<task-id>bvptct1t6</task-id>
+<tool-use-id>toolu_01S3W7ksp7QnNVCNnFkavYU9</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bvptct1t6.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve production build" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<pasted_content id="6cc0">
+Two small report fixes after your current task. Do not commit.
+1. Share text must match the verdict: got_through → "First User just tried {site} like a first-time customer and got through. Here's the report: {link} #neatHack via @devsdv_"; stuck → keep "Here's where it got stuck"; any other verdict → "Here's what it found". Still editable.
+2. The header duration (1m 52s) and the "How this report was made" duration (1 min 48 s) disagree on the same run. Use one source for both.
+Run web tests, typecheck, lint and build.
+</pasted_content id="6cc0">
+
+---
+
+<pasted_content id="6cc0">
+UX polish on three parts of the run and report pages. Keep it within 30 minutes. Change presentation only: no changes to data, APIs, flags or worker code. Use the existing design tokens. Respect prefers-reduced-motion. Do not read or print any env file. Do not commit.
+
+1. After submitting a run (the "loading" state): replace the plain "Loading" with a proper waiting state that appears instantly.
+   - Show the phase tracker right away with an extra first phase: "Queued", then "Starting a browser", then the existing phases (Understanding the page, Exploring, Verifying, Writing the report).
+   - While queued, show the queue position if the API has it, otherwise "Waiting for a free browser".
+   - Show the URL and goal being tested, a skeleton of the screenshot area, and one calm line that changes with the phase (e.g. "Opening your site like a first-time visitor").
+   - Never a blank screen or a bare spinner. If nothing changes for 90 seconds, show "Still working. Runs usually take a few minutes."
+
+2. "03 · Every step": make it engaging and readable.
+   - Larger screenshots (at least twice the current size on desktop, full width on phone), with click or tap to open a full-size lightbox (Esc and a close button to exit, arrow keys to move between steps).
+   - Scroll-snap carousel with smooth snapping, previous and next buttons, a step counter ("Step 6 of 17") and a thin progress line. Cards ease in as they enter the view.
+   - Clear hierarchy per card: step number and a small icon for the action type (look, click, type, scroll, finish), then the action in large text, then the agent's reason in smaller muted text, then the result as a coloured status ("Worked", "Needed recovery on try 3", "No effect", "Page error").
+   - Steps that matter stand out: findings, recoveries, page errors and the final step get an accent border and a label.
+   - On phone, the carousel becomes a vertical timeline.
+
+3. "04 · Transparency" (How this report was made): redesign the card for scanning.
+   - A top row of 4 stat tiles: Steps, Duration, Cost, Independent check (with its verdict as a coloured chip).
+   - Below, grouped sections with clear headings: "How the visitor got in", "What happened" (recoveries, our own issues, page reloads, hidden page errors), "How we checked" (the verifier's quote, success condition), "For engineers" (agent version, worker, neatlogs trace ID with a copy button).
+   - Readable sizes, aligned label and value pairs, zeros shown calmly (e.g. "None" in muted text), and the footnote about simulated users kept.
+   - Still collapsible, open by default on desktop and collapsed on phone.
+
+Check at 390 px and 1280 px on the real report 631236d8-c32f-4124-b0af-5d63cda81c61 and on 91e44505-dade-461a-8882-5a256b73b9ee. Run web tests, typecheck, lint and build.
+</pasted_content id="6cc0">
+
+---
+
+<task-notification>
+<task-id>brmha4jij</task-id>
+<tool-use-id>toolu_01CNcmCHibNqJT8gkVqjcocn</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\brmha4jij.output</output-file>
+<status>failed</status>
+<summary>Background command "Start dev server" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bped64dfw</task-id>
+<tool-use-id>toolu_01VwgaEAMxBKvriHLXhBBEJy</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bped64dfw.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve production build" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bws0cu39y</task-id>
+<tool-use-id>toolu_014QAscBUdbj9k2EtStPfVfk</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bws0cu39y.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve rebuilt production app" failed with exit code 1</summary>
+</task-notification>
