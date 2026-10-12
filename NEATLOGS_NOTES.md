@@ -149,3 +149,20 @@ feedback for the neatlogs team, and a nice specific example:
 
 ## 2026-10-12: Incidents flagged our output-less guard spans
 - neatlogs Incidents flagged our output-less guard spans ("Egress host check requests finish with empty replies", 61 records); fixed by recording each decision: one `egress_check` GUARDRAIL span per host per run, with output `{host, port, decision, reason}`.
+
+## Incidents (neatlogs opened these on its own)
+
+neatlogs' Incidents view grouped failures from our traces and opened five incidents without us setting anything up. Each one maps to a real problem, and four were already fixed by the time we looked.
+
+| Incident (as named by neatlogs) | What it was | What we did | Status |
+|---|---|---|---|
+| Use Trusted Physical Clicks Instead of Emulated DOM Click Events | The "lying click": the browser tool reported success but the page didn't change | Page-change check plus a 4-step recovery ladder ending in a trusted mouse click. 0/5 → 5/5 clicks. Commit 51e480b, Entire checkpoint 01M4JKVBR6Y56SHAER3B1J3P34 | Resolved |
+| Fix Chrome Profile Directory Contention and Ensure Proper Process Cleanup | Windows refused to delete a run's browser profile, which failed the run | Cleanup errors are logged, not fatal; one browser profile per run; Docker on the server | Resolved |
+| Handle Sign-Up Tool Failures Gracefully | Sign-up returned nothing useful when a form didn't work | Sign-in and sign-up diagnose the result (signed in, rejected, needs verification, no effect) and retry once | Resolved |
+| Implement Loop Detection and Handle Empty LLM Outputs | Model replies sometimes came back empty or incomplete | 20-step limit with early wrap-up, per-run budget cap, Understand mode re-asks on incomplete replies. Explicit loop detection is next | Investigated |
+| Egress host check requests finish with empty replies | Our network guard's check spans had no output, so they read as an agent producing nothing (a false alarm caused by our instrumentation) | Each check now records {host, port, decision, reason} and is typed as a guardrail; test traces no longer export | Resolved after the AWS deploy |
+
+**Feedback for the neatlogs team:**
+- Incidents were the most useful feature for us: they turned scattered failures into a to-do list without any setup.
+- The egress incident showed that a span with no output reads as a failure. A hint in the incident ("this span has no output, is that intended?") would help others spot instrumentation gaps faster.
+- Incidents counted traces from our test suite before we stopped tests exporting. An environment filter on Incidents (production only) would avoid that.
