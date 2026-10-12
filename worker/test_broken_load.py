@@ -10,6 +10,7 @@ loads without its scripts ("$ is not defined", buttons that do nothing).
                SKIP_LIVE_TESTS=1 skips them.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import json
 import os

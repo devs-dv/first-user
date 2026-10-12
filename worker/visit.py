@@ -1,5 +1,7 @@
 """One first-time visit: open Chrome behind the egress guard, run the visitor agent, close Chrome."""
 
+import os
+
 import neatlogs
 
 import page_watch
@@ -26,6 +28,8 @@ async def first_visit(
     access_mode: str = "signup",
     access_mode_chosen: bool = True,
     success_condition: str | None = None,
+    retest: dict | None = None,
+    environment: str | None = None,
 ) -> dict:
     """Everything a visit does, background work included, finishes inside this root span.
 
@@ -40,7 +44,10 @@ async def first_visit(
     if credentials is not None:
         # From here, the values are redacted in every span and scrubbed from every tool result.
         credentials.register()
+    # Where this trace came from, so real runs, eval runs and hand-run scripts can be told apart in neatlogs.
+    trace_safety.set_metadata(environment=environment or os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
     trace_id = current_trace_id()
+    ctx = None
     browser, stagehand, page, guard = await open_browser()
     try:
         await page_watch.install(page)
@@ -66,7 +73,19 @@ async def first_visit(
         # Closes the browser, the guard's connections and the lookup client before the root ends.
         await close_browser(browser, stagehand, guard)
         egress_summary = summary_span(guard.summary())
-    return {**result, "egress": egress_summary, "trace_id": trace_id}
+    result = {**result, "egress": egress_summary, "trace_id": trace_id}
+    if retest is not None and ctx is not None:
+        # Check again: the visit above was independent (it was told nothing about the old findings). Now
+        # the guided follow-up for what it never reached, and the comparison with the original.
+        import retest as retest_module
+
+        try:
+            result = await retest_module.run_checks(ctx, retest, result)
+        except Exception as error:
+            print(f"[retest] the comparison could not be made: {type(error).__name__}", flush=True)
+            result = {**result, "retest": {"error": f"{type(error).__name__}", "labels": [], "new": [],
+                                           "original_run_id": retest.get("run_id")}}
+    return result
 
 
 async def _first_impression(ctx: RunContext) -> None:

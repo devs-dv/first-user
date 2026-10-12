@@ -4,6 +4,7 @@ No browser and no network: a stand-in model and run context. Live behaviour (a r
 a verdict and facts) is checked by running a visit directly, see hackathon.md.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import re
 import unittest

@@ -6,6 +6,7 @@ never become findings, at most five are kept and they are ranked, the evidence (
 errors) is looked up from the step, and the steps to reproduce are the visitor's recorded actions.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import unittest
 from types import SimpleNamespace

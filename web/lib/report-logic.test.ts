@@ -29,6 +29,8 @@ function run(overrides: Partial<Run> = {}): Run {
     verdict: null,
     run_facts: null,
     success_condition: null,
+    retest_of: null,
+    retest: null,
     goal: "g",
     status: "done",
     outcome: "blocked",
@@ -182,7 +184,7 @@ test("what to fix first is the top finding, and nothing for a visit that says no
 
 test("every Report v2 section can be switched off, all at once or one at a time", () => {
   const all = flagsFrom({});
-  assert.deepEqual(Object.values(all), [true, true, true, true, true, true]);
+  assert.deepEqual(Object.values(all), [true, true, true, true, true, true, true]);
   assert.equal(flagsFrom({ master: "off" }).verdict, false);
   assert.equal(flagsFrom({ master: "off" }).facts, false);
   assert.deepEqual(flagsFrom({ facts: "false" }), { ...all, facts: false });
@@ -192,7 +194,7 @@ test("every Report v2 section can be switched off, all at once or one at a time"
   assert.equal(flagsFrom({ success: "hidden" }).success, false);
   assert.equal(flagsFrom({ verdict: "off" }).verdict, false);
   // The address switches everything off for that view, without a rebuild.
-  assert.deepEqual(Object.values(flagsFrom({}, "?report=basic")), [false, false, false, false, false, false]);
+  assert.deepEqual(Object.values(flagsFrom({}, "?report=basic")), [false, false, false, false, false, false, false]);
   assert.equal(flagsFrom({}, "?report=full").answers, true);
 });
 
@@ -220,4 +222,113 @@ test("a database without the newer columns can still be read", () => {
   }
   assert.ok(RUN_COLUMNS_BEFORE_FINDINGS.split(", ").includes("first_impression"));
   assert.ok(RUN_COLUMNS_BEFORE_FINDINGS.split(", ").includes("outcome"));
+});
+
+// ------------------------------------------------------------------------------------- Check again
+
+import { accessModeOf, planRetest, type OriginalForRetest } from "./retest.ts";
+
+function original(overrides: Partial<OriginalForRetest> = {}): OriginalForRetest {
+  return {
+    id: "00000000-0000-4000-8000-000000000001",
+    url: "https://shop.example/",
+    goal: "Buy a mug",
+    access_mode: "public",
+    start_url: null,
+    success_condition: "the mug is in the cart",
+    has_test_login: false,
+    status: "done",
+    retest_of: null,
+    ...overrides,
+  };
+}
+
+test("a check again copies the address, goal, way in, start link and success condition", () => {
+  const plan = planRetest(
+    original({ access_mode: "link", start_url: "https://shop.example/demo", goal: "Create a project" }),
+    {},
+  );
+  assert.ok(plan.ok);
+  assert.deepEqual(plan.args, {
+    p_url: "https://shop.example/",
+    p_goal: "Create a project",
+    p_start_url: "https://shop.example/demo",
+    p_test_email: null,
+    p_test_password: null,
+    p_access_mode: "link",
+    p_success_condition: "the mug is in the cart",
+    p_retest_of: "00000000-0000-4000-8000-000000000001",
+  });
+  assert.equal(plan.needsLogin, false);
+});
+
+test("a retest of a retest is linked to the original, whose findings are the ones to check", () => {
+  const plan = planRetest(original({ id: "retest-id", retest_of: "root-id" }), {});
+  assert.ok(plan.ok);
+  assert.equal(plan.args.p_retest_of, "root-id");
+});
+
+test("a test login is asked for again and is only ever what the founder just typed", () => {
+  const needs = planRetest(original({ access_mode: "account", has_test_login: true }), {});
+  assert.ok(!needs.ok);
+  assert.equal(needs.error, "test_login_required");
+  assert.equal(needs.status, 400);
+  const half = planRetest(original({ has_test_login: true, access_mode: "account" }), { testEmail: "qa@example.org" });
+  assert.ok(!half.ok);
+  const given = planRetest(original({ has_test_login: true, access_mode: "account" }), {
+    testEmail: " qa@example.org ",
+    testPassword: "new-throwaway-pw",
+  });
+  assert.ok(given.ok);
+  assert.equal(given.args.p_test_email, "qa@example.org");
+  assert.equal(given.args.p_test_password, "new-throwaway-pw");
+  assert.equal(given.args.p_access_mode, "account");
+  assert.equal(given.needsLogin, true);
+});
+
+test("a login sent when none is needed is ignored, not forwarded", () => {
+  const plan = planRetest(original(), { testEmail: "someone@example.org", testPassword: "should-not-travel" });
+  assert.ok(plan.ok);
+  assert.equal(plan.args.p_test_email, null);
+  assert.equal(plan.args.p_test_password, null);
+  assert.ok(!JSON.stringify(plan.args).includes("should-not-travel"));
+});
+
+test("the original's row has no field a login could be copied from", () => {
+  const plan = planRetest(original({ has_test_login: true, access_mode: "account" }), {
+    testEmail: "qa@example.org",
+    testPassword: "pw-1",
+  });
+  assert.ok(plan.ok);
+  // Only these eight arguments exist, and the two login ones come from the body alone.
+  assert.deepEqual(Object.keys(plan.args).sort(), [
+    "p_access_mode", "p_goal", "p_retest_of", "p_start_url", "p_success_condition", "p_test_email",
+    "p_test_password", "p_url",
+  ]);
+});
+
+test("only a finished report can be checked again, and a bad email is refused", () => {
+  const running = planRetest(original({ status: "running" }), {});
+  assert.ok(!running.ok);
+  assert.equal(running.error, "not_finished");
+  const bad = planRetest(original({ access_mode: "account", has_test_login: true }), {
+    testEmail: "not-an-email",
+    testPassword: "x",
+  });
+  assert.ok(!bad.ok);
+  assert.equal(bad.error, "invalid_credentials");
+});
+
+test("older runs without a chosen way in are read from their fields", () => {
+  assert.equal(accessModeOf(original({ access_mode: null })), "public");
+  assert.equal(accessModeOf(original({ access_mode: null, start_url: "https://shop.example/demo" })), "link");
+  assert.equal(accessModeOf(original({ access_mode: null, has_test_login: true })), "account");
+});
+
+test("check again can be switched off on its own", () => {
+  const all = flagsFrom({});
+  assert.equal(all.checkAgain, true);
+  assert.deepEqual(flagsFrom({ checkAgain: "off" }), { ...all, checkAgain: false });
+  assert.equal(flagsFrom({ master: "off" }).checkAgain, false);
+  assert.equal(flagsFrom({}, "?report=basic").checkAgain, false);
 });

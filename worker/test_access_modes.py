@@ -4,6 +4,7 @@ No browser and no model: the run row, the prompt text and the refusal of sign_up
 stand-ins.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import unittest
 from unittest import mock

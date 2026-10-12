@@ -8,6 +8,7 @@ are about what would arrive at neatlogs. Fake keys are assembled from parts at r
 so this file contains no key-shaped string. No network, no model calls.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import ast
 import json
 import os

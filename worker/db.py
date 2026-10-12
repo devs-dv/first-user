@@ -125,13 +125,15 @@ async def finish_run(run_id: str, result: dict, agent_version: str, brain_model:
         "findings": result.get("findings"),
         "verdict": result.get("verdict"),
         "run_facts": result.get("run_facts"),
+        "retest": result.get("retest"),
         "finished_at": _now(),
     })
 
 
 # Columns added after the first schema. If the database does not have one yet (supabase/schema.sql
 # not re-run), runs are saved without it and a warning is printed once, rather than failing.
-OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry", "findings", "worker_id", "verdict", "run_facts")
+OPTIONAL_COLUMNS = ("trace_id", "first_impression", "entry", "findings", "worker_id", "verdict", "run_facts",
+                    "retest")
 _missing_columns: set[str] = set()
 
 
@@ -148,6 +150,29 @@ async def _update_run(run_id: str, update: dict) -> None:
               "supabase/schema.sql); saving runs without it.", flush=True)
         update = {k: v for k, v in update.items() if k not in _missing_columns}
         await (await client()).table("runs").update(update).eq("id", run_id).execute()
+
+
+async def get_original_for_retest(run_id: str) -> dict | None:
+    """What a retest needs of its original run: findings, verdict, start link and recorded steps.
+
+    Never its test login: that was deleted when the run was claimed, and is not read here. The retest
+    gets its own, given again by the founder and kept only until it is claimed.
+    """
+    database = await client()
+    rows = (await database.table("runs").select("id,url,start_url,findings,verdict,outcome,reason,entry,result")
+            .eq("id", run_id).execute()).data
+    if not rows:
+        return None
+    steps = (await database.table("steps").select("idx,tool,input,result,url").eq("run_id", run_id)
+             .order("idx").execute()).data
+    row = rows[0]
+    verdict = row.get("verdict")
+    if not verdict:  # saved before verdicts existed: worked out from what the run recorded
+        from retest import fallback_verdict
+
+        verdict = fallback_verdict(row, steps)
+    return {"run_id": row["id"], "findings": row.get("findings") or [], "verdict": verdict,
+            "start_url": row.get("start_url") or row["url"], "steps": steps}
 
 
 async def take_run_secrets(run_id: str) -> dict | None:
@@ -202,6 +227,7 @@ async def fail_run(
             "findings": result.get("findings"),
             "verdict": result.get("verdict"),
             "run_facts": result.get("run_facts"),
+            "retest": result.get("retest"),
         })
     await _update_run(run_id, update)
 

@@ -9,6 +9,7 @@ Test servers listen on loopback, so 127.0.0.1 is treated as public for the
 test origin; the redirect target 127.0.0.2 stays private.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import ipaddress
 import unittest

@@ -9,6 +9,7 @@ Usage: python -m unittest test_slow_change -v
                issue. Set SKIP_LIVE_TESTS=1 to skip them.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import os
 import threading

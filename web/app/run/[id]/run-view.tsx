@@ -13,11 +13,13 @@ import type {
   Outcome,
   Run,
   RunDetails,
+  RunLink,
   Step,
 } from "@/lib/types";
 import { readReportFlags, type ReportFlags } from "@/lib/report-flags";
 import { frictionsNotInFindings, showLoginWallHelp } from "@/lib/report-logic";
 
+import { CheckAgain, RetestBanner, RetestComparison } from "./check-again";
 import { BasisBadge, Recommendation, RunFactsPanel, ThreeAnswers, VerdictCard } from "./report-v2";
 
 const POLL_MS = 2000;
@@ -75,17 +77,18 @@ export function RunView({ id }: { id: string }) {
   }
   if (state.kind === "not_found") return <NotFound />;
 
-  const { run, steps, frictions } = state.data;
+  const { run, steps, frictions, original, latest_retest: latestRetest } = state.data;
   return (
     <div className="space-y-10">
       <RunHeader run={run} />
+      {flags.checkAgain && <RetestBanner run={run} latest={latestRetest} />}
       {connectionTrouble && <ConnectionNotice />}
       {run.status === "queued" || run.status === "running" ? (
         <InProgress run={run} steps={steps} />
       ) : run.status === "failed" ? (
         <Failed run={run} steps={steps} frictions={frictions} />
       ) : (
-        <Report run={run} steps={steps} frictions={frictions} flags={flags} />
+        <Report run={run} steps={steps} frictions={frictions} flags={flags} original={original} />
       )}
     </div>
   );
@@ -173,11 +176,12 @@ const OUTCOMES: Record<Outcome, { label: string; tone: string }> = {
   error: { label: "Didn't finish", tone: "border-danger/30 bg-danger-soft text-danger" },
 };
 
-function Report({ run, steps, frictions, flags }: {
+function Report({ run, steps, frictions, flags, original }: {
   run: Run;
   steps: Step[];
   frictions: Friction[];
   flags: ReportFlags;
+  original?: RunLink | null;
 }) {
   const botCheck = run.entry?.bot_check ?? null;
   const outcome = botCheck
@@ -185,6 +189,7 @@ function Report({ run, steps, frictions, flags }: {
     : (OUTCOMES[run.outcome ?? "error"] ?? OUTCOMES.error);
   return (
     <>
+      {flags.checkAgain && <RetestComparison run={run} original={original} />}
       {flags.answers && <ThreeAnswers run={run} showBasis={flags.labels} />}
       {run.first_impression && <FirstImpressionCard review={run.first_impression} flags={flags} />}
       <section className="space-y-4">
@@ -208,6 +213,7 @@ function Report({ run, steps, frictions, flags }: {
       </section>
       <Findings findings={run.findings} flags={flags} />
       <Frictions frictions={frictions} findings={run.findings} />
+      {flags.checkAgain && <CheckAgain run={run} />}
       {flags.facts && <RunFactsPanel run={run} steps={steps} />}
       <Timeline steps={steps} />
     </>

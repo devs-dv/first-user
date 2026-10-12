@@ -30,6 +30,9 @@ HERE = Path(__file__).parent
 load_dotenv(HERE / ".env")
 os.environ["BRAIN_MODEL"] = "haiku"
 os.environ["NEATLOGS_API_KEY"] = "test-not-a-real-key-0000000000"  # nothing from a test goes to the real project
+# The harness is test tooling: its spans go to a sink on this machine (test_support.py), never to neatlogs,
+# whether it is run by a test or by hand.
+import test_support  # noqa: E402,F401
 
 import neatlogs  # noqa: E402
 

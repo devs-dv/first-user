@@ -376,6 +376,7 @@ def comparison(results: list[dict]) -> str:
 @neatlogs.span(kind="WORKFLOW", name="first-user-evals", capture_input=False)
 async def main(version: str, only: list[str] | None, timeout_minutes: float, compare_to: list[str]) -> None:
     trace_safety.set_input(version=version, only=only or [], timeout_minutes=timeout_minutes, compare_to=compare_to)
+    trace_safety.set_metadata(environment="eval", eval_version=version)
     cases = load_cases(only)
     client = await db.client()
     with_label = await has_eval_version_column(client)

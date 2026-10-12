@@ -14,6 +14,7 @@ mask), every request to a model, the process's own output, and what the page sho
 screenshot was taken. All must be free of it, and the stand-in database must hold no login.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import copy
 import json
@@ -254,7 +255,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True, success_condition=None):
+                              access_mode_chosen=True, success_condition=None, retest=None, environment=None):
             seen.update(email=credentials.email, password=credentials.password, start_url=start_url,
                         database_holds_login=bool(fake.secrets))
             return {"outcome": "achieved", "steps": 1, "reason": "ok"}
@@ -292,7 +293,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True, success_condition=None):
+                              access_mode_chosen=True, success_condition=None, retest=None, environment=None):
             self.assertIsNone(credentials)
             self.assertFalse(test_login_unavailable)
             return {"outcome": "gave_up", "steps": 2, "reason": "r"}
@@ -307,7 +308,7 @@ class RunLifecycle(unittest.IsolatedAsyncioTestCase):
 
         async def first_visit(url, goal, run_id, recorder=None, start_url=None, credentials=None,
                               test_login_unavailable=False, access_mode="signup",
-                              access_mode_chosen=True, success_condition=None):
+                              access_mode_chosen=True, success_condition=None, retest=None, environment=None):
             seen.update(credentials=credentials, unavailable=test_login_unavailable)
             return {"outcome": "blocked", "steps": 1, "reason": "login"}
 

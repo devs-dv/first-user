@@ -7,6 +7,7 @@
 Nothing here names a site: the page is a local one written for the test.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import os
 import threading
 import unittest

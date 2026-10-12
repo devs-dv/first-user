@@ -905,3 +905,52 @@ The report now answers three questions for a founder: will a new user understand
 - Screenshots in a prompt show as "not captured" for a visit made without the database (a direct call); with the worker they are the uploaded URLs.
 - Two findings about the same symptom worded differently ("rejects typed text" and "gives no message") are still two findings: the merge is by word overlap.
 - The understanding level is a rule over a model's reading of one landing page; it is labelled observed, not verified.
+
+## Check again
+
+*2026-10-12. Own section; the schema change is the last block of `supabase/schema.sql`, headed CHECK AGAIN.*
+
+A founder fixes something, then re-runs the same journey and sees what changed.
+
+**1. The button.** A finished report has "Check again". It creates a new run linked to the original (`runs.retest_of`) with the same URL, goal, way in, start link and success condition. A retest of a retest is linked to the original (its findings are the ones to check). Test logins are never stored after a run, so if the original used one the founder is asked for it again in a small form; it travels in that one request to the same database function as any new run and is kept only until the worker claims it. A login sent when none is needed is ignored. The route runs the same address checks (both addresses, https for a test login) and goes through `enqueue_web_run`, extended with `p_retest_of uuid default null` as its last argument (every earlier argument unchanged), so the same queue and rate limits apply.
+
+**2. Pass 1, independent.** The retest first runs as an ordinary visit. The agent is never told the old findings: nothing about a retest reaches the visitor's code (a test asserts the source of `browse.py` does not mention it and the run context has no such field).
+
+**3. Pass 2, guided follow-up** (traced as its own span, `retest_guided`), only for old findings whose page or state pass 1 never reached. The route comes from the original's recorded steps: the actions that worked, in order, up to the step where the finding happened. Each finding is replayed in a fresh browser (an earlier replay's login must not leak into the next route): navigate to the start, replay each action and check that it changed the page and landed on the page the original route landed on, then re-try the original action and record what happens (as steps of the retest's report, marked guided).
+- It stops at the first thing that cannot be followed: an action with no effect, a step that leads to a different page ("the flow has changed: that step led to /basket, and the original route led to /cart"), a route that ends elsewhere, a login needed and not given, a sign-up the way in does not allow, a bot check, a route that used Back, a route longer than 12 steps. The finding is then **Not reached**. A different route is never treated as equivalent proof; nothing is retried after a mismatch.
+- Limits: at most 3 findings, the run's step count and its cost and token budget are shared with pass 1.
+
+**4. The comparison** (`retest_compare` span; judged in code from recorded signals, not by a model). Each old finding gets one label and the pass that produced it:
+- **Fixed**: the relevant step was reached and the original failure could not be reproduced under comparable conditions (the action was carried out and the page responded), with the evidence step.
+- **Still present**: reached, and the failure came back (the same page error, the field again losing the text, the same wording still on the page, or the retest's own report found the same problem on the same page), with the evidence step.
+- **Not reached**: the state was never reached, so it is unverified. Never called Fixed.
+- **Inconclusive**: reached, but the evidence does not decide (our browser tool could not carry out the action, nothing measurable in the original, a different error appeared).
+- **New**: a problem in the retest's own report that is not one of the old ones.
+Matching a retest finding to an old one is the same symptom on the same page, or the same page and two shared symptom words; several retest findings about one old problem all count as it. The verdicts are compared too ("Before: ... stuck on shop.example/checkout. After: ... got through."), with a verdict worked out from the row for originals that predate verdicts. Everywhere Fixed appears the report says it means "not reproduced under the tested conditions" and is not a guarantee.
+
+**5. The report page.** A retest's report starts with "What changed since the original": before and after verdicts side by side, each old finding with its label, the pass that produced it, the reason, and links to the original report's step and this report's step; then the new problems. The original report shows a line linking to its latest check. Reports without a retest are unchanged.
+
+**6. SQL and flag.** `runs.retest_of` (uuid, references runs, indexed), `runs.retest` (jsonb), and `enqueue_web_run` with `p_retest_of`; an unknown original returns `original_not_found`. Web: `NEXT_PUBLIC_CHECK_AGAIN=off` hides the button, the comparison and the banner and makes the API answer 404 (`?report=basic` hides them for a view). Worker: `CHECK_AGAIN=false` turns a retest into an ordinary visit. To keep edits to shared files small: the API, UI and logic are new files (`api/runs/[id]/retest/route.ts`, `check-again.tsx`, `lib/retest.ts`, `worker/retest.py`); the shared files gained a few lines each (types, flags, the run page's mounting, `visit.py`, `worker_run.py`, `db.py`, `tools.py`).
+
+**Checked**
+- Worker: 31 tests in `test_retest.py`: each of Fixed, Still present, Not reached, Inconclusive and New; the guided pass refusing a different route (a step leading to another page, an action with no effect, a route ending elsewhere, a bot check) and never retrying after a mismatch; refusals before any browser opens (login needed, sign-up not allowed, Back, no recorded action) and the limit of three; the original read without run_secrets and a retest receiving only its own login; the verdict comparison; duplicates written up twice by the retest counting as the old problem; a legacy "login wall" that got past the login.
+- Web: 23 tests, including the plan for a retest (copies the address, goal, way in, start link and success condition; asks again for a test login; never forwards a login that is not needed; always links to the original; only finished reports), and the flag.
+- A real retest (direct call, no worker loop) of the real run 91e44505 (saucedemo problem_user, one finding): the retest's own visit found the Last Name problem again, so the old finding came out Still present (independent), its duplicate was not reported as New, and the verdicts compared as stuck before and after. With the recorded action reworded so pass 1 could not match it, the route was replayed in a fresh browser (five steps, same pages), reached the checkout page, and the re-tried action had no field to act on, so it came out Inconclusive (guided).
+- In a browser, against a fake database: the comparison, the links to both reports, the banner on the original, the test-login form, `?report=basic`; no horizontal scroll at 390 px.
+- The API: no login given -> 400 `test_login_required`; login given -> queued with `p_retest_of` set to the original and the original's goal, way in and success condition; unknown run -> 404.
+
+**Not done / limits**
+- The SQL has not been run on the real Supabase project. Until it is, "Check again" cannot queue (the 11-argument function does not exist yet), and the run page falls back to the older columns.
+- The independent pass is a normal visit, so it may simply not go where the old finding was; that is what the guided pass is for, and it is deliberately strict (one route, no equivalents), so many findings will honestly stay Not reached.
+- Judging "reproduced" uses what the run recorded (page errors, the field read-back, the page's wording). A finding the original recorded with none of these comes out Inconclusive, never Fixed.
+
+## Test traces and environment labels
+
+*2026-10-12.*
+
+**Tests never send traces to neatlogs.** `worker/test_support.py` is imported on the first line of every test module (and by `conftest.py` for pytest; `test_no_export.py` checks every test module does so first). Switching export off would also switch off neatlogs' masking pipeline, which the credential tests exist to check, so tests run the real pipeline against a sink on this machine that accepts and discards every request:
+- `NEATLOGS_ENDPOINT` is the sink, and an explicit `endpoint=` passed to `neatlogs.init` is overridden; the API key is a placeholder, and `load_dotenv` is wrapped so a key from a `.env` file cannot come back (the file is read by dotenv, never by this code);
+- live tests included, and the credentials harness subprocess (it imports the guard too, so running it by hand is covered);
+- a test proves delivery: a child process asks for `https://ingest.neatlogs.com` explicitly and its spans arrive at the local sink.
+
+**Labels on real traces.** The root span of a visit carries metadata `environment`: `production` for runs the worker takes from the queue, `eval` for runs queued by `evals/run.py` (`source = "eval"`), and `eval` plus `eval_version` on the evals' own root span `first-user-evals`. Scripts run by hand (`run_once.py`, `check_costs.py`, `check_traces.py`) say `development` so `production` means real runs only. neatlogs' public `span()` takes no metadata argument, so it is set on the active span as the `metadata` attribute (`trace_safety.set_metadata`), merged as JSON.

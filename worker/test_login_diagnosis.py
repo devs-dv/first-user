@@ -5,6 +5,7 @@ password with a 401, a CAPTCHA, a two-factor prompt, a button that does nothing)
 test_credentials.py.
 """
 
+import test_support  # noqa: F401  (first: keeps tests from sending traces to neatlogs)
 import asyncio
 import unittest
 from unittest import mock

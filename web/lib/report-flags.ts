@@ -7,6 +7,7 @@
 //   NEXT_PUBLIC_REPORT_V2_CRITERIA  acceptance criteria and retest under each finding
 //   NEXT_PUBLIC_REPORT_V2_FACTS     the "How this report was made" panel
 //   NEXT_PUBLIC_REPORT_V2_SUCCESS   the success-condition line
+//   NEXT_PUBLIC_CHECK_AGAIN         the "Check again" button, its API and the comparison on a retest
 //
 // All on by default. These are not secrets (they only hide parts of a page), so they are NEXT_PUBLIC_
 // variables, read when the app is built. For an immediate switch with no rebuild, add `?report=basic` to
@@ -19,6 +20,7 @@ export type ReportFlags = {
   criteria: boolean;
   facts: boolean;
   success: boolean;
+  checkAgain: boolean;
 };
 
 const OFF = new Set(["off", "false", "0", "no", "hide", "hidden"]);
@@ -28,7 +30,16 @@ function on(value: string | undefined): boolean {
 }
 
 export function flagsFrom(
-  env: { master?: string; answers?: string; verdict?: string; labels?: string; criteria?: string; facts?: string; success?: string },
+  env: {
+    master?: string;
+    answers?: string;
+    verdict?: string;
+    labels?: string;
+    criteria?: string;
+    facts?: string;
+    success?: string;
+    checkAgain?: string;
+  },
   search = "",
 ): ReportFlags {
   const master = on(env.master) && new URLSearchParams(search).get("report") !== "basic";
@@ -39,6 +50,7 @@ export function flagsFrom(
     criteria: master && on(env.criteria),
     facts: master && on(env.facts),
     success: master && on(env.success),
+    checkAgain: master && on(env.checkAgain),
   };
 }
 
@@ -53,6 +65,7 @@ export function readReportFlags(search = ""): ReportFlags {
       criteria: process.env.NEXT_PUBLIC_REPORT_V2_CRITERIA,
       facts: process.env.NEXT_PUBLIC_REPORT_V2_FACTS,
       success: process.env.NEXT_PUBLIC_REPORT_V2_SUCCESS,
+      checkAgain: process.env.NEXT_PUBLIC_CHECK_AGAIN,
     },
     search,
   );
