@@ -1,0 +1,136 @@
+<pasted_content id="3900">
+Two more fixes after the current ones. Do not read or print any env file. Do not commit.
+
+1. Understand submit and the brief page waiting state: make the Understand flow feel instant like the test flow. On submit, show progress straight away (no long "Starting…" on the button), then on the brief page show a proper waiting state with phases: Queued, Reading the site's pages (with the page count as it grows, if available), Writing the brief, Done. Show the URL being read and a skeleton of the journeys section. If the server returns an error (rate limit, queue full, invalid address), show it clearly in plain words with what to do next, never a stuck button. If nothing has changed for 90 seconds, show "Still reading. Briefs usually take under two minutes."
+
+2. Rate limit is currently 5 runs per visitor per hour. Make it configurable with a server-side environment variable (RUNS_PER_HOUR, default 5), used for test, understand and founder brief runs alike, and show the remaining runs in the error message when the limit is hit.
+
+Run web tests, typecheck, lint and build.
+</pasted_content id="3900">
+
+---
+
+<pasted_content id="3900">
+Next fix list, after the current task. Do not read or print any env file. Do not commit. Run only the relevant tests while working; run all web tests, the worker tests, typecheck, lint and the build once at the end.
+
+1. BUG, highest priority: the saved test-form draft overwrites a journey chosen from a brief. Repro: run a test with goal A on site X; later open a brief for site Y and click "Test this journey" with goal B. The form shows site Y's URL but goal A and success A from the old draft. A prefill from a brief link (or any query-string prefill) must always win over the saved draft, for every field. Clear the draft when a prefill is applied; only restore a draft when there is no prefill. Add a test for this exact case.
+
+2. "Test this journey" (on a brief) and "Test another journey" (on a report) land at the top of the home page, and only a second click reaches the form. Go straight to the start-run form: navigate to its anchor, scroll it into view (instant under reduced motion), and focus the first empty field or the submit button.
+
+3. The Test form also sits on "Starting…" for a long time after submit. Same rule as the Understand flow: move to the run page as soon as the run is queued and show its waiting state there; never leave "Starting…" on the button for more than a couple of seconds; show server errors in plain words.
+
+4. Version skew: when the site is redeployed while a tab is open, navigation can fail and leave the page stuck until a hard refresh. Detect a failed chunk or route load and reload the page once automatically, keeping the form draft. At most once per minute.
+
+5. Approved: apply the one-line worker fix so look() returns screenshot_url and look steps get their screenshot linked; add a test.
+
+6. URL fields: do not strip "www." at all, only surrounding spaces and http:// or https://. Update the tests.
+
+7. Delete the unused default Next.js SVGs from web/public.
+
+Check the full path at 390 px and 1280 px: Understand a site → brief → "Test this journey" → form prefilled correctly and in view → submit → run page waiting state.
+</pasted_content id="3900">
+
+---
+
+Priority change for the queued fix list: do them in this order. 1) the draft-overwrite bug, 2) linking look-step screenshots in the worker, 3) moving to the run page immediately after submit (show the run id, Queued or Running, and progress straight away), 4) "Test this journey" scrolls to the form, 5) www and SVG cleanup, 6) stale-tab reload last, and only if it doesn't put the rest at risk. Keep the Understand waiting state and the rate limit from the current task.
+
+---
+
+<task-notification>
+<task-id>bm5mb6bz8</task-id>
+<tool-use-id>toolu_011NRYRMhkHqHP5JLKeJVVzK</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bm5mb6bz8.output</output-file>
+<status>completed</status>
+<summary>Background command "Compare EndToEnd credential tests with and without the look fix" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8qzc3fee</task-id>
+<tool-use-id>toolu_0142CZfGyM58jDHEysTu2K3v</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b8qzc3fee.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the built web app on port 3123" failed with exit code 127</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bztt8p032</task-id>
+<tool-use-id>toolu_01HVgPHKJ5bBh66BGkU6vENd</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bztt8p032.output</output-file>
+<status>failed</status>
+<summary>Background command "Run the credentials harness on changes and on HEAD" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8nha2r2x</task-id>
+<tool-use-id>toolu_01KZKdmRxKQNvLL8EJm4rNVA</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b8nha2r2x.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the harness run on the changes to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0trpn5ha</task-id>
+<tool-use-id>toolu_01RiTnbtaL9vKLQpX65LwWtp</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\b0trpn5ha.output</output-file>
+<status>failed</status>
+<summary>Background command "Restart the built web app on port 3123" failed with exit code 127</summary>
+</task-notification>
+
+---
+
+<pasted_content id="3900">
+Your fixes are all uncommitted. Please finish them:
+
+1. Run the checks and fix anything that fails:
+   - cd web && npm test && npm run build
+   - cd worker && python -m pytest -q   (never start the worker's main loop)
+2. Commit ONLY web/ and worker/:
+   git add -A web worker
+   Do NOT stage demo-shop/ or anything outside web/ and worker/. Check with git status before committing.
+   Message: "Draft no longer overwrites the goal, look steps keep their screenshot, run page opens immediately, Test this journey scrolls to the form, Understand waiting state, configurable run limit, version-skew reload, www stripped, Next SVGs removed"
+   (Drop anything from that message you didn't actually do.)
+3. git push origin main. No --force, no --rebase. If the push is rejected, stop and tell me.
+4. Reply with: the commit hash, test results, which of the six priority fixes are done, and anything skipped or risky. Say whether the worker changed (worker/tools.py etc.), since that needs an AWS redeploy.
+
+Do not read or print worker/.env or any env file.
+</pasted_content id="3900">
+
+---
+
+<task-notification>
+<task-id>bm2q91so8</task-id>
+<tool-use-id>toolu_01WjxwXUDwAmr5vAgPrm8wXm</tool-use-id>
+<output-file>C:\Users\divya\AppData\Local\Temp\claude\D--first-user\225c0e86-6abd-4bc8-88dc-e3a2fc4683a6\tasks\bm2q91so8.output</output-file>
+<status>completed</status>
+<summary>Background command "Run worker suite on HEAD code, then restore changes" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<pasted_content id="3900">
+Task: add a "Who built this" section to the About page.
+
+Photo: web/public/dv.png (I just added it; use next/image, round or softly rounded, about 120–160px, alt "Divyanshu Verma (DV)").
+
+Content (use exactly this wording):
+- Team: devs-dv (solo)
+- Developer: Divyanshu Verma · DV
+- Line: "Follow the whole story on X: how I built First User, what broke, and how I fixed it." Link "on X" to https://x.com/devsdv_ (opens in a new tab, rel="noopener noreferrer").
+
+Do:
+1. Find the About page (web/app/about/) and add this as its own section, matching the existing design tokens, typography and spacing. Works in light and dark mode and on mobile (no horizontal scroll at 375px).
+2. Don't change anything else on the page or elsewhere in the site.
+3. Run: cd web && npm test && npm run build
+4. Commit ONLY web/app/about/ files and web/public/dv.jpg with: "About: who built this, solo by Divyanshu Verma (devs-dv)". Then git push origin main (no --force, no --rebase).
+5. Reply with the commit hash.
+
+Do not read or print any env file.
+</pasted_content id="3900">
