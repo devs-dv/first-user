@@ -24,6 +24,16 @@ export type SuggestedJourney = {
   claim_to_test: boolean;
 };
 
+// Written by the worker's code, not by a model: shown when a page held text hidden from people and addressed to
+// automated agents. The brief records where it was found, never the text.
+export const HIDDEN_TEXT_NOTICE =
+  "This page contains hidden text addressed to automated agents. It is not visible to people and was ignored.";
+
+export type HiddenTextNote = {
+  notice: string;
+  found: { url: string; where: string; method: string; blocks: number }[];
+};
+
 export type Brief = {
   version: number;
   url: string;
@@ -40,6 +50,7 @@ export type Brief = {
   pages: { url: string; kind: string; title: string; method: "http" | "browser"; status: number; bytes: number }[];
   skipped: { url: string; kind: string; reason: string }[];
   limits: { seconds: number; browser_reads: number; stopped: string | null };
+  hidden_text?: HiddenTextNote | null;
 };
 
 // A site that could not be read: the run is "failed" and the brief says why, in words for the visitor.

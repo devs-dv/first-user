@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import { hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
 import { founderBriefEnabled } from "@/lib/founder-flag";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 
 import { FounderView } from "./founder-view";
+import { HiddenTextNotice } from "./hidden-text-notice";
 import { SourceLink, displayUrl } from "./source-link";
 
 const POLL_MS = 2000;
@@ -158,6 +159,7 @@ function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
   return (
     <>
       <p className="text-xl leading-snug">{brief.one_liner}</p>
+      {hiddenTextNote(brief) && <HiddenTextNotice note={hiddenTextNote(brief)!} />}
       <Journeys id={id} siteUrl={brief.url} journeys={brief.suggested_journeys ?? []} />
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">What it is</h2>

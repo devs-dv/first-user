@@ -14,6 +14,9 @@ import {
   type FounderStatement,
 } from "@/lib/founder-types";
 
+import { hiddenTextNote } from "@/lib/brief-logic";
+
+import { HiddenTextNotice } from "./hidden-text-notice";
 import { SourceLink } from "./source-link";
 
 const POLL_MS = 2000;
@@ -170,8 +173,10 @@ function Report({ brief }: { brief: FounderBrief }) {
     ["competitive", "Competitive risks"],
     ["go_to_market", "Go-to-market risks"],
   ] as const;
+  const hidden = hiddenTextNote(brief);
   return (
     <>
+      {hidden && <HiddenTextNotice note={hidden} />}
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Executive summary</h2>
         <dl className="space-y-4">

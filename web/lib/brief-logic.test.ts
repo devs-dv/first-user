@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  hiddenTextNote,
   isBrief,
   isFailure,
   parseHomeParams,
@@ -9,7 +10,7 @@ import {
   sortClaims,
   testJourneyHref,
 } from "./brief-logic.ts";
-import type { BriefClaim } from "./brief-types.ts";
+import { HIDDEN_TEXT_NOTICE, type BriefClaim } from "./brief-types.ts";
 
 const BRIEF_ID = "0b2f6a5e-5c53-4d6e-9d0a-7c1d0f6a1e11";
 
@@ -75,4 +76,24 @@ test("a brief and a failure are told apart", () => {
   assert.equal(isBrief(null), false);
   assert.equal(isFailure({ status: "could_not_read", message: "m" }), true);
   assert.equal(isFailure({ one_liner: "x", claims: [] }), false);
+});
+
+test("a brief with hidden text found carries its record, and one without has none", () => {
+  const note = {
+    notice: HIDDEN_TEXT_NOTICE,
+    found: [{ url: "https://shop.example/review.html", where: "site_reader", method: "html_comment", blocks: 1 }],
+  };
+  assert.deepEqual(hiddenTextNote({ hidden_text: note }), note);
+  assert.equal(hiddenTextNote({ hidden_text: null }), null);
+  assert.equal(hiddenTextNote({}), null);
+  assert.equal(hiddenTextNote(null), null);
+  assert.equal(hiddenTextNote({ hidden_text: { notice: "x", found: [] } }), null);
+  assert.equal(hiddenTextNote({ hidden_text: { notice: "x" } }), null);
+});
+
+test("the notice wording is the worker's fixed sentence", () => {
+  assert.equal(
+    HIDDEN_TEXT_NOTICE,
+    "This page contains hidden text addressed to automated agents. It is not visible to people and was ignored.",
+  );
 });

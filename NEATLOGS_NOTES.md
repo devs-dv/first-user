@@ -133,3 +133,6 @@ feedback for the neatlogs team, and a nice specific example:
 - **Fix:** `evals/run.py` `main()` is an explicit `@neatlogs.span(kind="WORKFLOW", name="first-user-evals")`. With it the root exports with status OK, and all judge calls share one trace.
 - **General rule:** any script that makes traced or wrapped-client calls outside `first_visit` should open its own WORKFLOW root, or its auto-created root will read as an error.
 - **Local span log:** `NEATLOGS_LOG_SPANS` writes nothing when `mask` is set (see above), so this check ran without the mask.
+
+## 2026-10-12: Incidents flagged our output-less guard spans
+- neatlogs Incidents flagged our output-less guard spans ("Egress host check requests finish with empty replies", 61 records); fixed by recording each decision: one `egress_check` GUARDRAIL span per host per run, with output `{host, port, decision, reason}`.

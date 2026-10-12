@@ -92,9 +92,44 @@ def _sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
 
 
-def is_instruction_like(text: str) -> bool:
-    """Does this text read as an instruction to an AI, or describe one (see PATTERNS)?"""
+def fragments_of(items: list[dict]) -> list[str]:
+    """Normalised sentences of hidden-text items ({"text": ...}), for matching a model's wording against them.
+    Kept in memory only; never put in a result."""
+    out: list[str] = []
+    for item in items or []:
+        text = str(item.get("text") or "")
+        out += [n for n in (_norm(s) for s in _sentences(text)) if len(n) >= 25]
+        if len(_norm(text)) >= 25:
+            out.append(_norm(text))
+    return out
+
+
+def evidence_by_page(items_by_url: dict[str, list[dict]]) -> list[dict]:
+    """Evidence for pages read over HTTP: [{url, where, method, blocks}], no text and no step."""
+    out = []
+    for url, items in items_by_url.items():
+        counts: dict[str, int] = {}
+        for item in items:
+            counts[str(item.get("method") or "unknown")] = counts.get(str(item.get("method") or "unknown"), 0) + 1
+        out += [{"url": _clean_url(url), "where": "site_reader", "method": method, "blocks": n}
+                for method, n in counts.items()]
+    return out
+
+
+# For a product brief the filter is narrower than for a test report: a site about AI agents is entitled to say
+# that "AI agents must be approved", so only the patterns that are unmistakably an injection (or a model
+# describing one) are used: ignore-instructions, report-the-goal-achieved, say-there-are-no-problems,
+# system-message-for-AI, do-not-mention-this. Hidden text found on the page is matched separately.
+_BRIEF_PATTERNS = {0, 1, 2, 5, 6}
+
+
+def is_instruction_like(text: str, level: str = "report") -> bool:
+    """Does this text read as an instruction to an AI, or describe one (see PATTERNS)?
+
+    level "brief" uses only the narrow set (_BRIEF_PATTERNS) for text written about a product."""
     for index, pattern in enumerate(_COMPILED):
+        if level == "brief" and index not in _BRIEF_PATTERNS:
+            continue
         match = pattern.search(text)
         # An honest "could not report the goal as achieved" is not an instruction: look just before the match too.
         if match and not (index == _ACHIEVED_PATTERN
@@ -110,7 +145,7 @@ def _repeats_hidden_text(sentence: str, fragments: list[str]) -> bool:
     return any(fragment in cleaned or cleaned in fragment for fragment in fragments)
 
 
-def strip_sentences(text: str, fragments: list[str] | None = None) -> str:
+def strip_sentences(text: str, fragments: list[str] | None = None, level: str = "report") -> str:
     """The text without any sentence that repeats instruction-like wording or hidden text found on the page.
 
     Line breaks are kept. Our own NOTICE is never removed.
@@ -128,7 +163,7 @@ def strip_sentences(text: str, fragments: list[str] | None = None) -> str:
             continue
         sentences = _sentences(line)
         kept = [s for s in sentences
-                if _norm(s) == notice or not (is_instruction_like(s) or _repeats_hidden_text(s, fragments))]
+                if _norm(s) == notice or not (is_instruction_like(s, level) or _repeats_hidden_text(s, fragments))]
         if state is not None:
             state.removed += len(sentences) - len(kept)
         if kept or not line.strip():
@@ -137,21 +172,27 @@ def strip_sentences(text: str, fragments: list[str] | None = None) -> str:
     return "\n".join(lines)
 
 
-def sanitize(value, _skip: frozenset | set = frozenset()):
+def sanitize(value, _skip: frozenset | set = frozenset(), fragments: list[str] | None = None,
+             level: str = "report", removed: str = REMOVED):
     """strip_sentences over every string of a nested dict / list. A string that loses everything becomes REMOVED,
-    a list item that loses everything is dropped. Machine fields (urls, usage ...) are left alone."""
+    a list item that loses everything is dropped. Machine fields (urls, usage ...) are left alone.
+
+    `fragments` are hidden-text sentences to match against (default: this visit's); `level` "brief" is the
+    narrow filter for product briefs (see is_instruction_like). `removed` is what a string that loses everything
+    becomes: REMOVED for a report, "" for a brief, where an empty field is dropped by the checks that follow."""
     if isinstance(value, str):
         if not value.strip():
             return value
-        cleaned = strip_sentences(value)
-        return cleaned if cleaned.strip() else REMOVED
+        cleaned = strip_sentences(value, fragments, level)
+        return cleaned if cleaned.strip() else removed
     if isinstance(value, dict):
-        return {key: item if key in _SKIP_KEYS or key in _skip else sanitize(item) for key, item in value.items()}
+        return {key: item if key in _SKIP_KEYS or key in _skip else sanitize(item, _skip, fragments, level, removed)
+                for key, item in value.items()}
     if isinstance(value, list):
         out = []
         for item in value:
-            cleaned = sanitize(item)
-            if isinstance(item, str) and cleaned == REMOVED:
+            cleaned = sanitize(item, _skip, fragments, level, removed)
+            if isinstance(item, str) and item.strip() and cleaned == removed:
                 continue
             out.append(cleaned)
         return out
@@ -238,6 +279,17 @@ _SWEEP_JS = r"""(() => {
   }
   return JSON.stringify(found);
 })()"""
+
+
+async def sweep_items(page) -> list[dict]:
+    """Empty hidden instruction text in an open page and return what was found, [{method, text}]. Needs no
+    visit state (the browser reader of Understand mode uses it). Never raises."""
+    try:
+        raw = await page.evaluate(_SWEEP_JS % json.dumps(PATTERNS))
+        items = json.loads(raw) if isinstance(raw, str) else []
+    except Exception:
+        return []
+    return [item for item in items if isinstance(item, dict)]
 
 
 async def sweep(page, step: int | None = None, where: str = "look") -> int:
