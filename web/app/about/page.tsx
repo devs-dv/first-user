@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 import { grid } from "@/lib/css";
 import { BUILT_WITH, EXAMPLE_REPORT_HREF, SOCIAL } from "@/lib/site";
+
+import dvPhoto from "@/public/dv.png";
 
 import { pageMeta } from "../meta";
 
@@ -97,6 +100,51 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
+
+      <section
+        data-reveal=""
+        data-self="0"
+        aria-labelledby="who-built-this"
+        className="flex flex-col gap-5"
+        style={{ marginTop: "clamp(64px,8cqi,96px)" }}
+      >
+        <h2 id="who-built-this" data-stagger="" className="fu-eyebrow m-0">
+          Who built this
+        </h2>
+        <div
+          data-stagger=""
+          className="flex flex-wrap items-center gap-x-8 gap-y-6 rounded-panel border-[1.5px] border-ink bg-s1"
+          style={{ padding: "clamp(20px,3cqi,32px)" }}
+        >
+          <Image
+            src={dvPhoto}
+            alt="Divyanshu Verma (DV)"
+            width={140}
+            height={140}
+            sizes="140px"
+            className="size-[140px] flex-none rounded-cardsm border-[1.5px] border-ink object-cover"
+          />
+          <div className="flex min-w-[min(100%,260px)] flex-1 flex-col gap-4">
+            <dl className="m-0 flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <dt className="w-24 flex-none font-code text-[12px] font-medium uppercase tracking-[.08em] text-ink3">Team</dt>
+                <dd className="m-0 text-[clamp(16px,1.8cqi,20px)] font-medium">devs-dv (solo)</dd>
+              </div>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <dt className="w-24 flex-none font-code text-[12px] font-medium uppercase tracking-[.08em] text-ink3">Developer</dt>
+                <dd className="m-0 text-[clamp(16px,1.8cqi,20px)] font-medium">Divyanshu Verma · DV</dd>
+              </div>
+            </dl>
+            <p className="m-0 max-w-[36em] text-[17px] leading-[1.55] text-ink2 fu-pretty">
+              Follow the whole story{" "}
+              <a href="https://x.com/devsdv_" target="_blank" rel="noopener noreferrer" className="fu-link font-semibold">
+                on X
+              </a>
+              : how I built First User, what broke, and how I fixed it.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <div data-reveal="" data-self="0" className="fu-grid" style={grid("300px", "14px", { marginTop: "clamp(64px,8cqi,96px)" })}>
         <Link
