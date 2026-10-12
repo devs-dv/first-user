@@ -1,0 +1,85 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QHGC96FP33GY1GAZ085RSG",
+  "session_id": "7d6e7324-90c1-4457-8ed5-13927bd741fc",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T07:51:22.8948453Z",
+  "branch": "understand",
+  "checkpoints_count": 2,
+  "save_step_count": 3,
+  "files_touched": [
+    "demo-shop/README.md",
+    "demo-shop/cart.html",
+    "demo-shop/checkout.html",
+    "demo-shop/index.html",
+    "demo-shop/leaf.svg",
+    "demo-shop/monstera.html",
+    "demo-shop/pothos.html",
+    "demo-shop/products.html",
+    "demo-shop/review.html",
+    "demo-shop/shop.js",
+    "demo-shop/snake-plant.html",
+    "demo-shop/style.css",
+    "evals/cases.py",
+    "evals/demo_shop_local.py",
+    "evals/injection.py",
+    "evals/results/demo_shop_local_20261012-070418.json",
+    "evals/results/demo_shop_local_20261012-072900.json",
+    "evals/results/demo_shop_verifier_20261012-070655.json",
+    "evals/results/fernleaf_review_bug_off.png",
+    "evals/results/fernleaf_review_bug_on.png",
+    "evals/run.py",
+    "evals/sites.json",
+    "hackathon.md",
+    "worker/browse.py",
+    "worker/first_impression.py",
+    "worker/hidden_text.py",
+    "worker/test_demo_shop.py",
+    "worker/test_hidden_text.py",
+    "worker/tools.py",
+    "worker/verifier.py",
+    "worker/visit.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5-5",
+  "turn_id": "ebf0aba3e81a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 500,
+    "cache_creation_tokens": 629479,
+    "cache_read_tokens": 61671040,
+    "output_tokens": 334849,
+    "api_call_count": 244
+  },
+  "session_metrics": {
+    "turn_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T07:51:22.6822778Z",
+    "agent_lines": 650,
+    "agent_removed": 13,
+    "human_added": 39,
+    "human_modified": 3754,
+    "human_removed": 0,
+    "total_committed": 4443,
+    "total_lines_changed": 4456,
+    "agent_percentage": 14.878815080789945,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 2518,
+      "agent_lines_removed": 664
+    }
+  ]
+}

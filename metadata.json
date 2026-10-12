@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QHGC96FP33GY1GAZ085RSG",
+  "strategy": "manual-commit",
+  "branch": "understand",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "demo-shop/README.md",
+    "demo-shop/cart.html",
+    "demo-shop/checkout.html",
+    "demo-shop/index.html",
+    "demo-shop/leaf.svg",
+    "demo-shop/monstera.html",
+    "demo-shop/pothos.html",
+    "demo-shop/products.html",
+    "demo-shop/review.html",
+    "demo-shop/shop.js",
+    "demo-shop/snake-plant.html",
+    "demo-shop/style.css",
+    "evals/cases.py",
+    "evals/demo_shop_local.py",
+    "evals/injection.py",
+    "evals/results/demo_shop_local_20261012-070418.json",
+    "evals/results/demo_shop_local_20261012-072900.json",
+    "evals/results/demo_shop_verifier_20261012-070655.json",
+    "evals/results/fernleaf_review_bug_off.png",
+    "evals/results/fernleaf_review_bug_on.png",
+    "evals/run.py",
+    "evals/sites.json",
+    "hackathon.md",
+    "worker/browse.py",
+    "worker/first_impression.py",
+    "worker/hidden_text.py",
+    "worker/test_demo_shop.py",
+    "worker/test_hidden_text.py",
+    "worker/tools.py",
+    "worker/verifier.py",
+    "worker/visit.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 500,
+    "cache_creation_tokens": 629479,
+    "cache_read_tokens": 61671040,
+    "output_tokens": 334849,
+    "api_call_count": 244
+  }
+}
