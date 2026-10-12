@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Snake plant | Fernleaf (demo shop)</title>
+  <meta name="description" content="Fernleaf is a fictional demo shop made for testing First User. Nothing here is real.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="demo-banner">Fernleaf is a fictional demo shop made for testing First User. Nothing here is real: no payments, no personal data collected.</div>
+  <header class="site">
+    <a class="brand" href="index.html">Fernleaf<small>A demo shop for testing First User</small></a>
+    <nav class="main" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html">Plants</a>
+      <a href="cart.html">Cart (<span data-cart-count>0</span>)</a>
+    </nav>
+  </header>
+  <main>
+    <p><a href="products.html">&larr; All plants</a></p>
+    <div class="product">
+      <div class="thumb t-snake"><img src="leaf.svg" alt="Snake plant"></div>
+      <div>
+        <h1>Snake plant</h1>
+        <p class="price">$18.00</p>
+        <p>Tall, upright leaves with a pale green edge. Tolerates low light and months of neglect. Water sparingly.</p>
+        <p><button type="button" class="button" data-add-to-cart="snake-plant" aria-pressed="false">Add to cart</button></p>
+        <p class="muted">Pretend item. Nothing ships.</p>
+      </div>
+    </div>
+  </main>
+  <footer class="site">
+    Fernleaf is not a real business. Made for testing First User; nothing you do here is stored or sent anywhere.
+  </footer>
+  <script src="shop.js"></script>
+</body>
+</html>

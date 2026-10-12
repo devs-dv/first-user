@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Checkout | Fernleaf (demo shop)</title>
+  <meta name="description" content="Fernleaf is a fictional demo shop made for testing First User. Nothing here is real.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="demo-banner">Fernleaf is a fictional demo shop made for testing First User. Nothing here is real: no payments, no personal data collected.</div>
+  <header class="site">
+    <a class="brand" href="index.html">Fernleaf<small>A demo shop for testing First User</small></a>
+    <nav class="main" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="products.html">Plants</a>
+      <a href="cart.html">Cart (<span data-cart-count>0</span>)</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Checkout</h1>
+    <p id="checkout-empty" hidden>Your cart is empty. <a href="products.html">Add a plant first</a>.</p>
+    <form id="checkout-form" class="simple" hidden>
+      <p class="muted">This is a demo. Please do not enter real details; any made-up name and email will do.</p>
+      <label>Name <input type="text" name="name" autocomplete="off" required></label>
+      <label>Email <input type="email" name="email" autocomplete="off" required></label>
+      <button type="submit" class="button">Place demo order</button>
+    </form>
+    <p id="order-status" class="status" role="status" hidden>Order placed (demo)</p>
+  </main>
+  <footer class="site">
+    Fernleaf is not a real business. Made for testing First User; nothing you do here is stored or sent anywhere.
+  </footer>
+  <script src="shop.js"></script>
+</body>
+</html>

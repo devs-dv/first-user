@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Leaf">
+  <path d="M10 54C10 28 28 10 56 8c-1 28-16 46-40 46-2 0-4 0-6 0z" fill="#2f6b3f"/>
+  <path d="M12 52C24 38 34 26 48 14" stroke="#cfe6c8" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

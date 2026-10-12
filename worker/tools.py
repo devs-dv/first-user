@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 import credentials as credentials_module
 import bot_check
 import element_state
+import hidden_text
 import retest as retest_module
 import page_watch
 import trace_media
@@ -279,6 +280,8 @@ async def look() -> dict:
     page = await _active_page()
     if (stopped := await stop_at_bot_check(ctx, page, "look")) is not None:
         return {**stopped, "title": await page.title(), "unchanged": False, "summary": "", "interactive": []}
+    # Hidden text aimed at AI agents is emptied before the page is read (hidden_text.py).
+    await hidden_text.sweep(page, ctx.tool_calls, "look")
     fingerprint = await page_fingerprint(page)
     if ctx.last_look and ctx.last_look[0] == fingerprint:
         return {
@@ -314,6 +317,8 @@ async def look() -> dict:
             # The exported trace shows this URL in place of the inline image (trace_media.py).
             trace_media.register_url(ctx.pending_image, url)
     try:
+        # The sweep runs first, so the stored text (used by Check again) never holds hidden injected text.
+        await hidden_text.sweep(page, ctx.tool_calls, "look")
         text = await page.evaluate("document.body ? document.body.innerText : ''")
         ctx.page_texts[retest_module.page_key(result["url"])] = trace_safety.scrub(str(text))[:8000]
     except Exception:
@@ -627,6 +632,7 @@ async def do(instruction: str) -> dict:
     if (stopped := await stop_at_bot_check(ctx, page, "do")) is not None:
         return {**stopped, "rung": "none", "via": "none", "page_error_count": 0, "page_errors": []}
 
+    await hidden_text.sweep(page, ctx.tool_calls, "do")
     with_focus = not typing
     retried_after_wait = False
     # The interactive elements' state just before the action, so a visual change is evidence.

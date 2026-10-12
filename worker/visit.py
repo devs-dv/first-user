@@ -4,6 +4,7 @@ import os
 
 import neatlogs
 
+import hidden_text
 import page_watch
 import trace_safety
 from browse import run_persona
@@ -47,6 +48,7 @@ async def first_visit(
     # Where this trace came from, so real runs, eval runs and hand-run scripts can be told apart in neatlogs.
     trace_safety.set_metadata(environment=environment or os.environ.get("FIRST_USER_ENVIRONMENT") or "production")
     trace_id = current_trace_id()
+    hidden_text.reset()  # hidden instructions found in this visit (and none from an earlier one)
     ctx = None
     browser, stagehand, page, guard = await open_browser()
     try:
@@ -85,6 +87,8 @@ async def first_visit(
             print(f"[retest] the comparison could not be made: {type(error).__name__}", flush=True)
             result = {**result, "retest": {"error": f"{type(error).__name__}", "labels": [], "new": [],
                                            "original_run_id": retest.get("run_id")}}
+        # Retest labels and summaries are cleaned too, and the hidden-text evidence includes the guided replays.
+        result = hidden_text.refresh(result)
     return result
 
 

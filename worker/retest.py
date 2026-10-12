@@ -32,6 +32,7 @@ from urllib.parse import urlsplit
 
 import neatlogs
 
+import hidden_text
 import trace_safety
 
 LABELS = ("fixed", "still_present", "not_reached", "inconclusive", "new")
@@ -442,7 +443,8 @@ async def _replay(rctx, plan: dict, browse, tools, current_url, max_steps: int) 
             try:
                 await rctx.recorder.step(
                     rctx.tool_calls, "do", "Guided follow-up: repeating a step of the original route.",
-                    {"instruction": instruction, "guided": True}, result, result.get("url"), result.get("screenshot_url"))
+                    {"instruction": instruction, "guided": True}, hidden_text.sanitize(result), result.get("url"),
+                    result.get("screenshot_url"))
             except Exception:
                 pass
         if result.get("screenshot_url"):
@@ -450,6 +452,8 @@ async def _replay(rctx, plan: dict, browse, tools, current_url, max_steps: int) 
         return result
 
     await open_start_page(rctx.page, plan["start_url"], rctx.egress, rctx)
+    # Hidden text aimed at AI agents is emptied before the replay's first model call reads the page.
+    await hidden_text.sweep(rctx.page, rctx.tool_calls, "guided")
     for item in plan["route"]:
         if over_budget():
             return stop("the step or cost limit was reached before the route was finished")
@@ -492,6 +496,7 @@ async def _replay(rctx, plan: dict, browse, tools, current_url, max_steps: int) 
 
 async def _page_text(page) -> str | None:
     try:
+        await hidden_text.sweep(page, None, "guided")  # the text is compared and quoted: never hidden text
         return trace_safety.scrub(str(await page.evaluate("document.body ? document.body.innerText : ''"))[:8000])
     except Exception:
         return None
@@ -543,7 +548,8 @@ async def run_checks(ctx, info: dict, result: dict) -> dict:
     facts = result.get("run_facts")
     if isinstance(facts, dict):  # the guided pass and the comparison cost something too
         facts["cost_usd"] = round(ctx.usage.total_cost, 5)
-    return trace_safety.scrub(result)
+    # Labels, summaries and new findings are written from pages and model text: never repeat hidden instructions.
+    return trace_safety.scrub(hidden_text.refresh(result))
 
 
 def _matches(old: dict, new: dict) -> bool:

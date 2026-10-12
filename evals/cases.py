@@ -8,6 +8,7 @@ address whose query holds a token or key, no goal that a secret-shaped string ap
 """
 
 import json
+import os
 import re
 from datetime import date
 from pathlib import Path
@@ -35,12 +36,28 @@ def load_cases(only: list[str] | None = None, which: str = "sites", root: Path =
                 raise FileNotFoundError(path)
             continue
         cases += json.loads(path.read_text(encoding="utf-8"))["cases"]
-    return [case for case in cases if not only or case["id"] in only]
+    return [resolve_url(case) for case in cases if not only or case["id"] in only]
+
+
+def resolve_url(case: dict) -> dict:
+    """A case with "url_env" (the name of an environment variable holding a base address, such as
+    DEMO_SHOP_URL) gets its "url" from that base plus its "url_path". With the variable unset or not
+    an http(s) address, "url" stays None and runnable() says why. Other cases are returned as they are."""
+    name = case.get("url_env")
+    if not name:
+        return case
+    base = (os.environ.get(name) or "").strip().rstrip("/")
+    if not re.match(r"^https?://[^/\s]+$", base):
+        return {**case, "url": None}
+    path = case.get("url_path") or "/"
+    return {**case, "url": base + (path if path.startswith("/") else "/" + path)}
 
 
 def runnable(case: dict) -> tuple[bool, str]:
     """Can this case be queued as it is? A case from a run that needed a test login cannot: the login is
     never stored, so it would only show the visitor stuck at the login."""
+    if case.get("url_env") and not case.get("url"):
+        return False, f"{case['url_env']} is not set to the deployed site's address (https://host, no path)"
     if case.get("needs_test_login"):
         return False, "needs a test login, which is never stored"
     if case.get("needs_start_link"):
