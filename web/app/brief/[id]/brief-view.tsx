@@ -3,7 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { briefProgress, briefShareText, hiddenTextNote, isBrief, isFailure, safeHref, sortClaims, testJourneyHref } from "@/lib/brief-logic";
+import {
+  briefProgress,
+  briefShareText,
+  hiddenTextNote,
+  isBrief,
+  isFailure,
+  notFoundLabel,
+  safeHref,
+  sortClaims,
+  testJourneyHref,
+} from "@/lib/brief-logic";
 import type { Brief, BriefClaim, BriefRun, ClaimStatus, SuggestedJourney } from "@/lib/brief-types";
 import { grid } from "@/lib/css";
 import { founderBriefEnabled } from "@/lib/founder-flag";
@@ -232,7 +242,7 @@ function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
               <div key={label} className="flex flex-col gap-1 border-b border-line py-3">
                 <dt className="font-code text-[12px] font-medium uppercase tracking-[.04em] text-ink3">{label}</dt>
                 <dd className={`m-0 text-[16px] leading-normal ${unknown ? "text-ink3" : ""}`}>
-                  {unknown ? "Unknown: the site doesn't say." : value}
+                  {unknown ? `Unknown: ${notFoundLabel(brief.pages.length).toLowerCase()}.` : value}
                 </dd>
               </div>
             );
@@ -241,7 +251,7 @@ function ProductBrief({ id, brief }: { id: string; brief: Brief }) {
       </section>
 
       <section aria-label="Pricing and business model" className="fu-grid" style={grid("300px")}>
-        <Pricing pricing={brief.pricing} />
+        <Pricing pricing={brief.pricing} pagesRead={brief.pages.length} />
         <BusinessModel model={brief.business_model} />
       </section>
 
@@ -352,7 +362,7 @@ function Journey({ index, id, siteUrl, journey, tested }: {
   );
 }
 
-function Pricing({ pricing }: { pricing: Brief["pricing"] }) {
+function Pricing({ pricing, pagesRead }: { pricing: Brief["pricing"]; pagesRead: number }) {
   const published = pricing.status === "published" && pricing.tiers.length > 0;
   const firstSource = pricing.source_urls?.[0] ?? pricing.tiers[0]?.source_url;
   return (
@@ -362,7 +372,7 @@ function Pricing({ pricing }: { pricing: Brief["pricing"] }) {
         {published && firstSource ? (
           <SourceLink url={firstSource} />
         ) : (
-          <span className="fu-chip fu-chip-tag bg-s2 text-ink3">{pricing.status === "unclear" ? "Unclear" : "Not published"}</span>
+          <span className="fu-chip fu-chip-tag bg-s2 text-ink3">{pricing.status === "unclear" ? "Unclear" : "Not found"}</span>
         )}
       </div>
       {published ? (
@@ -382,7 +392,7 @@ function Pricing({ pricing }: { pricing: Brief["pricing"] }) {
         </ul>
       ) : (
         <p className="m-0 text-[15px] leading-normal text-ink2">
-          {pricing.status === "unclear" ? "The pages we read don't make the prices clear." : "Not published on the pages we read."}
+          {pricing.status === "unclear" ? "The pages we read don't make the prices clear." : `${notFoundLabel(pagesRead)}.`}
         </p>
       )}
       {pricing.note && <p className="m-0 text-[13px] leading-normal text-ink3">{pricing.note}</p>}

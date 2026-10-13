@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
-import { hiddenTextNote } from "@/lib/brief-logic";
+import { hiddenTextNote, notFoundLabel } from "@/lib/brief-logic";
 import { grid } from "@/lib/css";
 import {
   ASSESSMENT_LABEL,
@@ -251,7 +251,7 @@ function Report({ brief }: { brief: FounderBrief }) {
             </ul>
           ) : (
             <p className="m-0 text-[15px] text-ink3">
-              {product.pricing.status === "not_published" ? "Not published." : "Unclear."} {product.pricing.note}
+              {product.pricing.status === "not_published" ? `${notFoundLabel(brief.pages_read.length)}.` : "Unclear."} {product.pricing.note}
             </p>
           )}
         </div>

@@ -48,6 +48,13 @@ export function briefProgress(run: Pick<BriefRun, "status" | "brief">): { phase:
   return { phase: progress?.status === "writing" ? "writing" : "reading", pagesRead };
 }
 
+// What the brief says when something was not on the pages it read. Understand reads only a few pages, so it can
+// say it did not find a thing there, never that the site does not have it. The count is left out when unknown.
+export function notFoundLabel(pagesRead: number | null | undefined): string {
+  if (typeof pagesRead !== "number" || !Number.isInteger(pagesRead) || pagesRead < 1) return "Not found on the pages read";
+  return `Not found in the ${pagesRead} page${pagesRead === 1 ? "" : "s"} read`;
+}
+
 // Only http(s) addresses become links: a page's own text never gets to write a javascript: link.
 export function safeHref(url: string | null | undefined): string | null {
   if (!url) return null;

@@ -7,6 +7,7 @@ import {
   hiddenTextNote,
   isBrief,
   isFailure,
+  notFoundLabel,
   parseHomeParams,
   safeHref,
   sortClaims,
@@ -126,4 +127,11 @@ test("an odd progress value is read as plain reading, never as a count", () => {
   assert.deepEqual(odd({ status: "reading", pages_read: 2.5 }), { phase: "reading", pagesRead: null });
   assert.deepEqual(odd({ status: "reading", pages_read: "4" }), { phase: "reading", pagesRead: null });
   assert.deepEqual(odd({ status: "something", pages_read: 4 }), { phase: "reading", pagesRead: null });
+});
+
+test("something not on the pages read is 'not found' in that many pages, never 'not published'", () => {
+  assert.equal(notFoundLabel(2), "Not found in the 2 pages read");
+  assert.equal(notFoundLabel(1), "Not found in the 1 page read");
+  for (const unknown of [null, undefined, 0, -1, 2.5, Number.NaN]) assert.equal(notFoundLabel(unknown), "Not found on the pages read");
+  assert.doesNotMatch(notFoundLabel(9), /published/i);
 });
